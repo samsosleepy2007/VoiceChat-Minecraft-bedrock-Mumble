@@ -2,6 +2,8 @@ name: Android Embedded Mumble Core (experimental)
 
 on:
   workflow_dispatch:
+  push:
+    branches: ['test/vc-mumble-github-import']
 
 permissions:
   contents: read
@@ -13,6 +15,8 @@ env:
 
 jobs:
   build-core-apk:
+    # Explicit checkpoints only; ordinary commits keep running the smoke build.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[core-build]')
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
