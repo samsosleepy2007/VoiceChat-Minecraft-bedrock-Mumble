@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BUILD_ROOT="${VC_BUILD_DIR:-${ROOT_DIR}/.build}"
+SOURCE_DIR="${BUILD_ROOT}/mumble-1.5.915"
+NATIVE_BUILD_DIR="${BUILD_ROOT}/mumble-android-arm64"
+EXTRA_STAGE_DIR="${BUILD_ROOT}/android-stage/extra-libs/arm64-v8a"
+AAR_STAGE_DIR="${BUILD_ROOT}/android-stage"
+AAR_OUT="${AAR_STAGE_DIR}/vc-mumble-runtime.aar"
+
+: "${ANDROID_NDK_HOME:?ANDROID_NDK_HOME is required}"
+: "${QT_ANDROID_PREFIX:?QT_ANDROID_PREFIX is required (Qt 6 Android arm64 prefix)}"
+: "${QT_HOST_PATH:?QT_HOST_PATH is required (matching desktop Qt host tools)}"
+: "${VC_ANDROID_DEP_PREFIX:?VC_ANDROID_DEP_PREFIX is required (Android native dependency prefix)}"
+: "${PROTOC:?PROTOC is required (host-runnable protoc path)}"
+
+if [[ ! -x "${PROTOC}" ]]; then
+  echo "ERROR: PROTOC is not executable: ${PROTOC}" >&2
+  exit 2
+fi
+
+NDK_TOOLCHAIN="${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake"
+if [[ ! -f "${NDK_TOOLCHAIN}" ]]; then
+  echo "ERROR: Android NDK toolchain not found: ${NDK_TOOLCHAIN}" >&2
+  exit 2
+fi
+
+"${ROOT_DIR}/scripts/fetch-mumble.sh"
+rm -rf "${NATIVE_BUILD_DIR}" "${EXTRA_STAGE_DIR}" "${AAR_OUT}"
+mkdir -p "${NATIVE_BUILD_DIR}" "${EXTRA_STAGE_DIR}" "${AAR_STAGE_DIR}"
+
+CMAKE_PREFIX_PATH_VALUE="${QT_ANDROID_PREFIX};${VC_ANDROID_DEP_PREFIX}"
+
+configure_mumble() {
+  local extra_libs="${1:-}"
+  cmake \
+    -S "${SOURCE_DIR}" \
+    -B "${NATIVE_BUILD_DIR}" \
+    -G Ninja \
+    -DCMAKE_TOOLCHAIN_FILE="${NDK_TOOLCHAIN}" \
+    -DANDROID_ABI=arm64-v8a \
+    -DANDROID_PLATFORM=android-26 \
+    -DANDROID_STL=c++_shared \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH_VALUE}" \
+    -DQT_HOST_PATH="${QT_HOST_PATH}" \
+    -DProtobuf_PROTOC_EXECUTABLE="${PROTOC}" \
+    -DVC_ANDROID_EXTRA_LIBS="${extra_libs}" \
+    -DBUILD_NUMBER=915 \
+    -Dclient=OFF \
+    -Dserver=ON \
+    -Dplugins=OFF \
+    -Dtests=OFF \
+    -Dbenchmarks=OFF \
+    -Doverlay=OFF \
+    -Dzeroconf=OFF \
+    -Dice=OFF \
+    -Ddbus=OFF \
+    -Denable-mysql=OFF \
+    -Denable-postgresql=OFF \
+    -Denable-sqlite=ON \
+    -Dpackaging=OFF \
+    -Dstatic=OFF \
+    -Dlto=OFF \
+    -Dwarnings-as-errors=OFF \
+    -Dqssldiffiehellmanparameters=OFF
+}
+
+configure_mumble ""
+cmake --build "${NATIVE_BUILD_DIR}" --target mumble-server --parallel "${VC_BUILD_JOBS:-2}"
+
+CORE_SO="$(find "${NATIVE_BUILD_DIR}" -type f -name 'libvcserver.so' -print -quit)"
+if [[ -z "${CORE_SO}" ]]; then
+  echo "ERROR: libvcserver.so was not produced" >&2
+  exit 3
+fi
+
+LLVM_READELF="$(find "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt" -type f -name llvm-readelf -perm -111 -print -quit)"
+if [[ -z "${LLVM_READELF}" ]]; then
+  echo "ERROR: llvm-readelf not found in Android NDK" >&2
+  exit 4
+fi
+
+is_android_system_or_qt_lib() {
+  case "$1" in
+    libc.so|libm.so|libdl.so|liblog.so|libandroid.so|libz.so|libEGL.so|libGLESv2.so|libGLESv3.so|libOpenSLES.so|libjnigraphics.so|libmediandk.so|libvulkan.so|libaaudio.so|libcamera2ndk.so|libQt6*.so|libplugins_*.so)
+      return 0 ;;
+    *)
+      return 1 ;;
+  esac
+}
+
+find_external_candidate() {
+  local needed="$1"
+  local candidate=""
+
+  candidate="$(find -L "${VC_ANDROID_DEP_PREFIX}" -type f -name "${needed}" -print -quit 2>/dev/null || true)"
+  if [[ -z "${candidate}" && "${needed}" == "libc++_shared.so" ]]; then
+    candidate="$(find "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt" -type f -path '*/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so' -print -quit)"
+  fi
+  printf '%s' "${candidate}"
+}
+
+stage_external_lib() {
+  local source="$1"
+  cp -Lf "${source}" "${EXTRA_STAGE_DIR}/$(basename "${source}")"
+}
+
+# Resolve only non-Qt DT_NEEDED libraries. Qt libraries/plugins are deliberately
+# left to androiddeployqt when the AAR target runs.
+scan_queue=("${CORE_SO}")
+scan_index=0
+while (( scan_index < ${#scan_queue[@]} )); do
+  current="${scan_queue[scan_index]}"
+  ((scan_index+=1))
+  while IFS= read -r needed; do
+    [[ -n "${needed}" ]] || continue
+    is_android_system_or_qt_lib "${needed}" && continue
+    if [[ -f "${EXTRA_STAGE_DIR}/${needed}" ]]; then
+      continue
+    fi
+    candidate="$(find_external_candidate "${needed}")"
+    if [[ -z "${candidate}" ]]; then
+      echo "ERROR: unresolved external Android dependency: $(basename "${current}") -> ${needed}" >&2
+      exit 5
+    fi
+    stage_external_lib "${candidate}"
+    scan_queue+=("${EXTRA_STAGE_DIR}/${needed}")
+  done < <("${LLVM_READELF}" -d "${current}" | sed -n 's/.*Shared library: \[\(.*\)\].*/\1/p')
+done
+
+EXTRA_LIBS_CMAKE=""
+while IFS= read -r lib; do
+  if [[ -n "${EXTRA_LIBS_CMAKE}" ]]; then
+    EXTRA_LIBS_CMAKE+=";"
+  fi
+  EXTRA_LIBS_CMAKE+="${lib}"
+done < <(find "${EXTRA_STAGE_DIR}" -maxdepth 1 -type f -name '*.so*' -print | sort)
+
+# Feed resolved non-Qt libraries back to Qt's deployment metadata, then let the
+# official Qt AAR target package Qt runtime/plugins + Mumble + those libraries.
+configure_mumble "${EXTRA_LIBS_CMAKE}"
+cmake --build "${NATIVE_BUILD_DIR}" --target mumble-server_make_aar --parallel "${VC_BUILD_JOBS:-2}"
+
+GENERATED_AAR="$(find "${NATIVE_BUILD_DIR}" -type f -name '*.aar' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+if [[ -z "${GENERATED_AAR}" || ! -f "${GENERATED_AAR}" ]]; then
+  echo "ERROR: Qt AAR target completed but no .aar was found" >&2
+  exit 6
+fi
+cp -f "${GENERATED_AAR}" "${AAR_OUT}"
+
+# Fail in CI now rather than later on a phone if core/runtime packaging is incomplete.
+unzip -l "${AAR_OUT}" > "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"
+if ! grep -q 'libvcserver' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
+  echo "ERROR: AAR does not contain libvcserver" >&2
+  exit 7
+fi
+if ! grep -q 'Qt6Core' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
+  echo "ERROR: AAR does not contain Qt Core runtime" >&2
+  exit 7
+fi
+if ! grep -q 'Qt6Network' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
+  echo "ERROR: AAR does not contain Qt Network runtime" >&2
+  exit 7
+fi
+if ! grep -q 'Qt6Sql' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
+  echo "ERROR: AAR does not contain Qt SQL runtime" >&2
+  exit 7
+fi
+if ! grep -Eqi 'qsqlite|sqldrivers.*sqlite' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
+  echo "ERROR: AAR does not contain Qt SQLite driver" >&2
+  exit 7
+fi
+
+CLASSES_JAR="$(mktemp)"
+trap 'rm -f "${CLASSES_JAR}"' EXIT
+unzip -p "${AAR_OUT}" classes.jar > "${CLASSES_JAR}"
+if ! jar tf "${CLASSES_JAR}" | grep -q 'org/qtproject/qt/android/bindings/QtService.class'; then
+  echo "ERROR: AAR classes.jar does not contain QtService" >&2
+  exit 8
+fi
+
+echo "Native dependencies of libvcserver.so:"
+"${LLVM_READELF}" -d "${CORE_SO}" | grep NEEDED || true
+
+echo
+echo "External libraries handed to androiddeployqt:"
+find "${EXTRA_STAGE_DIR}" -maxdepth 1 -type f -printf '  %f\n' | sort || true
+
+echo
+echo "VC Mumble Qt runtime AAR:"
+echo "  ${AAR_OUT}"
+echo "AAR inventory:"
+echo "  ${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"
+echo
+echo "Build the APK with:"
+echo "  gradle -PvcMumbleCore=true :app:assembleDebug"
