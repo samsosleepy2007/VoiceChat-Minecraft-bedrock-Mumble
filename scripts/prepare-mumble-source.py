@@ -244,9 +244,9 @@ def prepare(source: pathlib.Path, adapter: pathlib.Path, jni: pathlib.Path,
     if PATCH_MARKER not in cmake_text:
         conditional_target = re.compile(
             r"if\(WIN32\)\s*\n"
-            r"(?P<windent>[ \t]*)add_executable\(mumble-server\s+WIN32\s+\"main\.cpp\"\)\s*\n"
+            r"(?P<windent>[ \t]*)add_executable\(mumble-server\s+WIN32\s+(?P<sources>\$\{MURMUR_SOURCES\}|\"main\.cpp\")\)\s*\n"
             r"else\(\)\s*\n"
-            r"(?P<uindent>[ \t]*)add_executable\(mumble-server\s+\"main\.cpp\"\)\s*\n"
+            r"(?P<uindent>[ \t]*)add_executable\(mumble-server\s+(?P=sources)\)\s*\n"
             r"endif\(\)",
             re.MULTILINE,
         )
@@ -254,11 +254,11 @@ def prepare(source: pathlib.Path, adapter: pathlib.Path, jni: pathlib.Path,
         if match:
             replacement = (
                 'if(ANDROID)\n'
-                '\tqt_add_executable(mumble-server MANUAL_FINALIZATION "main.cpp")\n'
+                f'\tqt_add_executable(mumble-server MANUAL_FINALIZATION {match.group("sources")})\n'
                 'elseif(WIN32)\n'
-                f'{match.group("windent")}add_executable(mumble-server WIN32 "main.cpp")\n'
+                f'{match.group("windent")}add_executable(mumble-server WIN32 {match.group("sources")})\n'
                 'else()\n'
-                f'{match.group("uindent")}add_executable(mumble-server "main.cpp")\n'
+                f'{match.group("uindent")}add_executable(mumble-server {match.group("sources")})\n'
                 'endif()'
             )
             cmake_text = cmake_text[:match.start()] + replacement + cmake_text[match.end():]

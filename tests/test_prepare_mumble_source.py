@@ -94,10 +94,11 @@ def main() -> int:
         murmur = source / "src" / "murmur"
         murmur.mkdir(parents=True)
         (murmur / "CMakeLists.txt").write_text(
+            'set(MURMUR_SOURCES "main.cpp" "Server.cpp" "ServerDB.cpp")\n'
             'if(WIN32)\n'
-            '\tadd_executable(mumble-server WIN32 "main.cpp")\n'
+            '\tadd_executable(mumble-server WIN32 ${MURMUR_SOURCES})\n'
             'else()\n'
-            '\tadd_executable(mumble-server "main.cpp")\n'
+            '\tadd_executable(mumble-server ${MURMUR_SOURCES})\n'
             'endif()\n'
             'target_link_libraries(mumble-server mumble_server_object_lib)\n',
             encoding="utf-8",
@@ -118,7 +119,10 @@ def main() -> int:
         server_cpp = (murmur / "Server.cpp").read_text(encoding="utf-8")
         unix_cpp = (murmur / "UnixMurmur.cpp").read_text(encoding="utf-8")
 
-        assert 'if(ANDROID)\n\tqt_add_executable(mumble-server MANUAL_FINALIZATION "main.cpp")' in cmake
+        assert 'if(ANDROID)\n\tqt_add_executable(mumble-server MANUAL_FINALIZATION ${MURMUR_SOURCES})' in cmake
+        assert 'add_executable(mumble-server WIN32 ${MURMUR_SOURCES})' in cmake
+        assert 'add_executable(mumble-server ${MURMUR_SOURCES})' in cmake
+        assert '"ServerDB.cpp"' in cmake
         assert "AndroidEmbed.cpp" in cmake
         assert "AndroidJni.cpp" in cmake
         assert "VCProximity.cpp" in cmake
