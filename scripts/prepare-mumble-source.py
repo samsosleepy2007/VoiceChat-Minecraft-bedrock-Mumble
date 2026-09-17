@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""Prepare pinned Mumble 1.5.915 for VC Mumble Server on Android.
+"""Prepare pinned Mumble 1.6.870 for VC Mumble Server on Android.
 
 The patch stays intentionally narrow and reproducible:
-- turn the Android server target into a qt_add_executable target so Qt can
+- convert the Android server target to qt_add_executable so Qt 6.8+ can
   generate an AAR and own Java/native runtime deployment;
 - keep Mumble's ordinary main() entry point for QtService to launch;
-- make normal Qt event-loop shutdown return to Android instead of exit()ing;
-- compile JNI control and proximity state into the same native main library;
+- make event-loop shutdown return to Android instead of exit()ing;
+- compile JNI control and proximity state into the same native library;
 - gate regular-speech receiver additions through the VC proximity policy;
 - preserve stock Mumble routing when proximity is disabled (the default).
-
-Mumble remains the top-level CMake project because upstream uses CMAKE_SOURCE_DIR.
 """
 
 from __future__ import annotations
@@ -40,7 +38,7 @@ def replace_literal_once(text: str, old: str, new: str, label: str) -> str:
 
 
 def patch_android_compat(murmur: pathlib.Path) -> None:
-    """Remove Linux-host-only assumptions that are not part of Android NDK."""
+    """Remove Linux-only assumptions that are not valid for an Android process."""
     unix_cpp = murmur / "UnixMurmur.cpp"
     if unix_cpp.is_file():
         text = unix_cpp.read_text(encoding="utf-8")
@@ -93,19 +91,30 @@ def patch_embedded_lifecycle(murmur: pathlib.Path) -> None:
         )
 
     if "VC_MUMBLE_EMBEDDED_SIGNALS" not in text:
-        signal_block = "\tsignal(SIGTERM, cleanup);\n\tsignal(SIGINT, cleanup);"
-        replacement = (
-            "#ifndef VC_MUMBLE_EMBEDDED // VC_MUMBLE_EMBEDDED_SIGNALS\n"
-            + signal_block
-            + "\n#endif"
+        signal_pattern = (
+            r"(?m)^(?P<indent>[ \t]*)signal\(SIGTERM, cleanup\);[ \t]*\n"
+            r"(?P=indent)signal\(SIGINT, cleanup\);[ \t]*$"
         )
-        text = replace_literal_once(text, signal_block, replacement, "standalone signal handlers")
+        match = re.search(signal_pattern, text)
+        if not match:
+            raise RuntimeError("could not locate standalone signal handlers")
+        indent = match.group("indent")
+        signal_block = (
+            f"{indent}signal(SIGTERM, cleanup);\n"
+            f"{indent}signal(SIGINT, cleanup);"
+        )
+        replacement = (
+            f"{indent}#ifndef VC_MUMBLE_EMBEDDED // VC_MUMBLE_EMBEDDED_SIGNALS\n"
+            + signal_block
+            + f"\n{indent}#endif"
+        )
+        text = text[:match.start()] + replacement + text[match.end():]
 
     main_cpp.write_text(text, encoding="utf-8")
 
 
 def patch_android_default_ini(murmur: pathlib.Path) -> None:
-    """Default to app-private config; the upstream -ini argument can override it."""
+    """Use app-private config only when Mumble was not given an explicit -i/--ini."""
     main_cpp = murmur / "main.cpp"
     text = main_cpp.read_text(encoding="utf-8")
 
@@ -113,15 +122,27 @@ def patch_android_default_ini(murmur: pathlib.Path) -> None:
         return
 
     if "#include <QStandardPaths>" not in text:
-        include_anchor = '#include "Server.h"'
-        text = replace_literal_once(
-            text, include_anchor, include_anchor + "\n#include <QStandardPaths>", "Server.h include"
-        )
+        anchors = ['#include "ServerApplication.h"', '#include "Server.h"']
+        for anchor in anchors:
+            if anchor in text:
+                text = replace_literal_once(
+                    text,
+                    anchor,
+                    anchor + "\n#include <QStandardPaths>",
+                    "Qt include anchor",
+                )
+                break
+        else:
+            raise RuntimeError("could not locate include anchor for QStandardPaths")
 
-    pattern = r'(?m)^(?P<indent>[ \t]*)QString inifile;[ \t]*$'
+    pattern = (
+        r"(?m)^(?P<indent>[ \t]*)"
+        r"QString inifile(?:[ \t]*=[ \t]*[^;]+)?;[ \t]*$"
+    )
     match = re.search(pattern, text)
     if not match:
         raise RuntimeError("could not locate Mumble ini-file assignment")
+
     indent = match.group("indent")
     original = match.group(0)
     replacement = (
@@ -161,6 +182,7 @@ def patch_server_routing(murmur: pathlib.Path) -> None:
     end_match = re.search(r"\n\s*ZoneNamedN\(", text[start_match.start():])
     if not end_match:
         raise RuntimeError("could not locate processMsg sendout boundary")
+
     segment_start = start_match.start()
     segment_end = segment_start + end_match.start()
     segment = text[segment_start:segment_end]
@@ -191,18 +213,17 @@ def patch_server_routing(murmur: pathlib.Path) -> None:
     )
     normals = list(normal_pattern.finditer(segment))
     if len(normals) != 1:
-        if len(normals) != 1:
-            raise RuntimeError(f"expected 1 compact regular NORMAL receiver; found {len(normals)}")
+        raise RuntimeError(f"expected 1 same-channel NORMAL receiver; found {len(normals)}")
 
-    m = normals[0]
-    indent = m.group("indent")
-    original = m.group(0).lstrip(" \t")
+    match = normals[0]
+    indent = match.group("indent")
+    original = match.group(0).lstrip(" \t")
     wrapped = (
         f"{indent}if (VCProximity::shouldRoute(u->qsName, pDst->qsName)) {{ // VC_PROXIMITY_REGULAR_CHANNEL\n"
         f"{indent}\t{original}\n"
         f"{indent}}}"
     )
-    segment = segment[:m.start()] + wrapped + segment[m.end():]
+    segment = segment[:match.start()] + wrapped + segment[match.end():]
 
     linked_pattern = re.compile(
         r"(?P<indent>^[ \t]*)buffer\.addReceiver\(\*u,\s*\*pDst,\s*"
@@ -212,72 +233,54 @@ def patch_server_routing(murmur: pathlib.Path) -> None:
     )
     linked = list(linked_pattern.finditer(segment))
     if len(linked) != 1:
-        raise RuntimeError(f"expected 1 linked regular NORMAL receiver; found {len(linked)}")
-    m = linked[0]
-    indent = m.group("indent")
-    original = m.group(0).lstrip(" \t")
-    original_lines = original.splitlines()
+        raise RuntimeError(f"expected 1 linked-channel NORMAL receiver; found {len(linked)}")
+
+    match = linked[0]
+    indent = match.group("indent")
+    original_lines = match.group(0).lstrip(" \t").splitlines()
     indented_original = ("\n" + indent + "\t").join(original_lines)
     wrapped = (
         f"{indent}if (VCProximity::shouldRoute(u->qsName, pDst->qsName)) {{ // VC_PROXIMITY_LINKED_CHANNEL\n"
         f"{indent}\t{indented_original}\n"
         f"{indent}}}"
     )
-    segment = segment[:m.start()] + wrapped + segment[m.end():]
+    segment = segment[:match.start()] + wrapped + segment[match.end():]
 
     text = text[:segment_start] + segment + text[segment_end:]
     server_cpp.write_text(text, encoding="utf-8")
 
 
-def prepare(source: pathlib.Path, adapter: pathlib.Path, jni: pathlib.Path,
-            proximity_header: pathlib.Path, proximity_source: pathlib.Path) -> None:
-    murmur = source / "src" / "murmur"
+def patch_cmake(murmur: pathlib.Path) -> None:
     cmake = murmur / "CMakeLists.txt"
-    main_cpp = murmur / "main.cpp"
-    server_cpp = murmur / "Server.cpp"
-
-    for required in (cmake, main_cpp, server_cpp, adapter, jni, proximity_header, proximity_source):
-        if not required.is_file():
-            raise RuntimeError(f"required file not found: {required}")
-
     cmake_text = cmake.read_text(encoding="utf-8")
-    if PATCH_MARKER not in cmake_text:
-        conditional_target = re.compile(
-            r"if\(WIN32\)\s*\n"
-            r"(?P<windent>[ \t]*)add_executable\(mumble-server\s+WIN32\s+(?P<sources>\$\{MURMUR_SOURCES\}|\"main\.cpp\")\)\s*\n"
-            r"else\(\)\s*\n"
-            r"(?P<uindent>[ \t]*)add_executable\(mumble-server\s+(?P=sources)\)\s*\n"
-            r"endif\(\)",
-            re.MULTILINE,
-        )
-        match = conditional_target.search(cmake_text)
-        if match:
-            replacement = (
-                'if(ANDROID)\n'
-                f'\tqt_add_executable(mumble-server MANUAL_FINALIZATION {match.group("sources")})\n'
-                'elseif(WIN32)\n'
-                f'{match.group("windent")}add_executable(mumble-server WIN32 {match.group("sources")})\n'
-                'else()\n'
-                f'{match.group("uindent")}add_executable(mumble-server {match.group("sources")})\n'
-                'endif()'
-            )
-            cmake_text = cmake_text[:match.start()] + replacement + cmake_text[match.end():]
-        else:
-            single = re.compile(r'(?m)^(?P<indent>[ \t]*)add_executable\(mumble-server\s+"main\.cpp"\)\s*$')
-            sm = single.search(cmake_text)
-            if not sm:
-                raise RuntimeError("could not locate mumble-server CMake target declaration")
-            indent = sm.group("indent")
-            replacement = (
-                f'{indent}if(ANDROID)\n'
-                f'{indent}\tqt_add_executable(mumble-server MANUAL_FINALIZATION "main.cpp")\n'
-                f'{indent}else()\n'
-                f'{indent}\tadd_executable(mumble-server "main.cpp")\n'
-                f'{indent}endif()'
-            )
-            cmake_text = cmake_text[:sm.start()] + replacement + cmake_text[sm.end():]
+    if PATCH_MARKER in cmake_text:
+        return
 
-        cmake_text += f"""
+    conditional_target = re.compile(
+        r"if\(WIN32\)\s*\n"
+        r"(?P<windent>[ \t]*)add_executable\(mumble-server\s+WIN32\s+(?P<sources>\$\{MURMUR_SOURCES\}|\"main\.cpp\")\)\s*\n"
+        r"else\(\)\s*\n"
+        r"(?P<uindent>[ \t]*)add_executable\(mumble-server\s+(?P=sources)\)\s*\n"
+        r"endif\(\)",
+        re.MULTILINE,
+    )
+    match = conditional_target.search(cmake_text)
+    if not match:
+        raise RuntimeError("could not locate mumble-server CMake target declaration")
+
+    sources = match.group("sources")
+    replacement = (
+        "if(ANDROID)\n"
+        f"\tqt_add_executable(mumble-server MANUAL_FINALIZATION {sources})\n"
+        "elseif(WIN32)\n"
+        f"{match.group('windent')}add_executable(mumble-server WIN32 {sources})\n"
+        "else()\n"
+        f"{match.group('uindent')}add_executable(mumble-server {sources})\n"
+        "endif()"
+    )
+    cmake_text = cmake_text[:match.start()] + replacement + cmake_text[match.end():]
+
+    cmake_text += f"""
 
 # {PATCH_MARKER}
 if(ANDROID)
@@ -301,7 +304,26 @@ if(ANDROID)
     qt_finalize_target(mumble-server)
 endif()
 """
-        cmake.write_text(cmake_text, encoding="utf-8")
+    cmake.write_text(cmake_text, encoding="utf-8")
+
+
+def prepare(
+    source: pathlib.Path,
+    adapter: pathlib.Path,
+    jni: pathlib.Path,
+    proximity_header: pathlib.Path,
+    proximity_source: pathlib.Path,
+) -> None:
+    murmur = source / "src" / "murmur"
+    cmake = murmur / "CMakeLists.txt"
+    main_cpp = murmur / "main.cpp"
+    server_cpp = murmur / "Server.cpp"
+
+    for required in (cmake, main_cpp, server_cpp, adapter, jni, proximity_header, proximity_source):
+        if not required.is_file():
+            raise RuntimeError(f"required file not found: {required}")
+
+    patch_cmake(murmur)
 
     shutil.copyfile(adapter, murmur / "AndroidEmbed.cpp")
     shutil.copyfile(jni, murmur / "AndroidJni.cpp")
