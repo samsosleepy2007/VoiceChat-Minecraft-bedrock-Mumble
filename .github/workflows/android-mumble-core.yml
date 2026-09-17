@@ -67,6 +67,15 @@ jobs:
           echo "QT_ANDROID_PREFIX=$HOME/Qt/${QT_VERSION}/android_arm64_v8a" >> "$GITHUB_ENV"
           echo "QT_HOST_PATH=$HOME/Qt/${QT_VERSION}/gcc_64" >> "$GITHUB_ENV"
 
+      - name: Verify Qt Android CMake toolchain
+        run: |
+          test -x "$QT_ANDROID_PREFIX/bin/qt-cmake"
+          test -f "$QT_ANDROID_PREFIX/lib/cmake/Qt6/qt.toolchain.cmake"
+          test -f "$QT_ANDROID_PREFIX/lib/cmake/Qt6/Qt6Config.cmake"
+          test -f "$QT_ANDROID_PREFIX/lib/cmake/Qt6Core/Qt6CoreConfig.cmake"
+          "$QT_ANDROID_PREFIX/bin/qt-cmake" --version
+          echo "Qt Android CMake preflight OK: $QT_ANDROID_PREFIX"
+
       - name: Prepare vcpkg binary cache
         run: mkdir -p "$HOME/.cache/vcpkg/archives"
 
