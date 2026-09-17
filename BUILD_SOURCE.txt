@@ -1,0 +1,2 @@
+branch=test/android-apk
+commit=7f0c897cda5f27071f258267866d74a739226332

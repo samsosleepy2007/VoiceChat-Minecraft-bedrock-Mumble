@@ -1,0 +1,89 @@
+name: Android Embedded Mumble Core (experimental)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  QT_VERSION: '6.8.3'
+  VCPKG_TAG: '2026.07.29'
+  NDK_VERSION: '28.2.13676358'
+
+jobs:
+  build-core-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK / NDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;${NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Install host build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build autoconf automake libtool pkg-config
+          python3 -m pip install --upgrade pip
+          python3 -m pip install 'aqtinstall==3.3.0'
+
+      - name: Install Qt Android + matching host tools
+        run: |
+          python3 -m aqt install-qt linux android "${QT_VERSION}" android_arm64_v8a --autodesktop -O "$HOME/Qt"
+          echo "QT_ANDROID_PREFIX=$HOME/Qt/${QT_VERSION}/android_arm64_v8a" >> "$GITHUB_ENV"
+          echo "QT_HOST_PATH=$HOME/Qt/${QT_VERSION}/gcc_64" >> "$GITHUB_ENV"
+
+      - name: Build Android + host dependencies with pinned vcpkg
+        run: |
+          git clone --depth 1 --branch "${VCPKG_TAG}" https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+          "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          export VCPKG_DISABLE_METRICS=1
+          "$HOME/vcpkg/vcpkg" install \
+            openssl:arm64-android \
+            protobuf:arm64-android \
+            sqlite3:arm64-android \
+            boost-algorithm:arm64-android \
+            protobuf:x64-linux \
+            --clean-after-build
+          echo "VC_ANDROID_DEP_PREFIX=$HOME/vcpkg/installed/arm64-android" >> "$GITHUB_ENV"
+          echo "PROTOC=$HOME/vcpkg/installed/x64-linux/tools/protobuf/protoc" >> "$GITHUB_ENV"
+
+      - name: Project contract checks
+        run: ./scripts/check-project.sh
+
+      - name: Build and stage embedded Mumble core
+        run: ./scripts/build-mumble-android-core.sh
+
+      - name: Build core APK
+        run: gradle -PvcMumbleCore=true :app:assembleDebug --stacktrace
+
+      - name: Inventory Qt runtime AAR and packaged APK
+        run: |
+          test -f .build/android-stage/vc-mumble-runtime.aar
+          cat .build/android-stage/vc-mumble-runtime.contents.txt
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -E 'lib/arm64-v8a/|classes' || true
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vc-mumble-server-core-debug
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            .build/android-stage/vc-mumble-runtime.aar
+            .build/android-stage/vc-mumble-runtime.contents.txt
+            .build/android-stage/extra-libs/arm64-v8a/
+          retention-days: 14
