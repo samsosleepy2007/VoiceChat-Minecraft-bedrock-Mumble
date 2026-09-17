@@ -18,6 +18,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Project contract checks
+        run: bash ./scripts/check-project.sh
+
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -63,9 +66,6 @@ jobs:
             --clean-after-build
           echo "VC_ANDROID_DEP_PREFIX=$HOME/vcpkg/installed/arm64-android" >> "$GITHUB_ENV"
           echo "PROTOC=$HOME/vcpkg/installed/x64-linux/tools/protobuf/protoc" >> "$GITHUB_ENV"
-
-      - name: Project contract checks
-        run: ./scripts/check-project.sh
 
       - name: Build and stage embedded Mumble core
         run: ./scripts/build-mumble-android-core.sh
