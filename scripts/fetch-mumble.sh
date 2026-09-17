@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${MUMBLE_VERSION:-1.5.915}"
-EXPECTED_SHA256="${MUMBLE_SHA256:-2cb3f0c7aa60e2f08fed1d568da7d1f5115e3658a079b6d1a5468c5d6e2081d5}"
+VERSION="${MUMBLE_VERSION:-1.6.870}"
+EXPECTED_SHA256="${MUMBLE_SHA256:-cd4726e36538d09b2fa4f7445cbe0be5cb1fcf642c2ea31ae6a6ed04d60e2513}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${VC_BUILD_DIR:-${ROOT_DIR}/.build}"
 ARCHIVE="${BUILD_DIR}/mumble-${VERSION}.tar.gz"
 SOURCE_DIR="${BUILD_DIR}/mumble-${VERSION}"
-URL="https://dl.mumble.info/stable/mumble-${VERSION}.tar.gz"
+URL="https://github.com/mumble-voip/mumble/releases/download/v${VERSION}/mumble-${VERSION}.tar.gz"
 
 mkdir -p "${BUILD_DIR}"
 
