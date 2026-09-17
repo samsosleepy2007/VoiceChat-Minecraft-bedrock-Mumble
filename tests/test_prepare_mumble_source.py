@@ -29,10 +29,11 @@ def run_prepare(source: pathlib.Path):
 
 def server_fixture() -> str:
     return r'''#include "Server.h"
-void Server::processMsg(ServerUser *u, AudioData audioData, AudioReceiverBuffer &buffer, Encoder &encoder) {
-	if (audioData.targetOrContext == REGULAR_SPEECH) {
+void Server::processMsg(ServerUser *u, Mumble::Protocol::AudioData audioData, AudioReceiverBuffer &buffer,
+                        Mumble::Protocol::UDPAudioEncoder< Mumble::Protocol::Role::Server > &encoder) {
+	if (regularSpeech) {
 		Channel *c = u->cChannel;
-		foreach (unsigned int currentSession, m_channelListenerManager.getListenersForChannel(c->iId)) {
+		for (unsigned int currentSession : m_channelListenerManager.getListenersForChannel(c->iId)) {
 			ServerUser *pDst = static_cast< ServerUser * >(qhUsers.value(currentSession));
 			if (pDst) {
 				buffer.addReceiver(*u, *pDst, Mumble::Protocol::AudioContext::LISTEN, audioData.containsPositionalData,
@@ -41,7 +42,6 @@ void Server::processMsg(ServerUser *u, AudioData audioData, AudioReceiverBuffer 
 		}
 		for (User *p : c->qlUsers) {
 			ServerUser *pDst = static_cast< ServerUser * >(p);
-
 			buffer.addReceiver(*u, *pDst, Mumble::Protocol::AudioContext::NORMAL, audioData.containsPositionalData);
 		}
 		for (Channel *l : chans) {
@@ -49,21 +49,18 @@ void Server::processMsg(ServerUser *u, AudioData audioData, AudioReceiverBuffer 
 				for (unsigned int currentSession : m_channelListenerManager.getListenersForChannel(l->iId)) {
 					ServerUser *pDst = static_cast< ServerUser * >(qhUsers.value(currentSession));
 					if (pDst) {
-						buffer.addReceiver(
-							*u, *pDst, Mumble::Protocol::AudioContext::LISTEN, audioData.containsPositionalData,
-							m_channelListenerManager.getListenerVolumeAdjustment(pDst->uiSession, l->iId));
+						buffer.addReceiver(*u, *pDst, Mumble::Protocol::AudioContext::LISTEN,
+									   audioData.containsPositionalData,
+									   m_channelListenerManager.getListenerVolumeAdjustment(pDst->uiSession, l->iId));
 					}
 				}
 				for (User *p : l->qlUsers) {
 					ServerUser *pDst = static_cast< ServerUser * >(p);
-
 					buffer.addReceiver(*u, *pDst, Mumble::Protocol::AudioContext::NORMAL,
 									   audioData.containsPositionalData);
 				}
 			}
 		}
-	} else if (whisper) {
-		buffer.addReceiver(*u, *direct, Mumble::Protocol::AudioContext::WHISPER, audioData.containsPositionalData);
 	}
 	ZoneNamedN(test_zone, sendout, true);
 }
@@ -71,18 +68,22 @@ void Server::processMsg(ServerUser *u, AudioData audioData, AudioReceiverBuffer 
 
 
 def main_fixture() -> str:
-    return r'''#include <QtGlobal>
-#include "Server.h"
-# include <sys/syslog.h>
+    return r'''#include "ServerApplication.h"
+#include <QSslSocket>
+#ifdef Q_OS_WIN
+#else
+#	include <fcntl.h>
+#	include <sys/syslog.h>
+#endif
 void cleanup(int signum) {
 	exit(signum);
 }
 int main(int argc, char **argv) {
-	signal(SIGTERM, cleanup);
-	signal(SIGINT, cleanup);
-	QString inifile;
+	QString inifile = QString::fromStdString(cli_options.iniFile.value_or(""));
+		signal(SIGTERM, cleanup);
+		signal(SIGINT, cleanup);
 	int res = a.exec();
-	cleanup(0);
+	cleanup(res);
 	return res;
 }
 '''
@@ -90,17 +91,16 @@ int main(int argc, char **argv) {
 
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
-        source = pathlib.Path(raw) / "mumble-1.5.915"
+        source = pathlib.Path(raw) / "mumble-1.6.870"
         murmur = source / "src" / "murmur"
         murmur.mkdir(parents=True)
         (murmur / "CMakeLists.txt").write_text(
-            'set(MURMUR_SOURCES "main.cpp" "Server.cpp" "ServerDB.cpp")\n'
             'if(WIN32)\n'
-            '\tadd_executable(mumble-server WIN32 ${MURMUR_SOURCES})\n'
+            '\tadd_executable(mumble-server WIN32 "main.cpp")\n'
             'else()\n'
-            '\tadd_executable(mumble-server ${MURMUR_SOURCES})\n'
+            '\tadd_executable(mumble-server "main.cpp")\n'
             'endif()\n'
-            'target_link_libraries(mumble-server mumble_server_object_lib)\n',
+            'target_link_libraries(mumble-server mumble_server_object_lib CLI11::CLI11)\n',
             encoding="utf-8",
         )
         (murmur / "main.cpp").write_text(main_fixture(), encoding="utf-8")
@@ -119,17 +119,16 @@ def main() -> int:
         server_cpp = (murmur / "Server.cpp").read_text(encoding="utf-8")
         unix_cpp = (murmur / "UnixMurmur.cpp").read_text(encoding="utf-8")
 
-        assert 'if(ANDROID)\n\tqt_add_executable(mumble-server MANUAL_FINALIZATION ${MURMUR_SOURCES})' in cmake
-        assert 'add_executable(mumble-server WIN32 ${MURMUR_SOURCES})' in cmake
-        assert 'add_executable(mumble-server ${MURMUR_SOURCES})' in cmake
-        assert '"ServerDB.cpp"' in cmake
+        assert 'if(ANDROID)\n\tqt_add_executable(mumble-server MANUAL_FINALIZATION "main.cpp")' in cmake
+        assert 'add_executable(mumble-server WIN32 "main.cpp")' in cmake
+        assert 'add_executable(mumble-server "main.cpp")' in cmake
         assert "AndroidEmbed.cpp" in cmake
         assert "AndroidJni.cpp" in cmake
         assert "VCProximity.cpp" in cmake
         assert "VC_MUMBLE_EMBEDDED=1" in cmake
         assert 'OUTPUT_NAME "vcserver"' in cmake
-        assert 'QT_ANDROID_EXTRA_LIBS' in cmake
-        assert 'VC_ANDROID_EXTRA_LIBS' in cmake
+        assert "QT_ANDROID_EXTRA_LIBS" in cmake
+        assert "VC_ANDROID_EXTRA_LIBS" in cmake
         assert "VC_MUMBLE_EMBEDDED_RETURN" in main_cpp
         assert "VC_MUMBLE_EMBEDDED_SIGNALS" in main_cpp
         assert "exit(signum);" in main_cpp
@@ -138,26 +137,29 @@ def main() -> int:
         assert "VC_PROXIMITY_REGULAR_CHANNEL" in server_cpp
         assert "VC_PROXIMITY_LINKED_LISTENER" in server_cpp
         assert "VC_PROXIMITY_LINKED_CHANNEL" in server_cpp
-        assert "AudioContext::WHISPER" in server_cpp
         assert (murmur / "AndroidEmbed.cpp").is_file()
         assert (murmur / "AndroidJni.cpp").is_file()
         assert "VC_ANDROID_DEFAULT_INI" in main_cpp
         assert "QStandardPaths" in main_cpp
+        assert 'QString inifile = QString::fromStdString(cli_options.iniFile.value_or(""));' in main_cpp
         assert (murmur / "VCProximity.h").is_file()
         assert (murmur / "VCProximity.cpp").is_file()
         assert "VC Android syslog include" in main_cpp
         assert "!defined(Q_OS_ANDROID)" in unix_cpp
 
+        cmake_once = cmake
+        main_once = main_cpp
+        server_once = server_cpp
+        unix_once = unix_cpp
+
         second = run_prepare(source)
         assert second.returncode == 0, second.stderr
-        assert (murmur / "CMakeLists.txt").read_text(encoding="utf-8").count(
-            "VC Mumble Server Android embed patch"
-        ) == 1
-        assert (murmur / "Server.cpp").read_text(encoding="utf-8").count(
-            "VC_PROXIMITY_REGULAR_CHANNEL"
-        ) == 1
+        assert (murmur / "CMakeLists.txt").read_text(encoding="utf-8") == cmake_once
+        assert (murmur / "main.cpp").read_text(encoding="utf-8") == main_once
+        assert (murmur / "Server.cpp").read_text(encoding="utf-8") == server_once
+        assert (murmur / "UnixMurmur.cpp").read_text(encoding="utf-8") == unix_once
 
-    print("prepare-mumble-source fixture test: OK")
+    print("prepare-mumble-source 1.6.870 fixture test: OK")
     return 0
 
 
