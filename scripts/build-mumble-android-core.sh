@@ -9,6 +9,7 @@ EXTRA_STAGE_DIR="${BUILD_ROOT}/android-stage/extra-libs/arm64-v8a"
 AAR_STAGE_DIR="${BUILD_ROOT}/android-stage"
 AAR_OUT="${AAR_STAGE_DIR}/vc-mumble-runtime.aar"
 
+: "${ANDROID_SDK_ROOT:?ANDROID_SDK_ROOT is required}"
 : "${ANDROID_NDK_HOME:?ANDROID_NDK_HOME is required}"
 : "${QT_ANDROID_PREFIX:?QT_ANDROID_PREFIX is required (Qt 6 Android arm64 prefix)}"
 : "${QT_HOST_PATH:?QT_HOST_PATH is required (matching desktop Qt host tools)}"
@@ -20,34 +21,49 @@ if [[ ! -x "${PROTOC}" ]]; then
   exit 2
 fi
 
-NDK_TOOLCHAIN="${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake"
-if [[ ! -f "${NDK_TOOLCHAIN}" ]]; then
-  echo "ERROR: Android NDK toolchain not found: ${NDK_TOOLCHAIN}" >&2
+if [[ ! -d "${ANDROID_NDK_HOME}" ]]; then
+  echo "ERROR: Android NDK directory not found: ${ANDROID_NDK_HOME}" >&2
   exit 2
 fi
+
+QT_CMAKE="${QT_ANDROID_PREFIX}/bin/qt-cmake"
+QT_TOOLCHAIN="${QT_ANDROID_PREFIX}/lib/cmake/Qt6/qt.toolchain.cmake"
+QT6_CONFIG="${QT_ANDROID_PREFIX}/lib/cmake/Qt6/Qt6Config.cmake"
+QT6_CORE_CONFIG="${QT_ANDROID_PREFIX}/lib/cmake/Qt6Core/Qt6CoreConfig.cmake"
+
+if [[ ! -x "${QT_CMAKE}" ]]; then
+  echo "ERROR: Qt Android qt-cmake not found or not executable: ${QT_CMAKE}" >&2
+  exit 2
+fi
+for required_qt_file in "${QT_TOOLCHAIN}" "${QT6_CONFIG}" "${QT6_CORE_CONFIG}"; do
+  if [[ ! -f "${required_qt_file}" ]]; then
+    echo "ERROR: required Qt Android CMake file not found: ${required_qt_file}" >&2
+    exit 2
+  fi
+done
 
 "${ROOT_DIR}/scripts/fetch-mumble.sh"
 rm -rf "${NATIVE_BUILD_DIR}" "${EXTRA_STAGE_DIR}" "${AAR_OUT}"
 mkdir -p "${NATIVE_BUILD_DIR}" "${EXTRA_STAGE_DIR}" "${AAR_STAGE_DIR}"
 
-CMAKE_PREFIX_PATH_VALUE="${QT_ANDROID_PREFIX};${VC_ANDROID_DEP_PREFIX}"
-
 configure_mumble() {
   local extra_libs="${1:-}"
-  cmake \
+  "${QT_CMAKE}" \
     -S "${SOURCE_DIR}" \
     -B "${NATIVE_BUILD_DIR}" \
     -G Ninja \
-    -DCMAKE_TOOLCHAIN_FILE="${NDK_TOOLCHAIN}" \
+    -DANDROID_SDK_ROOT="${ANDROID_SDK_ROOT}" \
+    -DANDROID_NDK_ROOT="${ANDROID_NDK_HOME}" \
     -DANDROID_ABI=arm64-v8a \
     -DANDROID_PLATFORM=android-26 \
     -DANDROID_STL=c++_shared \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH_VALUE}" \
     -DQT_HOST_PATH="${QT_HOST_PATH}" \
+    -DQT_ADDITIONAL_PACKAGES_PREFIX_PATH="${VC_ANDROID_DEP_PREFIX}" \
     -DProtobuf_PROTOC_EXECUTABLE="${PROTOC}" \
     -DVC_ANDROID_EXTRA_LIBS="${extra_libs}" \
     -DBUILD_NUMBER=870 \
+    -Ddebug-dependency-search=ON \
     -Dclient=OFF \
     -Dserver=ON \
     -Dplugins=OFF \
@@ -68,6 +84,10 @@ configure_mumble() {
 }
 
 configure_mumble ""
+
+echo "Resolved Qt Android CMake package directories:"
+grep -E '^(Qt6|Qt6(Core|Network|Xml))_DIR:' "${NATIVE_BUILD_DIR}/CMakeCache.txt" || true
+
 cmake --build "${NATIVE_BUILD_DIR}" --target mumble-server --parallel "${VC_BUILD_JOBS:-2}"
 
 CORE_SO="$(find "${NATIVE_BUILD_DIR}" -type f -name 'libvcserver.so' -print -quit)"
