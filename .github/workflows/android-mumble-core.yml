@@ -2,6 +2,11 @@ name: Android Embedded Mumble Core (experimental)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 'test/vc-mumble-github-import'
+    paths:
+      - '.github/workflows/android-mumble-core.yml'
 
 permissions:
   contents: read
