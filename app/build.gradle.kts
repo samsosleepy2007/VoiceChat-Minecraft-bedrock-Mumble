@@ -34,6 +34,9 @@ android {
         }
     }
 
+    // Only one service implementation is compiled at a time. The core variant
+    // extends QtService so Qt owns runtime/plugin loading; the smoke variant is
+    // a normal Android Service around the lightweight TCP/UDP test library.
     sourceSets.getByName("main").java.srcDir(
         if (vcMumbleCore) "src/core/java" else "src/smoke/java"
     )

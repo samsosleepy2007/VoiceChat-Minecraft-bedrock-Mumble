@@ -69,6 +69,8 @@ void serverLoop() {
             socklen_t peerLen = sizeof(peer);
             int client = accept(tcpFd, reinterpret_cast<sockaddr*>(&peer), &peerLen);
             if (client >= 0) {
+                // Phase 1 only validates that Android can own the Mumble TCP/UDP port.
+                // Do not claim protocol compatibility until the upstream Mumble core is integrated.
                 const char* message = "VC Mumble Server transport test\n";
                 send(client, message, std::strlen(message), MSG_NOSIGNAL);
                 close(client);

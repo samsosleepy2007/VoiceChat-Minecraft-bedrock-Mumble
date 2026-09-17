@@ -65,8 +65,11 @@ public final class MainActivity extends Activity {
     @Override protected void onStart() {
         super.onStart();
         IntentFilter filter = new IntentFilter(MumbleServerService.ACTION_STATE);
-        if (Build.VERSION.SDK_INT >= 33) registerReceiver(stateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        else registerReceiver(stateReceiver, filter);
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(stateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(stateReceiver, filter);
+        }
     }
 
     @Override protected void onStop() {
@@ -101,75 +104,225 @@ public final class MainActivity extends Activity {
         port = field("Port", InputType.TYPE_CLASS_NUMBER);
         password = field("Server password (optional)", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         maxUsers = field("Max players", InputType.TYPE_CLASS_NUMBER);
-        root.addView(serverName, marginTop(8)); root.addView(port, marginTop(10)); root.addView(password, marginTop(10)); root.addView(maxUsers, marginTop(10));
+        root.addView(serverName, marginTop(8));
+        root.addView(port, marginTop(10));
+        root.addView(password, marginTop(10));
+        root.addView(maxUsers, marginTop(10));
 
         root.addView(section("Minecraft Proximity"), marginTop(20));
         voiceRange = field("Voice range (blocks)", InputType.TYPE_CLASS_NUMBER);
         root.addView(voiceRange, marginTop(8));
+
         proximityEnabled = new CheckBox(this);
         proximityEnabled.setText("Enable Minecraft proximity routing");
         proximityEnabled.setTextSize(15);
         proximityEnabled.setOnCheckedChangeListener((buttonView, checked) -> updateBridgeFieldVisibility());
         root.addView(proximityEnabled, marginTop(10));
-        TextView proximityNote = text("VC Mumble Endstone supplies the Mumble username, dimension and range. Use /vcmumble pair <name> in Minecraft when your Mumble username is different.", 12, false);
-        proximityNote.setTextColor(Color.GRAY); root.addView(proximityNote, marginTop(4));
+
+        TextView proximityNote = text(
+                "VC Mumble Endstone supplies the Mumble username, dimension and range. Use /vcmumble pair <name> in Minecraft when your Mumble username is different.",
+                12,
+                false
+        );
+        proximityNote.setTextColor(Color.GRAY);
+        root.addView(proximityNote, marginTop(4));
+
         bridgeHost = field("Minecraft server host (example: sv5.mcsv.me)", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         bridgePort = field("VC Mumble bridge port", InputType.TYPE_CLASS_NUMBER);
         bridgeSecret = field("Bridge secret", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        root.addView(bridgeHost, marginTop(10)); root.addView(bridgePort, marginTop(10)); root.addView(bridgeSecret, marginTop(10));
-        TextView secretNote = text("Bridge secret is encrypted with Android Keystore before it is saved on this phone.", 11, false);
-        secretNote.setTextColor(Color.GRAY); root.addView(secretNote, marginTop(4));
+        root.addView(bridgeHost, marginTop(10));
+        root.addView(bridgePort, marginTop(10));
+        root.addView(bridgeSecret, marginTop(10));
 
-        startStop = button("START SERVER"); startStop.setOnClickListener(v -> toggleServer()); root.addView(startStop, marginTop(20));
+        TextView secretNote = text("Bridge secret is encrypted with Android Keystore before it is saved on this phone.", 11, false);
+        secretNote.setTextColor(Color.GRAY);
+        root.addView(secretNote, marginTop(4));
+
+        startStop = button("START SERVER");
+        startStop.setOnClickListener(v -> toggleServer());
+        root.addView(startStop, marginTop(20));
+
         Button quick = button("QUICK START");
-        quick.setOnClickListener(v -> { serverName.setText("Minecraft Voice"); port.setText("64738"); password.setText(""); maxUsers.setText("20"); voiceRange.setText("30"); proximityEnabled.setChecked(false); if (!running) toggleServer(); });
+        quick.setOnClickListener(v -> {
+            serverName.setText("Minecraft Voice");
+            port.setText("64738");
+            password.setText("");
+            maxUsers.setText("20");
+            voiceRange.setText("30");
+            proximityEnabled.setChecked(false);
+            if (!running) toggleServer();
+        });
         root.addView(quick, marginTop(10));
 
-        String nativeMode = NativeServer.hasMumbleCore() ? "Embedded Mumble core build: stock Mumble/Mumla protocol path enabled." : "Transport smoke-test build: TCP/UDP lifecycle only; this build does not speak the Mumble protocol.";
-        TextView note = text(nativeMode, 12, false); note.setTextColor(Color.GRAY); root.addView(note, marginTop(18));
-        ScrollView scroll = new ScrollView(this); scroll.addView(root); return scroll;
+        String nativeMode = NativeServer.hasMumbleCore()
+                ? "Embedded Mumble core build: stock Mumble/Mumla protocol path enabled."
+                : "Transport smoke-test build: TCP/UDP lifecycle only; this build does not speak the Mumble protocol.";
+        TextView note = text(nativeMode, 12, false);
+        note.setTextColor(Color.GRAY);
+        root.addView(note, marginTop(18));
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(root);
+        return scroll;
     }
 
     private void toggleServer() {
-        if (running) { startService(new Intent(this, MumbleServerService.class).setAction(MumbleServerService.ACTION_STOP)); return; }
+        if (running) {
+            startService(new Intent(this, MumbleServerService.class).setAction(MumbleServerService.ACTION_STOP));
+            return;
+        }
         ServerConfig cfg;
-        try { cfg = readConfig(); cfg.save(this); MumbleConfigWriter.write(this, cfg); }
-        catch (IllegalArgumentException | IllegalStateException | java.io.IOException e) { Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show(); return; }
+        try {
+            cfg = readConfig();
+            cfg.save(this);
+            // Core builds are launched by QtService, which may enter native main()
+            // during service creation. Write the ini before starting the service
+            // so Mumble always sees a complete configuration on first boot.
+            MumbleConfigWriter.write(this, cfg);
+        } catch (IllegalArgumentException | IllegalStateException | java.io.IOException e) {
+            Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+            return;
+        }
         Intent i = new Intent(this, MumbleServerService.class).setAction(MumbleServerService.ACTION_START);
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
     }
 
     private ServerConfig readConfig() {
-        String name = serverName.getText().toString().trim(); if (name.isEmpty()) name = "Minecraft Voice";
-        int p = parseInt(port, "Port", 1, 65535); int users = parseInt(maxUsers, "Max players", 1, 1000); int range = parseInt(voiceRange, "Voice range", 1, 1000);
-        String bridgeHostValue = bridgeHost.getText().toString().trim(); int bridgePortValue = parseInt(bridgePort, "Bridge port", 1, 65535); String secret = bridgeSecret.getText().toString(); boolean proximity = proximityEnabled.isChecked();
-        if (proximity) { if (bridgeHostValue.isEmpty()) throw new IllegalArgumentException("Minecraft bridge host is required"); if (secret.isEmpty()) throw new IllegalArgumentException("Bridge secret is required for proximity mode"); }
-        return new ServerConfig(name, p, password.getText().toString(), users, range, proximity, bridgeHostValue, bridgePortValue, secret);
+        String name = serverName.getText().toString().trim();
+        if (name.isEmpty()) name = "Minecraft Voice";
+        int p = parseInt(port, "Port", 1, 65535);
+        int users = parseInt(maxUsers, "Max players", 1, 1000);
+        int range = parseInt(voiceRange, "Voice range", 1, 1000);
+        String bridgeHostValue = bridgeHost.getText().toString().trim();
+        int bridgePortValue = parseInt(bridgePort, "Bridge port", 1, 65535);
+        String secret = bridgeSecret.getText().toString();
+        boolean proximity = proximityEnabled.isChecked();
+        if (proximity) {
+            if (bridgeHostValue.isEmpty()) throw new IllegalArgumentException("Minecraft bridge host is required");
+            if (secret.isEmpty()) throw new IllegalArgumentException("Bridge secret is required for proximity mode");
+        }
+        return new ServerConfig(name, p, password.getText().toString(), users, range,
+                proximity, bridgeHostValue, bridgePortValue, secret);
     }
 
     private int parseInt(EditText input, String label, int min, int max) {
-        try { int value = Integer.parseInt(input.getText().toString().trim()); if (value < min || value > max) throw new NumberFormatException(); return value; }
-        catch (NumberFormatException e) { throw new IllegalArgumentException(label + " must be " + min + "–" + max); }
+        try {
+            int value = Integer.parseInt(input.getText().toString().trim());
+            if (value < min || value > max) throw new NumberFormatException();
+            return value;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(label + " must be " + min + "–" + max);
+        }
     }
 
     private void fillConfig(ServerConfig c) {
-        serverName.setText(c.serverName); port.setText(String.valueOf(c.port)); password.setText(c.password); maxUsers.setText(String.valueOf(c.maxUsers)); voiceRange.setText(String.valueOf(c.voiceRange)); proximityEnabled.setChecked(c.proximityEnabled); bridgeHost.setText(c.bridgeHost); bridgePort.setText(String.valueOf(c.bridgePort)); bridgeSecret.setText(c.bridgeSecret); updateBridgeFieldVisibility();
+        serverName.setText(c.serverName);
+        port.setText(String.valueOf(c.port));
+        password.setText(c.password);
+        maxUsers.setText(String.valueOf(c.maxUsers));
+        voiceRange.setText(String.valueOf(c.voiceRange));
+        proximityEnabled.setChecked(c.proximityEnabled);
+        bridgeHost.setText(c.bridgeHost);
+        bridgePort.setText(String.valueOf(c.bridgePort));
+        bridgeSecret.setText(c.bridgeSecret);
+        updateBridgeFieldVisibility();
     }
 
     private void updateState(boolean isRunning, String message, String bridge, int tracked) {
-        running = isRunning; status.setText(isRunning ? "● ONLINE" : "● OFFLINE"); status.setTextColor(isRunning ? Color.rgb(25, 135, 84) : Color.rgb(180, 45, 45)); address.setText(message == null ? "" : message);
-        String bridgeText = bridge == null ? "" : bridge; if (tracked > 0) bridgeText += " • " + tracked + " Minecraft player" + (tracked == 1 ? "" : "s"); bridgeStatus.setText(bridgeText); startStop.setText(isRunning ? "STOP SERVER" : "START SERVER"); setFieldsEnabled(!isRunning);
+        running = isRunning;
+        status.setText(isRunning ? "● ONLINE" : "● OFFLINE");
+        status.setTextColor(isRunning ? Color.rgb(25, 135, 84) : Color.rgb(180, 45, 45));
+        address.setText(message == null ? "" : message);
+        String bridgeText = bridge == null ? "" : bridge;
+        if (tracked > 0) bridgeText += " • " + tracked + " Minecraft player" + (tracked == 1 ? "" : "s");
+        bridgeStatus.setText(bridgeText);
+        startStop.setText(isRunning ? "STOP SERVER" : "START SERVER");
+        setFieldsEnabled(!isRunning);
     }
 
-    private void setFieldsEnabled(boolean enabled) { serverName.setEnabled(enabled); port.setEnabled(enabled); password.setEnabled(enabled); maxUsers.setEnabled(enabled); voiceRange.setEnabled(enabled); proximityEnabled.setEnabled(enabled && NativeServer.hasMumbleCore()); bridgeHost.setEnabled(enabled && proximityEnabled.isChecked()); bridgePort.setEnabled(enabled && proximityEnabled.isChecked()); bridgeSecret.setEnabled(enabled && proximityEnabled.isChecked()); }
-    private void updateBridgeFieldVisibility() { boolean enabled = !running && proximityEnabled.isChecked() && NativeServer.hasMumbleCore(); bridgeHost.setEnabled(enabled); bridgePort.setEnabled(enabled); bridgeSecret.setEnabled(enabled); }
-    private String currentAddress() { ServerConfig c = ServerConfig.load(this); return NetworkUtil.bestLanIpv4() + ":" + c.port; }
-    private void requestNotificationsIfNeeded() { if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 100); }
-    private TextView text(String value, int sp, boolean bold) { TextView v = new TextView(this); v.setText(value); v.setTextSize(sp); v.setTextColor(Color.rgb(25, 40, 65)); if (bold) v.setTypeface(v.getTypeface(), android.graphics.Typeface.BOLD); return v; }
-    private TextView section(String value) { TextView v = text(value, 16, true); v.setTextColor(Color.rgb(45, 95, 165)); return v; }
-    private EditText field(String hint, int type) { EditText e = new EditText(this); e.setHint(hint); e.setSingleLine(true); e.setInputType(type); e.setTextSize(16); e.setPadding(dp(14), dp(12), dp(14), dp(12)); e.setBackgroundColor(Color.WHITE); return e; }
-    private Button button(String label) { Button b = new Button(this); b.setText(label); b.setTextSize(15); b.setAllCaps(false); b.setMinHeight(dp(52)); return b; }
-    private LinearLayout card() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); l.setPadding(dp(18), dp(16), dp(18), dp(16)); l.setBackgroundColor(Color.WHITE); return l; }
-    private LinearLayout.LayoutParams marginTop(int dp) { LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT); p.topMargin = dp(dp); return p; }
-    private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
+    private void setFieldsEnabled(boolean enabled) {
+        serverName.setEnabled(enabled);
+        port.setEnabled(enabled);
+        password.setEnabled(enabled);
+        maxUsers.setEnabled(enabled);
+        voiceRange.setEnabled(enabled);
+        proximityEnabled.setEnabled(enabled && NativeServer.hasMumbleCore());
+        bridgeHost.setEnabled(enabled && proximityEnabled.isChecked());
+        bridgePort.setEnabled(enabled && proximityEnabled.isChecked());
+        bridgeSecret.setEnabled(enabled && proximityEnabled.isChecked());
+    }
+
+    private void updateBridgeFieldVisibility() {
+        boolean enabled = !running && proximityEnabled.isChecked() && NativeServer.hasMumbleCore();
+        bridgeHost.setEnabled(enabled);
+        bridgePort.setEnabled(enabled);
+        bridgeSecret.setEnabled(enabled);
+    }
+
+    private String currentAddress() {
+        ServerConfig c = ServerConfig.load(this);
+        return NetworkUtil.bestLanIpv4() + ":" + c.port;
+    }
+
+    private void requestNotificationsIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 100);
+        }
+    }
+
+    private TextView text(String value, int sp, boolean bold) {
+        TextView v = new TextView(this);
+        v.setText(value);
+        v.setTextSize(sp);
+        v.setTextColor(Color.rgb(25, 40, 65));
+        if (bold) v.setTypeface(v.getTypeface(), android.graphics.Typeface.BOLD);
+        return v;
+    }
+
+    private TextView section(String value) {
+        TextView v = text(value, 16, true);
+        v.setTextColor(Color.rgb(45, 95, 165));
+        return v;
+    }
+
+    private EditText field(String hint, int type) {
+        EditText e = new EditText(this);
+        e.setHint(hint);
+        e.setSingleLine(true);
+        e.setInputType(type);
+        e.setTextSize(16);
+        e.setPadding(dp(14), dp(12), dp(14), dp(12));
+        e.setBackgroundColor(Color.WHITE);
+        return e;
+    }
+
+    private Button button(String label) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setTextSize(15);
+        b.setAllCaps(false);
+        b.setMinHeight(dp(52));
+        return b;
+    }
+
+    private LinearLayout card() {
+        LinearLayout l = new LinearLayout(this);
+        l.setOrientation(LinearLayout.VERTICAL);
+        l.setPadding(dp(18), dp(16), dp(18), dp(16));
+        l.setBackgroundColor(Color.WHITE);
+        return l;
+    }
+
+    private LinearLayout.LayoutParams marginTop(int dp) {
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        p.topMargin = dp(dp);
+        return p;
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
 }
