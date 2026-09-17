@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_ROOT="${VC_BUILD_DIR:-${ROOT_DIR}/.build}"
-SOURCE_DIR="${BUILD_ROOT}/mumble-1.5.915"
+SOURCE_DIR="${BUILD_ROOT}/mumble-1.6.870"
 NATIVE_BUILD_DIR="${BUILD_ROOT}/mumble-android-arm64"
 EXTRA_STAGE_DIR="${BUILD_ROOT}/android-stage/extra-libs/arm64-v8a"
 AAR_STAGE_DIR="${BUILD_ROOT}/android-stage"
@@ -47,7 +47,7 @@ configure_mumble() {
     -DQT_HOST_PATH="${QT_HOST_PATH}" \
     -DProtobuf_PROTOC_EXECUTABLE="${PROTOC}" \
     -DVC_ANDROID_EXTRA_LIBS="${extra_libs}" \
-    -DBUILD_NUMBER=915 \
+    -DBUILD_NUMBER=870 \
     -Dclient=OFF \
     -Dserver=ON \
     -Dplugins=OFF \
