@@ -10,6 +10,7 @@ for f in \
   app/src/main/cpp/mumble_jni.cpp \
   app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java \
   app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java \
+  app/src/core/java/org/qtproject/qt/android/RestartableQtService.java \
   app/src/smoke/java/com/voicecraft/vcmumbleserver/MumbleServerService.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/MumbleConfigWriter.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java \

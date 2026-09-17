@@ -10,16 +10,16 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 
-import org.qtproject.qt.android.bindings.QtService;
+import org.qtproject.qt.android.RestartableQtService;
 
 /**
  * Core build service.
  *
- * QtService is intentional: androiddeployqt/Qt's AAR owns loading Qt, its
- * plugins, and the native main library. We do not manually dlopen Qt from the
- * Android app process.
+ * Qt's Android loader owns loading Qt, its plugins, and the native main
+ * library. RestartableQtService keeps that startup path but avoids Qt's
+ * process-wide System.exit(0) on service destruction.
  */
-public final class MumbleServerService extends QtService {
+public final class MumbleServerService extends RestartableQtService {
     public static final String ACTION_START = "com.voicecraft.vcmumbleserver.START";
     public static final String ACTION_STOP = "com.voicecraft.vcmumbleserver.STOP";
     public static final String ACTION_STATE = "com.voicecraft.vcmumbleserver.STATE";
@@ -40,10 +40,14 @@ public final class MumbleServerService extends QtService {
     @Override
     public void onCreate() {
         createNotificationChannel();
-        // QtService loads the AAR-packaged Qt runtime and libvcserver and starts
-        // its exported main() on Qt's native application thread.
+        // The inherited Qt loader starts the AAR-packaged Qt runtime and
+        // libvcserver on Qt's native application thread.
         super.onCreate();
-        NativeServer.markRuntimeLoaded();
+        if (isQtRuntimeStarted()) {
+            NativeServer.markRuntimeLoaded();
+        } else {
+            NativeServer.markRuntimeUnloaded();
+        }
     }
 
     @Override
@@ -62,10 +66,6 @@ public final class MumbleServerService extends QtService {
             startForeground(NOTIFICATION_ID, notification);
         }
 
-        // Keep QtService's lifecycle callback in the loop. The actual Mumble
-        // main() is started by Qt's loader, not by NativeServer.start().
-        super.onStartCommand(intent, flags, startId);
-
         NativeServer.setProximityStaleTimeoutMs(15000L);
         boolean proximityActive = config.proximityEnabled;
         NativeServer.clearPlayerStates();
@@ -82,9 +82,7 @@ public final class MumbleServerService extends QtService {
             bridgeStatus = "Minecraft proximity off";
         }
 
-        // Qt startup is asynchronous relative to this Java callback. Publish a
-        // starting state now, then verify that QCoreApplication exists shortly
-        // afterwards instead of falsely declaring failure in the first frame.
+        // Qt startup is asynchronous relative to Android service callbacks.
         publish(true, "Starting • " + serverAddress);
         updateNotification("Starting • " + serverAddress);
         handler.removeCallbacks(coreHealthCheck);
