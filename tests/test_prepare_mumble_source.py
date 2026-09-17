@@ -72,7 +72,7 @@ void Server::processMsg(ServerUser *u, AudioData audioData, AudioReceiverBuffer 
 
 def main_fixture() -> str:
     return r'''#include <QtGlobal>
-#include <QSslSocket>
+#include "Server.h"
 # include <sys/syslog.h>
 void cleanup(int signum) {
 	exit(signum);
@@ -80,7 +80,7 @@ void cleanup(int signum) {
 int main(int argc, char **argv) {
 	signal(SIGTERM, cleanup);
 	signal(SIGINT, cleanup);
-	QString inifile = QString::fromStdString(cli_options.iniFile.value_or(""));
+	QString inifile;
 	int res = a.exec();
 	cleanup(0);
 	return res;

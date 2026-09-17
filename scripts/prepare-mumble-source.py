@@ -105,7 +105,7 @@ def patch_embedded_lifecycle(murmur: pathlib.Path) -> None:
 
 
 def patch_android_default_ini(murmur: pathlib.Path) -> None:
-    """Use the app-private files directory when QtService launches without -i."""
+    """Default to app-private config; the upstream -ini argument can override it."""
     main_cpp = murmur / "main.cpp"
     text = main_cpp.read_text(encoding="utf-8")
 
@@ -113,12 +113,12 @@ def patch_android_default_ini(murmur: pathlib.Path) -> None:
         return
 
     if "#include <QStandardPaths>" not in text:
-        include_anchor = "#include <QSslSocket>"
+        include_anchor = '#include "Server.h"'
         text = replace_literal_once(
-            text, include_anchor, include_anchor + "\n#include <QStandardPaths>", "QSslSocket include"
+            text, include_anchor, include_anchor + "\n#include <QStandardPaths>", "Server.h include"
         )
 
-    pattern = r'(?m)^(?P<indent>[ \t]*)QString inifile = QString::fromStdString\(cli_options\.iniFile\.value_or\(""\)\);\s*$'
+    pattern = r'(?m)^(?P<indent>[ \t]*)QString inifile;[ \t]*$'
     match = re.search(pattern, text)
     if not match:
         raise RuntimeError("could not locate Mumble ini-file assignment")
