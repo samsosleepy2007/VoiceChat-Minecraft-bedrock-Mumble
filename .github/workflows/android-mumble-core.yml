@@ -46,17 +46,40 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install 'aqtinstall==3.3.0'
 
+      - name: Restore Qt cache
+        id: qt-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/Qt/${{ env.QT_VERSION }}
+          key: vc-mumble-qt-${{ runner.os }}-${{ env.QT_VERSION }}-android-arm64-v1
+
       - name: Install Qt Android + matching host tools
         run: |
-          python3 -m aqt install-qt linux android "${QT_VERSION}" android_arm64_v8a --autodesktop -O "$HOME/Qt"
+          if [[ ! -d "$HOME/Qt/${QT_VERSION}/android_arm64_v8a" || ! -d "$HOME/Qt/${QT_VERSION}/gcc_64" ]]; then
+            python3 -m aqt install-qt linux android "${QT_VERSION}" android_arm64_v8a --autodesktop -O "$HOME/Qt"
+          else
+            echo "Qt ${QT_VERSION} restored from cache"
+          fi
           echo "QT_ANDROID_PREFIX=$HOME/Qt/${QT_VERSION}/android_arm64_v8a" >> "$GITHUB_ENV"
           echo "QT_HOST_PATH=$HOME/Qt/${QT_VERSION}/gcc_64" >> "$GITHUB_ENV"
+
+      - name: Prepare vcpkg binary cache
+        run: mkdir -p "$HOME/.cache/vcpkg/archives"
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/vcpkg/archives
+          key: vc-mumble-vcpkg-${{ runner.os }}-${{ env.VCPKG_TAG }}-${{ env.NDK_VERSION }}-arm64-v1
+          restore-keys: |
+            vc-mumble-vcpkg-${{ runner.os }}-${{ env.VCPKG_TAG }}-${{ env.NDK_VERSION }}-arm64-
 
       - name: Build Android + host dependencies with pinned vcpkg
         run: |
           git clone --depth 1 --branch "${VCPKG_TAG}" https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
           "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
           export VCPKG_DISABLE_METRICS=1
+          export VCPKG_DEFAULT_BINARY_CACHE="$HOME/.cache/vcpkg/archives"
           "$HOME/vcpkg/vcpkg" install \
             openssl:arm64-android \
             protobuf:arm64-android \
