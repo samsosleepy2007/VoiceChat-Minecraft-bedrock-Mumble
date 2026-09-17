@@ -2,6 +2,17 @@ name: Android Embedded Mumble Core (experimental)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 'test/vc-mumble-github-import'
+    paths:
+      - 'app/**'
+      - 'native/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/workflows/android-mumble-core.yml'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
 
 permissions:
   contents: read
