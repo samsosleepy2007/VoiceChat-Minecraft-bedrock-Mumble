@@ -102,7 +102,8 @@ if [[ ! -s "${CORE_SO}" ]]; then
 fi
 echo "Mumble native library: ${CORE_SO}"
 
-LLVM_READELF="$(find "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt" -type f -name llvm-readelf -perm -111 -print -quit)"
+# NDK releases may provide llvm-readelf as a symlink to llvm-readobj.
+LLVM_READELF="$(find -L "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt" -type f -name llvm-readelf -perm -111 -print -quit)"
 if [[ -z "${LLVM_READELF}" ]]; then
   echo "ERROR: llvm-readelf not found in Android NDK" >&2
   exit 4
