@@ -87,7 +87,7 @@ configure_mumble() {
 configure_mumble ""
 
 echo "Resolved Qt Android CMake package directories:"
-grep -E '^(Qt6|Qt6(Core|Network|Xml))_DIR:' "${NATIVE_BUILD_DIR}/CMakeCache.txt" || true
+grep -E '^(Qt6|Qt6(Core|Gui|Network|Sql|Xml))_DIR:' "${NATIVE_BUILD_DIR}/CMakeCache.txt" || true
 
 cmake --build "${NATIVE_BUILD_DIR}" --target mumble-server --parallel "${VC_BUILD_JOBS:-2}"
 
@@ -212,6 +212,14 @@ if ! grep -q 'Qt6Network' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; the
 fi
 if ! grep -q 'Qt6Sql' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
   echo "ERROR: AAR does not contain Qt SQL runtime" >&2
+  exit 7
+fi
+if ! grep -q 'Qt6Gui' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
+  echo "ERROR: AAR does not contain Qt Gui runtime required by Android platform plugin" >&2
+  exit 7
+fi
+if ! grep -Eqi 'platforms.*qtforandroid|libplugins_platforms_qtforandroid' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
+  echo "ERROR: AAR does not contain the Qt Android platform plugin" >&2
   exit 7
 fi
 if ! grep -Eqi 'qsqlite|sqldrivers.*sqlite' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
