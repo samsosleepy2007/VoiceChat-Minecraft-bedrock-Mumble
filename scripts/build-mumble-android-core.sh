@@ -4,8 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_ROOT="${VC_BUILD_DIR:-${ROOT_DIR}/.build}"
 SOURCE_DIR="${BUILD_ROOT}/mumble-1.6.870"
+ANDROID_ABI="${VC_ANDROID_ABI:-arm64-v8a}"
 NATIVE_BUILD_DIR="${BUILD_ROOT}/mumble-android-arm64"
-EXTRA_STAGE_DIR="${BUILD_ROOT}/android-stage/extra-libs/arm64-v8a"
+EXTRA_STAGE_DIR="${BUILD_ROOT}/android-stage/extra-libs/${ANDROID_ABI}"
 AAR_STAGE_DIR="${BUILD_ROOT}/android-stage"
 AAR_OUT="${AAR_STAGE_DIR}/vc-mumble-runtime.aar"
 
@@ -54,7 +55,7 @@ configure_mumble() {
     -G Ninja \
     -DANDROID_SDK_ROOT="${ANDROID_SDK_ROOT}" \
     -DANDROID_NDK_ROOT="${ANDROID_NDK_HOME}" \
-    -DANDROID_ABI=arm64-v8a \
+    -DANDROID_ABI="${ANDROID_ABI}" \
     -DANDROID_PLATFORM=android-26 \
     -DANDROID_STL=c++_shared \
     -DCMAKE_BUILD_TYPE=Release \
@@ -90,9 +91,16 @@ grep -E '^(Qt6|Qt6(Core|Network|Xml))_DIR:' "${NATIVE_BUILD_DIR}/CMakeCache.txt"
 
 cmake --build "${NATIVE_BUILD_DIR}" --target mumble-server --parallel "${VC_BUILD_JOBS:-2}"
 
-CORE_SO="$(find "${NATIVE_BUILD_DIR}" -type f -name 'libvcserver.so' -print -quit)"
+# Qt's Android executable helper emits ABI-qualified module names such as
+# libvcserver_arm64-v8a.so. Keep that filename intact because androiddeployqt
+# owns the final AAR layout; only discover and validate the actual target here.
+CORE_SO="$(find "${NATIVE_BUILD_DIR}" -type f \
+  \( -name 'libvcserver.so' -o -name "libvcserver_${ANDROID_ABI}.so" \) \
+  -print -quit)"
 if [[ -z "${CORE_SO}" ]]; then
-  echo "ERROR: libvcserver.so was not produced" >&2
+  echo "ERROR: VC Mumble core library was not produced" >&2
+  echo "Expected libvcserver.so or libvcserver_${ANDROID_ABI}.so under ${NATIVE_BUILD_DIR}" >&2
+  find "${NATIVE_BUILD_DIR}" -type f -name 'libvcserver*.so' -print >&2 || true
   exit 3
 fi
 
@@ -101,6 +109,17 @@ if [[ -z "${LLVM_READELF}" ]]; then
   echo "ERROR: llvm-readelf not found in Android NDK" >&2
   exit 4
 fi
+
+CORE_MACHINE="$("${LLVM_READELF}" -h "${CORE_SO}" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p' | head -n1)"
+if [[ "${ANDROID_ABI}" == "arm64-v8a" && "${CORE_MACHINE}" != "AArch64" ]]; then
+  echo "ERROR: core library has unexpected ELF machine: ${CORE_MACHINE:-unknown}" >&2
+  exit 4
+fi
+
+echo "Embedded Mumble core produced:"
+echo "  ${CORE_SO}"
+echo "  ABI: ${ANDROID_ABI}"
+echo "  ELF machine: ${CORE_MACHINE:-unknown}"
 
 is_android_system_or_qt_lib() {
   case "$1" in
@@ -172,8 +191,8 @@ cp -f "${GENERATED_AAR}" "${AAR_OUT}"
 
 # Fail in CI now rather than later on a phone if core/runtime packaging is incomplete.
 unzip -l "${AAR_OUT}" > "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"
-if ! grep -q 'libvcserver' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
-  echo "ERROR: AAR does not contain libvcserver" >&2
+if ! grep -Eq 'libvcserver(_[^/]+)?\.so' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
+  echo "ERROR: AAR does not contain the VC Mumble core library" >&2
   exit 7
 fi
 if ! grep -q 'Qt6Core' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
@@ -201,7 +220,7 @@ if ! jar tf "${CLASSES_JAR}" | grep -q 'org/qtproject/qt/android/bindings/QtServ
   exit 8
 fi
 
-echo "Native dependencies of libvcserver.so:"
+echo "Native dependencies of $(basename "${CORE_SO}"):"
 "${LLVM_READELF}" -d "${CORE_SO}" | grep NEEDED || true
 
 echo
