@@ -35,4 +35,6 @@ bash -n scripts/build-mumble-android-core.sh
 grep -Fq 'libvcserver_${ANDROID_ABI}.so' scripts/build-mumble-android-core.sh
 grep -Fq 'CORE_MACHINE=' scripts/build-mumble-android-core.sh
 grep -Fq 'AArch64' scripts/build-mumble-android-core.sh
+grep -Fq 'find -L "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt"' scripts/build-mumble-android-core.sh
+grep -Fq 'Using Android ELF inspector:' scripts/build-mumble-android-core.sh
 echo "VC Mumble Server project structure: OK"
