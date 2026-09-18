@@ -40,5 +40,5 @@ grep -Fq 'find -L "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt"' scripts/build-
 grep -Fq 'Using Android ELF inspector:' scripts/build-mumble-android-core.sh
 grep -Fq 'VC_ANDROID_PACKAGE_SOURCE_DIR' scripts/build-mumble-android-core.sh
 grep -Fq 'QT_ANDROID_PACKAGE_SOURCE_DIR' scripts/prepare-mumble-source.py
-grep -Fq 'rootProject.name = "vc-mumble-runtime"' native/mumble_android/android-package/settings.gradle
+grep -Fq 'rootProject.name = rootDir.name' native/mumble_android/android-package/settings.gradle
 echo "VC Mumble Server project structure: OK"
