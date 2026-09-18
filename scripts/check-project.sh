@@ -31,4 +31,8 @@ do
 done
 python3 tests/test_prepare_mumble_source.py
 python3 tests/test_vc_mumble_bridge_contract.py
+bash -n scripts/build-mumble-android-core.sh
+grep -Fq 'libvcserver_${ANDROID_ABI}.so' scripts/build-mumble-android-core.sh
+grep -Fq 'CORE_MACHINE=' scripts/build-mumble-android-core.sh
+grep -Fq 'AArch64' scripts/build-mumble-android-core.sh
 echo "VC Mumble Server project structure: OK"
