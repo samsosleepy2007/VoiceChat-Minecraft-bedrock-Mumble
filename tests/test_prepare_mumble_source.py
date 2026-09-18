@@ -1,5 +1,8 @@
 import pathlib
+import os
+import re
 import subprocess
+import sys
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -13,7 +16,7 @@ PROX_CPP = ROOT / "native" / "mumble_android" / "VCProximity.cpp"
 def run_prepare(source: pathlib.Path):
     return subprocess.run(
         [
-            "python3", str(SCRIPT),
+            sys.executable, str(SCRIPT),
             "--source", str(source),
             "--adapter", str(ADAPTER),
             "--jni", str(JNI),
@@ -90,6 +93,26 @@ int main(int argc, char **argv) {
 
 
 def main() -> int:
+    if os.name != 'nt':
+        # Run the actual discovery command against an NDK-shaped symlink fixture.
+        build_script = (ROOT / 'scripts/build-mumble-android-core.sh').read_text()
+        discovery = next(line for line in build_script.splitlines() if line.startswith('LLVM_READELF='))
+        with tempfile.TemporaryDirectory(prefix='ndk tools ') as raw:
+            ndk = pathlib.Path(raw)
+            tools_dir = ndk / 'toolchains/llvm/prebuilt/linux-x86_64/bin'
+            tools_dir.mkdir(parents=True)
+            readobj = tools_dir / 'llvm-readobj'
+            readobj.write_text('#!/bin/sh\nexit 0\n')
+            readobj.chmod(0o755)
+            readelf = tools_dir / 'llvm-readelf'
+            readelf.symlink_to(readobj.name)
+            result = subprocess.run(
+                ['bash', '-eu', '-c', discovery + '\nprintf "%s" "$LLVM_READELF"'],
+                env={**os.environ, 'ANDROID_NDK_HOME': str(ndk)},
+                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+            assert result.returncode == 0, result.stderr
+            assert pathlib.Path(result.stdout) == readelf, result.stdout
     with tempfile.TemporaryDirectory() as raw:
         source = pathlib.Path(raw) / "mumble-1.6.870"
         murmur = source / "src" / "murmur"
@@ -135,6 +158,32 @@ def main() -> int:
         assert "VCProximity.cpp" in cmake
         assert "VC_MUMBLE_EMBEDDED=1" in cmake
         assert 'OUTPUT_NAME "vcserver"' in cmake
+        assert 'OUTPUT "${CMAKE_BINARY_DIR}/vc-mumble-core-path.txt"' in cmake
+        assert '$<TARGET_FILE:mumble-server>' in cmake
+        # Exercise the generated CMake expression with Qt's ABI-suffixed name
+        # and a legacy name, including spaces in the target directory.
+        export = re.search(r'    file\(GENERATE\s+OUTPUT .*?\n    \)', cmake, re.DOTALL)
+        assert export is not None
+        for filename in ('libvcserver_arm64-v8a.so', 'libvcserver.so'):
+            fixture = source / filename
+            fixture.mkdir()
+            library = fixture / 'native output' / filename
+            library.parent.mkdir()
+            library.write_bytes(b'test library')
+            (fixture / 'CMakeLists.txt').write_text(
+                'cmake_minimum_required(VERSION 3.22)\n'
+                'project(target_path_fixture NONE)\n'
+                'add_library(mumble-server MODULE IMPORTED)\n'
+                f'set_target_properties(mumble-server PROPERTIES IMPORTED_LOCATION "{library.as_posix()}")\n'
+                + export.group(0) + '\n', encoding='utf-8',
+            )
+            configured = subprocess.run(
+                ['cmake', '-S', str(fixture), '-B', str(fixture / 'build'), '-G', 'Ninja'],
+                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+            assert configured.returncode == 0, configured.stdout + configured.stderr
+            exported = (fixture / 'build/vc-mumble-core-path.txt').read_text().strip()
+            assert pathlib.Path(exported) == library, exported
         assert "QT_ANDROID_EXTRA_LIBS" in cmake
         assert "VC_ANDROID_EXTRA_LIBS" in cmake
         assert "VC_MUMBLE_EMBEDDED_RETURN" in main_cpp

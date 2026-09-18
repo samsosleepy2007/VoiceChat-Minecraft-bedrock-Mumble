@@ -24,6 +24,12 @@ android {
         buildConfig = true
     }
 
+    if (vcMumbleCore) {
+        // Qt 6.8's loader checks nativeLibraryDir and loads absolute file paths.
+        // The host APK must extract the AAR's libraries, as Qt's own app does.
+        packaging.jniLibs.useLegacyPackaging = true
+    }
+
     buildTypes {
         getByName("debug") {
             isMinifyEnabled = false

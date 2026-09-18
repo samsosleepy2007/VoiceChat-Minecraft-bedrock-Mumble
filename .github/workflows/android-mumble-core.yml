@@ -3,7 +3,7 @@ name: Android Embedded Mumble Core (experimental)
 on:
   workflow_dispatch:
   push:
-    branches: ['test/vc-mumble-github-import']
+    branches: ['test/vc-mumble-github-import', 'test/fix-mumble-core-packaging']
 
 permissions:
   contents: read
@@ -52,7 +52,7 @@ jobs:
 
       - name: Restore Qt cache
         id: qt-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/Qt/${{ env.QT_VERSION }}
           key: vc-mumble-qt-${{ runner.os }}-${{ env.QT_VERSION }}-android-arm64-v1
@@ -80,7 +80,8 @@ jobs:
         run: mkdir -p "$HOME/.cache/vcpkg/archives"
 
       - name: Restore vcpkg binary cache
-        uses: actions/cache@v4
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/vcpkg/archives
           key: vc-mumble-vcpkg-${{ runner.os }}-${{ env.VCPKG_TAG }}-${{ env.NDK_VERSION }}-arm64-v1
@@ -102,6 +103,21 @@ jobs:
             --clean-after-build
           echo "VC_ANDROID_DEP_PREFIX=$HOME/vcpkg/installed/arm64-android" >> "$GITHUB_ENV"
           echo "PROTOC=$HOME/vcpkg/installed/x64-linux/tools/protobuf/protoc" >> "$GITHUB_ENV"
+
+      # Keep expensive dependencies even when the experimental core build fails.
+      - name: Save prepared Qt cache
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/Qt/${{ env.QT_VERSION }}
+          key: ${{ steps.qt-cache.outputs.cache-primary-key }}
+
+      - name: Save prepared vcpkg binary cache
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/vcpkg/archives
+          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
 
       - name: Build and stage embedded Mumble core
         run: ./scripts/build-mumble-android-core.sh

@@ -331,6 +331,12 @@ if(ANDROID)
         )
     endif()
     qt_finalize_target(mumble-server)
+    # Qt appends the Android ABI to the output filename. Export the resolved
+    # target path instead of making the packaging script guess that filename.
+    file(GENERATE
+        OUTPUT "${{CMAKE_BINARY_DIR}}/vc-mumble-core-path.txt"
+        CONTENT "$<TARGET_FILE:mumble-server>\n"
+    )
 endif()
 """
     cmake.write_text(cmake_text, encoding="utf-8")

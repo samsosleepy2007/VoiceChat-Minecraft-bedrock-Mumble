@@ -22,7 +22,7 @@ Implemented and tested in source:
 - snapshot + incremental state synchronization
 - native proximity state table with same-dimension, range and stale-state checks
 - regular-speech receiver hook prepared for Mumble `Server::processMsg()`
-- pinned Mumble **1.5.915** source preparation
+- pinned Mumble **1.6.870** source preparation
 - QtService / Qt AAR embedding path for the Android Mumble server core
 - fallback TCP+UDP Android transport smoke test
 
@@ -32,7 +32,7 @@ Verified on the project MCSV Endstone 0.11.10 test server:
 - bridge binds on `0.0.0.0:27220/TCP`
 - `/vcmumble status` responds successfully
 
-**Not claimed yet:** the full Mumble 1.5.915 Android core has not yet passed the final physical-device gate where stock Mumble/Mumla clients log in and exchange real voice through the APK. Until that passes, core mode remains experimental.
+**Not claimed yet:** the full Mumble 1.6.870 Android core has not yet passed the final physical-device gate where stock Mumble/Mumla clients log in and exchange real voice through the APK. Until that passes, core mode remains experimental.
 
 ## Default topology
 

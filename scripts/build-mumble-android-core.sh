@@ -90,13 +90,20 @@ grep -E '^(Qt6|Qt6(Core|Network|Xml))_DIR:' "${NATIVE_BUILD_DIR}/CMakeCache.txt"
 
 cmake --build "${NATIVE_BUILD_DIR}" --target mumble-server --parallel "${VC_BUILD_JOBS:-2}"
 
-CORE_SO="$(find "${NATIVE_BUILD_DIR}" -type f -name 'libvcserver.so' -print -quit)"
-if [[ -z "${CORE_SO}" ]]; then
-  echo "ERROR: libvcserver.so was not produced" >&2
+CORE_SO_FILE="${NATIVE_BUILD_DIR}/vc-mumble-core-path.txt"
+if [[ ! -s "${CORE_SO_FILE}" ]]; then
+  echo "ERROR: CMake did not export the mumble-server target path: ${CORE_SO_FILE}" >&2
   exit 3
 fi
+CORE_SO="$(cat "${CORE_SO_FILE}")"
+if [[ ! -s "${CORE_SO}" ]]; then
+  echo "ERROR: mumble-server native library was not produced: ${CORE_SO}" >&2
+  exit 3
+fi
+echo "Mumble native library: ${CORE_SO}"
 
-LLVM_READELF="$(find "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt" -type f -name llvm-readelf -perm -111 -print -quit)"
+# NDK releases may provide llvm-readelf as a symlink to llvm-readobj.
+LLVM_READELF="$(find -L "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt" -type f -name llvm-readelf -perm -111 -print -quit)"
 if [[ -z "${LLVM_READELF}" ]]; then
   echo "ERROR: llvm-readelf not found in Android NDK" >&2
   exit 4
@@ -196,12 +203,12 @@ fi
 CLASSES_JAR="$(mktemp)"
 trap 'rm -f "${CLASSES_JAR}"' EXIT
 unzip -p "${AAR_OUT}" classes.jar > "${CLASSES_JAR}"
-if ! jar tf "${CLASSES_JAR}" | grep -q 'org/qtproject/qt/android/bindings/QtService.class'; then
+if ! jar tf "${CLASSES_JAR}" | grep 'org/qtproject/qt/android/bindings/QtService.class' >/dev/null; then
   echo "ERROR: AAR classes.jar does not contain QtService" >&2
   exit 8
 fi
 
-echo "Native dependencies of libvcserver.so:"
+echo "Native dependencies of $(basename "${CORE_SO}"):"
 "${LLVM_READELF}" -d "${CORE_SO}" | grep NEEDED || true
 
 echo

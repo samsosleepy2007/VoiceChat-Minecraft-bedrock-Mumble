@@ -4,9 +4,9 @@ VC Mumble Server keeps its Android UI/service independent from the upstream Mumb
 
 ## Pinned upstream
 
-- Mumble: **1.5.915**
-- Source: `https://dl.mumble.info/stable/mumble-1.5.915.tar.gz`
-- SHA-256: `2cb3f0c7aa60e2f08fed1d568da7d1f5115e3658a079b6d1a5468c5d6e2081d5`
+- Mumble: **1.6.870**
+- Source: `https://github.com/mumble-voip/mumble/releases/download/v1.6.870/mumble-1.6.870.tar.gz`
+- SHA-256: `cd4726e36538d09b2fa4f7445cbe0be5cb1fcf642c2ea31ae6a6ed04d60e2513`
 
 Do not silently move this pin. A Mumble update is a dedicated change that must rerun stock-client and proximity tests.
 
@@ -60,7 +60,7 @@ rather than manually guessing/copying Qt runtime libraries into the app.
 The native build script performs two deployment passes:
 
 1. configure/build the prepared Mumble server for `arm64-v8a`;
-2. inspect `libvcserver.so` with the Android NDK `llvm-readelf`;
+2. read the CMake-exported target path from `vc-mumble-core-path.txt` and inspect `libvcserver_arm64-v8a.so` with the Android NDK `llvm-readelf`;
 3. resolve the non-Qt `DT_NEEDED` closure from the pinned Android native dependency prefix/NDK;
 4. feed those external libraries back to the Qt target through `QT_ANDROID_EXTRA_LIBS`;
 5. build Qt's official `mumble-server_make_aar` target;
