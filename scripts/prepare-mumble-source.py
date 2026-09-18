@@ -323,6 +323,10 @@ if(ANDROID)
         "${{CMAKE_CURRENT_LIST_DIR}}/VCProximity.cpp"
     )
     target_compile_definitions(mumble-server PRIVATE VC_MUMBLE_EMBEDDED=1)
+    # The server is headless and does not consume QtGui symbols directly, but
+    # androiddeployqt requires QtGui so it can deploy the Android QPA platform
+    # plugin. Prevent lld from dropping QtGui via --as-needed.
+    target_link_options(mumble-server PRIVATE "LINKER:--no-as-needed")
     target_link_libraries(mumble-server PRIVATE Qt6::Gui android log)
     set_target_properties(mumble-server PROPERTIES
         OUTPUT_NAME "vcserver"
@@ -378,6 +382,7 @@ def prepare(
         "Qt Android extra library handoff": "QT_ANDROID_EXTRA_LIBS" in final_cmake,
         "embedded compile definition": "VC_MUMBLE_EMBEDDED=1" in final_cmake,
         "Qt Android GUI deployment dependency": "Qt6::Gui" in final_cmake,
+        "Qt Android GUI dependency retention": "LINKER:--no-as-needed" in final_cmake,
         "ordinary main retained": re.search(r"\bint\s+main\s*\(", final_main) is not None,
         "Android default ini": "VC_ANDROID_DEFAULT_INI" in final_main,
         "embedded cleanup return": "VC_MUMBLE_EMBEDDED_RETURN" in final_main,
