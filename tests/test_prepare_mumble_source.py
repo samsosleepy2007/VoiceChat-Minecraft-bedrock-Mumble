@@ -135,6 +135,7 @@ def main() -> int:
         assert "VCProximity.cpp" in cmake
         assert "VC_MUMBLE_EMBEDDED=1" in cmake
         assert "find_pkg(Qt6 COMPONENTS Gui REQUIRED)" in cmake
+        assert 'target_link_options(mumble-server PRIVATE "LINKER:--no-as-needed")' in cmake
         assert "target_link_libraries(mumble-server PRIVATE Qt6::Gui android log)" in cmake
         assert 'OUTPUT_NAME "vcserver"' in cmake
         assert "QT_ANDROID_EXTRA_LIBS" in cmake
