@@ -333,6 +333,11 @@ if(ANDROID)
         QT_ANDROID_MIN_SDK_VERSION 26
         QT_ANDROID_TARGET_SDK_VERSION 36
     )
+    if(DEFINED VC_ANDROID_PACKAGE_SOURCE_DIR AND NOT "${VC_ANDROID_PACKAGE_SOURCE_DIR}" STREQUAL "")
+        set_target_properties(mumble-server PROPERTIES
+            QT_ANDROID_PACKAGE_SOURCE_DIR "${VC_ANDROID_PACKAGE_SOURCE_DIR}"
+        )
+    endif()
     if(DEFINED VC_ANDROID_EXTRA_LIBS AND NOT "${{VC_ANDROID_EXTRA_LIBS}}" STREQUAL "")
         set_target_properties(mumble-server PROPERTIES
             QT_ANDROID_EXTRA_LIBS "${{VC_ANDROID_EXTRA_LIBS}}"
@@ -380,6 +385,7 @@ def prepare(
         "vcserver output name": 'OUTPUT_NAME "vcserver"' in final_cmake,
         "Qt Android finalization": "qt_finalize_target(mumble-server)" in final_cmake,
         "Qt Android extra library handoff": "QT_ANDROID_EXTRA_LIBS" in final_cmake,
+        "Qt Android package overlay handoff": "QT_ANDROID_PACKAGE_SOURCE_DIR" in final_cmake,
         "embedded compile definition": "VC_MUMBLE_EMBEDDED=1" in final_cmake,
         "Qt Android GUI deployment dependency": "Qt6::Gui" in final_cmake,
         "Qt Android GUI dependency retention": "LINKER:--no-as-needed" in final_cmake,
