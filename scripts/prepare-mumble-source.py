@@ -4,6 +4,7 @@
 The patch stays intentionally narrow and reproducible:
 - convert the Android server target to qt_add_executable so Qt 6.8+ can
   generate an AAR and own Java/native runtime deployment;
+- normalize the server link/install declarations for Qt's Android module target;
 - keep Mumble's ordinary main() entry point for QtService to launch;
 - make event-loop shutdown return to Android instead of exit()ing;
 - compile JNI control and proximity state into the same native library;
@@ -279,6 +280,34 @@ def patch_cmake(murmur: pathlib.Path) -> None:
         "endif()"
     )
     cmake_text = cmake_text[:match.start()] + replacement + cmake_text[match.end():]
+
+    # qt_add_executable() links Qt internally with the keyword signature. Mumble's
+    # upstream server link is plain-signature, which CMake forbids mixing on the
+    # same target. The prepared Android source is allowed to normalize this one
+    # declaration to PRIVATE without changing the linked libraries.
+    plain_server_link = "target_link_libraries(mumble-server mumble_server_object_lib CLI11::CLI11)"
+    keyword_server_link = "target_link_libraries(mumble-server PRIVATE mumble_server_object_lib CLI11::CLI11)"
+    if plain_server_link in cmake_text:
+        cmake_text = replace_literal_once(
+            cmake_text,
+            plain_server_link,
+            keyword_server_link,
+            "mumble-server link signature",
+        )
+    elif keyword_server_link not in cmake_text:
+        raise RuntimeError("could not normalize mumble-server target_link_libraries signature")
+
+    # On Android qt_add_executable() represents the application as a shared/module
+    # library. The desktop RUNTIME-only install rule is invalid for that target and
+    # is unnecessary because this pipeline packages the server through Qt's AAR.
+    desktop_install = 'install(TARGETS mumble-server RUNTIME DESTINATION "${MUMBLE_INSTALL_EXECUTABLEDIR}" COMPONENT mumble_server)'
+    if desktop_install in cmake_text:
+        cmake_text = replace_literal_once(
+            cmake_text,
+            desktop_install,
+            "if(NOT ANDROID)\\n\\t" + desktop_install + "\\nendif()",
+            "desktop mumble-server install rule",
+        )
 
     cmake_text += f"""
 
