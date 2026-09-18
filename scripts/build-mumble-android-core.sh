@@ -104,11 +104,18 @@ if [[ -z "${CORE_SO}" ]]; then
   exit 3
 fi
 
-LLVM_READELF="$(find "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt" -type f -name llvm-readelf -perm -111 -print -quit)"
-if [[ -z "${LLVM_READELF}" ]]; then
+# llvm-readelf is shipped by recent Android NDKs as a symlink into the
+# LLVM tool bundle. Follow symlinks while discovering it; plain "find -type f"
+# misses the executable on NDK layouts where the entry itself is a symlink.
+LLVM_READELF="$(find -L "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt" \
+  -type f -name llvm-readelf -perm -111 -print -quit 2>/dev/null || true)"
+if [[ -z "${LLVM_READELF}" || ! -x "${LLVM_READELF}" ]]; then
   echo "ERROR: llvm-readelf not found in Android NDK" >&2
+  echo "NDK LLVM bin candidates:" >&2
+  find "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt" -path '*/bin/llvm-read*' -print >&2 || true
   exit 4
 fi
+echo "Using Android ELF inspector: ${LLVM_READELF}"
 
 CORE_MACHINE="$("${LLVM_READELF}" -h "${CORE_SO}" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p' | head -n1)"
 if [[ "${ANDROID_ABI}" == "arm64-v8a" && "${CORE_MACHINE}" != "AArch64" ]]; then
