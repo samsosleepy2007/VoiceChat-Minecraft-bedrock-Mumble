@@ -128,6 +128,14 @@ echo "  ${CORE_SO}"
 echo "  ABI: ${ANDROID_ABI}"
 echo "  ELF machine: ${CORE_MACHINE:-unknown}"
 
+CORE_DYNAMIC="$("${LLVM_READELF}" -d "${CORE_SO}")"
+echo "Native DT_NEEDED entries before AAR deployment:"
+printf '%s\n' "${CORE_DYNAMIC}" | grep 'Shared library:' || true
+if ! printf '%s\n' "${CORE_DYNAMIC}" | grep -Eq 'Shared library: \[libQt6Gui(_[^]]+)?\.so\]'; then
+  echo "ERROR: core does not retain Qt Gui in DT_NEEDED; androiddeployqt cannot deploy the Android platform plugin" >&2
+  exit 4
+fi
+
 is_android_system_or_qt_lib() {
   case "$1" in
     libc.so|libm.so|libdl.so|liblog.so|libandroid.so|libz.so|libEGL.so|libGLESv2.so|libGLESv3.so|libOpenSLES.so|libjnigraphics.so|libmediandk.so|libvulkan.so|libaaudio.so|libcamera2ndk.so|libQt6*.so|libplugins_*.so)
