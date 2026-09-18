@@ -9,6 +9,7 @@ NATIVE_BUILD_DIR="${BUILD_ROOT}/mumble-android-arm64"
 EXTRA_STAGE_DIR="${BUILD_ROOT}/android-stage/extra-libs/${ANDROID_ABI}"
 AAR_STAGE_DIR="${BUILD_ROOT}/android-stage"
 AAR_OUT="${AAR_STAGE_DIR}/vc-mumble-runtime.aar"
+ANDROID_PACKAGE_SOURCE_DIR="${ROOT_DIR}/native/mumble_android/android-package"
 
 : "${ANDROID_SDK_ROOT:?ANDROID_SDK_ROOT is required}"
 : "${ANDROID_NDK_HOME:?ANDROID_NDK_HOME is required}"
@@ -24,6 +25,10 @@ fi
 
 if [[ ! -d "${ANDROID_NDK_HOME}" ]]; then
   echo "ERROR: Android NDK directory not found: ${ANDROID_NDK_HOME}" >&2
+  exit 2
+fi
+if [[ ! -f "${ANDROID_PACKAGE_SOURCE_DIR}/settings.gradle" ]]; then
+  echo "ERROR: Qt Android package overlay is missing settings.gradle: ${ANDROID_PACKAGE_SOURCE_DIR}" >&2
   exit 2
 fi
 
@@ -63,6 +68,7 @@ configure_mumble() {
     -DQT_ADDITIONAL_PACKAGES_PREFIX_PATH="${VC_ANDROID_DEP_PREFIX}" \
     -DProtobuf_PROTOC_EXECUTABLE="${PROTOC}" \
     -DVC_ANDROID_EXTRA_LIBS="${extra_libs}" \
+    -DVC_ANDROID_PACKAGE_SOURCE_DIR="${ANDROID_PACKAGE_SOURCE_DIR}" \
     -DBUILD_NUMBER=870 \
     -Ddebug-dependency-search=ON \
     -Dclient=OFF \
