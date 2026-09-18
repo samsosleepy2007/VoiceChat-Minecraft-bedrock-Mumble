@@ -305,7 +305,7 @@ def patch_cmake(murmur: pathlib.Path) -> None:
         cmake_text = replace_literal_once(
             cmake_text,
             desktop_install,
-            "if(NOT ANDROID)\\n\\t" + desktop_install + "\\nendif()",
+            "if(NOT ANDROID)\n\t" + desktop_install + "\nendif()",
             "desktop mumble-server install rule",
         )
 
