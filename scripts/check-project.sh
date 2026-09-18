@@ -23,6 +23,7 @@ for f in \
   native/mumble_android/VCProximity.h \
   native/mumble_android/VCProximity.cpp \
   native/mumble_android/AndroidEmbed.cpp \
+  native/mumble_android/android-package/settings.gradle \
   scripts/fetch-mumble.sh \
   scripts/build-mumble-android-core.sh \
   scripts/prepare-mumble-source.py
@@ -37,4 +38,7 @@ grep -Fq 'CORE_MACHINE=' scripts/build-mumble-android-core.sh
 grep -Fq 'AArch64' scripts/build-mumble-android-core.sh
 grep -Fq 'find -L "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt"' scripts/build-mumble-android-core.sh
 grep -Fq 'Using Android ELF inspector:' scripts/build-mumble-android-core.sh
+grep -Fq 'VC_ANDROID_PACKAGE_SOURCE_DIR' scripts/build-mumble-android-core.sh
+grep -Fq 'QT_ANDROID_PACKAGE_SOURCE_DIR' scripts/prepare-mumble-source.py
+grep -Fq 'rootProject.name = "vc-mumble-runtime"' native/mumble_android/android-package/settings.gradle
 echo "VC Mumble Server project structure: OK"
