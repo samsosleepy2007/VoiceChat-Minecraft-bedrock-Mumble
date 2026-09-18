@@ -100,7 +100,8 @@ def main() -> int:
             'else()\n'
             '\tadd_executable(mumble-server "main.cpp")\n'
             'endif()\n'
-            'target_link_libraries(mumble-server mumble_server_object_lib CLI11::CLI11)\n',
+            'target_link_libraries(mumble-server mumble_server_object_lib CLI11::CLI11)\n'
+            'install(TARGETS mumble-server RUNTIME DESTINATION "${MUMBLE_INSTALL_EXECUTABLEDIR}" COMPONENT mumble_server)\n',
             encoding="utf-8",
         )
         (murmur / "main.cpp").write_text(main_fixture(), encoding="utf-8")
@@ -122,6 +123,13 @@ def main() -> int:
         assert 'if(ANDROID)\n\tqt_add_executable(mumble-server MANUAL_FINALIZATION "main.cpp")' in cmake
         assert 'add_executable(mumble-server WIN32 "main.cpp")' in cmake
         assert 'add_executable(mumble-server "main.cpp")' in cmake
+        assert 'target_link_libraries(mumble-server PRIVATE mumble_server_object_lib CLI11::CLI11)' in cmake
+        assert 'target_link_libraries(mumble-server mumble_server_object_lib CLI11::CLI11)' not in cmake
+        assert (
+            'if(NOT ANDROID)\n'
+            '\tinstall(TARGETS mumble-server RUNTIME DESTINATION "${MUMBLE_INSTALL_EXECUTABLEDIR}" COMPONENT mumble_server)\n'
+            'endif()'
+        ) in cmake
         assert "AndroidEmbed.cpp" in cmake
         assert "AndroidJni.cpp" in cmake
         assert "VCProximity.cpp" in cmake
