@@ -313,13 +313,17 @@ def patch_cmake(murmur: pathlib.Path) -> None:
 
 # {PATCH_MARKER}
 if(ANDROID)
+    # androiddeployqt requires the Android QPA platform plugin for application/AAR
+    # deployment. That plugin depends on Qt Gui even though the Mumble server
+    # itself remains QCoreApplication-based and headless at runtime.
+    find_pkg(Qt6 COMPONENTS Gui REQUIRED)
     target_sources(mumble-server PRIVATE
         "${{CMAKE_CURRENT_LIST_DIR}}/AndroidEmbed.cpp"
         "${{CMAKE_CURRENT_LIST_DIR}}/AndroidJni.cpp"
         "${{CMAKE_CURRENT_LIST_DIR}}/VCProximity.cpp"
     )
     target_compile_definitions(mumble-server PRIVATE VC_MUMBLE_EMBEDDED=1)
-    target_link_libraries(mumble-server PRIVATE android log)
+    target_link_libraries(mumble-server PRIVATE Qt6::Gui android log)
     set_target_properties(mumble-server PROPERTIES
         OUTPUT_NAME "vcserver"
         QT_ANDROID_MIN_SDK_VERSION 26
@@ -373,6 +377,7 @@ def prepare(
         "Qt Android finalization": "qt_finalize_target(mumble-server)" in final_cmake,
         "Qt Android extra library handoff": "QT_ANDROID_EXTRA_LIBS" in final_cmake,
         "embedded compile definition": "VC_MUMBLE_EMBEDDED=1" in final_cmake,
+        "Qt Android GUI deployment dependency": "Qt6::Gui" in final_cmake,
         "ordinary main retained": re.search(r"\bint\s+main\s*\(", final_main) is not None,
         "Android default ini": "VC_ANDROID_DEFAULT_INI" in final_main,
         "embedded cleanup return": "VC_MUMBLE_EMBEDDED_RETURN" in final_main,
