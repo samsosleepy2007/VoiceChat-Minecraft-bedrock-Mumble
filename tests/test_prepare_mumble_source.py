@@ -1,4 +1,5 @@
 import pathlib
+import os
 import re
 import subprocess
 import sys
@@ -92,6 +93,26 @@ int main(int argc, char **argv) {
 
 
 def main() -> int:
+    if os.name != 'nt':
+        # Run the actual discovery command against an NDK-shaped symlink fixture.
+        build_script = (ROOT / 'scripts/build-mumble-android-core.sh').read_text()
+        discovery = next(line for line in build_script.splitlines() if line.startswith('LLVM_READELF='))
+        with tempfile.TemporaryDirectory(prefix='ndk tools ') as raw:
+            ndk = pathlib.Path(raw)
+            tools_dir = ndk / 'toolchains/llvm/prebuilt/linux-x86_64/bin'
+            tools_dir.mkdir(parents=True)
+            readobj = tools_dir / 'llvm-readobj'
+            readobj.write_text('#!/bin/sh\nexit 0\n')
+            readobj.chmod(0o755)
+            readelf = tools_dir / 'llvm-readelf'
+            readelf.symlink_to(readobj.name)
+            result = subprocess.run(
+                ['bash', '-eu', '-c', discovery + '\nprintf "%s" "$LLVM_READELF"'],
+                env={**os.environ, 'ANDROID_NDK_HOME': str(ndk)},
+                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+            assert result.returncode == 0, result.stderr
+            assert pathlib.Path(result.stdout) == readelf, result.stdout
     with tempfile.TemporaryDirectory() as raw:
         source = pathlib.Path(raw) / "mumble-1.6.870"
         murmur = source / "src" / "murmur"
