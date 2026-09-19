@@ -45,6 +45,8 @@ public final class MumbleServerService extends RestartableQtService {
     private int trackedPlayers;
     private int serverPort = 64738;
     private int startupProbeAttempt;
+    private boolean terminateProcessOnDestroy;
+    private boolean nativeStopRequested;
 
     @Override
     public void onCreate() {
@@ -101,6 +103,7 @@ public final class MumbleServerService extends RestartableQtService {
             bridgeStatus = "Minecraft proximity off";
             publish(false, message);
             updateNotification(message);
+            terminateProcessOnDestroy = true;
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
             return START_NOT_STICKY;
@@ -141,6 +144,9 @@ public final class MumbleServerService extends RestartableQtService {
             bridgeStatus = "Minecraft proximity off";
             publish(false, message);
             updateNotification(message);
+            terminateProcessOnDestroy = true;
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            stopSelf();
             return START_NOT_STICKY;
         }
 
@@ -229,37 +235,59 @@ public final class MumbleServerService extends RestartableQtService {
         ServerLog.append(this, "ERROR", message);
         publish(false, message);
         updateNotification(message);
+        ServerLog.append(this, "SERVICE",
+                "Startup failed; stopping isolated Mumble process so the next Start is clean");
+        terminateProcessOnDestroy = true;
         stopRelay();
-        NativeServer.setProximityEnabled(false);
-        NativeServer.clearPlayerStates();
+        requestNativeStop();
+        stopForeground(STOP_FOREGROUND_REMOVE);
+        stopSelf();
     }
 
     @Override
     public void onDestroy() {
-        ServerLog.append(this, "SERVICE", "onDestroy; runtimeLoaded=" + NativeServer.runtimeLoaded());
+        ServerLog.append(this, "SERVICE", "onDestroy; runtimeLoaded=" + NativeServer.runtimeLoaded()
+                + ", terminateProcess=" + terminateProcessOnDestroy);
         handler.removeCallbacks(coreHealthCheck);
         stopRelay();
-        if (NativeServer.runtimeLoaded()) {
-            NativeServer.setProximityEnabled(false);
-            NativeServer.clearPlayerStates();
-            NativeServer.stop();
-        }
+        requestNativeStop();
         NativeServer.markRuntimeUnloaded();
         super.onDestroy();
+
+        if (terminateProcessOnDestroy) {
+            final int pid = android.os.Process.myPid();
+            ServerLog.append(this, "SERVICE",
+                    "Qt shutdown complete; isolated Mumble process " + pid + " will exit");
+            handler.postDelayed(() -> android.os.Process.killProcess(pid), 250L);
+        }
     }
 
     private void stopCoreAndSelf() {
-        ServerLog.append(this, "SERVICE", "Stop requested");
+        ServerLog.append(this, "SERVICE", "Stop requested; clean process restart will be required");
+        terminateProcessOnDestroy = true;
         handler.removeCallbacks(coreHealthCheck);
         stopRelay();
-        if (NativeServer.runtimeLoaded()) {
-            NativeServer.setProximityEnabled(false);
-            NativeServer.clearPlayerStates();
-            NativeServer.stop();
-        }
+        requestNativeStop();
         publish(false, "Stopped");
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
+    }
+
+    private void requestNativeStop() {
+        if (nativeStopRequested) return;
+        nativeStopRequested = true;
+
+        if (!NativeServer.runtimeLoaded()) return;
+        try {
+            NativeServer.setProximityEnabled(false);
+            NativeServer.clearPlayerStates();
+            NativeServer.stop();
+            ServerLog.append(this, "SERVICE", "Native Mumble stop requested");
+        } catch (Throwable error) {
+            ServerLog.append(this, "ERROR",
+                    "Native stop failed: " + error.getClass().getSimpleName()
+                            + ": " + String.valueOf(error.getMessage()));
+        }
     }
 
     private void startRelay(ServerConfig config) {
