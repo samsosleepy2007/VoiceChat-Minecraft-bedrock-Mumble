@@ -50,10 +50,11 @@ grep -Fq 'PLAYIT_COMMIT="9e7b9a1cb42d057e7993e21ef4fe32348d1e7fcd"' scripts/buil
 grep -Fq 'libplayit_cli_exec.so' scripts/build-playit-android-agent.sh
 grep -Fq 'libplayitd_exec.so' scripts/build-playit-android-agent.sh
 grep -Fq 'libvc_playit_helper_exec.so' scripts/build-playit-android-agent.sh
-grep -Fq 'CustomBoth(1)' native/playit_bridge/src/main.rs
-grep -Fq '"local_ip".to_string()' native/playit_bridge/src/main.rs
-grep -Fq '"127.0.0.1".to_string()' native/playit_bridge/src/main.rs
-grep -Fq '"local_port".to_string()' native/playit_bridge/src/main.rs
+grep -Fq '.v1_agents_rundata()' native/playit_bridge/src/main.rs
+grep -Fq '.tunnels_create(ReqTunnelsCreate {' native/playit_bridge/src/main.rs
+grep -Fq 'port_type: PortType::Both' native/playit_bridge/src/main.rs
+grep -Fq 'local_ip: IpAddr::V4(Ipv4Addr::LOCALHOST)' native/playit_bridge/src/main.rs
+grep -Fq 'local_port: Some(local_port)' native/playit_bridge/src/main.rs
 grep -Fq 'android:process=":tunnel"' app/src/main/AndroidManifest.xml
 grep -Fq 'PlayitSecretStore.save(this, secret);' app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java
 grep -Fq 'PLAYIT_SECRET_KEY' app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java
