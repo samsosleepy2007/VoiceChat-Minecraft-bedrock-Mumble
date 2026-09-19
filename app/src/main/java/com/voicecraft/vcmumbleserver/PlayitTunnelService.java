@@ -95,6 +95,13 @@ public final class PlayitTunnelService extends Service {
 
         if (ACTION_STOP.equals(action)) {
             enterForeground("Stopping public access…");
+            // Claim exchange can block indefinitely while waiting for browser
+            // approval. Kill it immediately so the single worker can advance to
+            // the queued cleanup task.
+            stopping = true;
+            Process pendingClaim = claimProcess;
+            claimProcess = null;
+            destroyProcess(pendingClaim);
             worker.execute(() -> stopPublicAccess(true));
             return START_NOT_STICKY;
         }
