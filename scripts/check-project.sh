@@ -48,6 +48,10 @@ grep -Fq 'Qt Android native entrypoint export: main OK' scripts/build-mumble-and
 grep -Fq "[[:space:]]+maingrep -Fq 'libvcserver does not export dynamic symbol main' scripts/build-mumble-android-core.sh
 grep -Fq 'CORE_DYNAMIC="$("${LLVM_READELF}" -d "${CORE_SO}")"' scripts/build-mumble-android-core.sh
 grep -Fq 'Starting Mumble runtime' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+test "$(grep -Fc 'is_android_system_or_qt_lib()' scripts/build-mumble-android-core.sh)" -eq 1
+test "$(grep -Fc 'find_external_candidate()' scripts/build-mumble-android-core.sh)" -eq 1
+test "$(grep -Fc 'stage_external_lib()' scripts/build-mumble-android-core.sh)" -eq 1
+test "$(grep -Fc 'Build the APK with:' scripts/build-mumble-android-core.sh)" -eq 1
 echo "VC Mumble Server project structure: OK"
 ; then" scripts/build-mumble-android-core.sh
 grep -Fq 'libvcserver does not export dynamic symbol main' scripts/build-mumble-android-core.sh
