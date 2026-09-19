@@ -30,6 +30,16 @@ if [[ "$actual_commit" != "$PLAYIT_COMMIT" ]]; then
   exit 1
 fi
 
+export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$linker"
+export CC_aarch64_linux_android="$linker"
+export AR_aarch64_linux_android="${toolchain}/llvm-ar"
+
+cargo build --locked --release --target aarch64-linux-android   --manifest-path "$SRC_DIR/Cargo.toml" -p playit-cli
+
+cargo build --locked --release --target aarch64-linux-android   --manifest-path "$SRC_DIR/Cargo.toml" -p playitd --bin playitd
+
+# Keep upstream binaries on the exact upstream Cargo.lock. Only after they are
+# built do we add the small VC helper package to the cloned workspace.
 cp -R "${ROOT_DIR}/native/playit_bridge" "${SRC_DIR}/packages/vc_mumble_helper"
 python3 - "${SRC_DIR}/Cargo.toml" <<'PY'
 from pathlib import Path
@@ -39,21 +49,12 @@ text = path.read_text()
 needle = '    "packages/api_client",\n]'
 if needle not in text:
     raise SystemExit("playit workspace member anchor missing")
-text = text.replace(
+path.write_text(text.replace(
     needle,
     '    "packages/api_client",\n    "packages/vc_mumble_helper",\n]',
     1,
-)
-path.write_text(text)
+))
 PY
-
-export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$linker"
-export CC_aarch64_linux_android="$linker"
-export AR_aarch64_linux_android="${toolchain}/llvm-ar"
-
-cargo build --locked --release --target aarch64-linux-android   --manifest-path "$SRC_DIR/Cargo.toml" -p playit-cli
-
-cargo build --locked --release --target aarch64-linux-android   --manifest-path "$SRC_DIR/Cargo.toml" -p playitd --bin playitd
 
 cargo build --release --target aarch64-linux-android   --manifest-path "$SRC_DIR/Cargo.toml" -p vc-playit-helper
 
