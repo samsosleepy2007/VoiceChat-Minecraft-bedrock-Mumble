@@ -120,10 +120,29 @@ public final class MumbleServerService extends RestartableQtService {
         startupProbeAttempt = 0;
         updateNotification("Starting on port " + config.port + "…");
 
-        NativeServer.setProximityStaleTimeoutMs(15000L);
         boolean proximityActive = config.proximityEnabled;
-        NativeServer.clearPlayerStates();
-        NativeServer.setProximityEnabled(proximityActive);
+        try {
+            ServerLog.append(this, "JNI", "setProximityStaleTimeoutMs begin");
+            NativeServer.setProximityStaleTimeoutMs(15000L);
+            ServerLog.append(this, "JNI", "setProximityStaleTimeoutMs OK");
+
+            ServerLog.append(this, "JNI", "clearPlayerStates begin");
+            NativeServer.clearPlayerStates();
+            ServerLog.append(this, "JNI", "clearPlayerStates OK");
+
+            ServerLog.append(this, "JNI", "setProximityEnabled(" + proximityActive + ") begin");
+            NativeServer.setProximityEnabled(proximityActive);
+            ServerLog.append(this, "JNI", "setProximityEnabled OK");
+        } catch (Throwable error) {
+            String message = "JNI startup failed: " + error.getClass().getSimpleName()
+                    + ": " + String.valueOf(error.getMessage());
+            ServerLog.append(this, "ERROR", message);
+            serverAddress = NetworkUtil.bestLanIpv4() + ":" + config.port;
+            bridgeStatus = "Minecraft proximity off";
+            publish(false, message);
+            updateNotification(message);
+            return START_NOT_STICKY;
+        }
 
         serverAddress = NetworkUtil.bestLanIpv4() + ":" + config.port;
         if (proximityActive) {
@@ -140,6 +159,8 @@ public final class MumbleServerService extends RestartableQtService {
         publish(true, "Starting • " + serverAddress);
         updateNotification("Starting • " + serverAddress);
         handler.removeCallbacks(coreHealthCheck);
+        ServerLog.append(this, "SERVICE", "Scheduling TCP readiness probe in "
+                + STARTUP_PROBE_INTERVAL_MS + "ms");
         handler.postDelayed(coreHealthCheck, STARTUP_PROBE_INTERVAL_MS);
         return START_STICKY;
     }
