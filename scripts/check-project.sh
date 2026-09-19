@@ -37,7 +37,12 @@ python3 tests/test_prepare_mumble_source.py
 python3 tests/test_vc_mumble_bridge_contract.py
 
 bash -n scripts/build-mumble-android-core.sh
+bash -n scripts/fetch-mumble.sh
 
+grep -Fq -- '--retry-all-errors' scripts/fetch-mumble.sh
+grep -Fq 'for attempt in 1 2 3 4 5' scripts/fetch-mumble.sh
+grep -Fq 'ARCHIVE}.part' scripts/fetch-mumble.sh
+grep -Fq 'checksum mismatch; downloading a clean copy' scripts/fetch-mumble.sh
 grep -Fq 'libvcserver_${ANDROID_ABI}.so' scripts/build-mumble-android-core.sh
 grep -Fq 'CORE_MACHINE=' scripts/build-mumble-android-core.sh
 grep -Fq 'AArch64' scripts/build-mumble-android-core.sh
