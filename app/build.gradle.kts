@@ -76,7 +76,8 @@ if (vcMumbleCore && !vcMumbleRuntimeAar.isFile) {
 if (vcEmbeddedPlayit) {
     val cli = File(vcPlayitStageDir, "arm64-v8a/libplayit_cli_exec.so")
     val daemon = File(vcPlayitStageDir, "arm64-v8a/libplayitd_exec.so")
-    if (!cli.isFile || !daemon.isFile) {
+    val helper = File(vcPlayitStageDir, "arm64-v8a/libvc_playit_helper_exec.so")
+    if (!cli.isFile || !daemon.isFile || !helper.isFile) {
         throw GradleException(
             "Embedded playit payload is missing. Run scripts/build-playit-android-agent.sh before Gradle."
         )
