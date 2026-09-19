@@ -78,6 +78,12 @@ def main_fixture() -> str:
 void cleanup(int signum) {
 	exit(signum);
 }
+void configureLog() {
+#ifdef Q_OS_UNIX
+	if (detach && !Meta::mp->qsLogfile.isEmpty() && !unixhandler.logToSyslog) {
+	}
+#endif
+}
 int main(int argc, char **argv) {
 	QString inifile = QString::fromStdString(cli_options.iniFile.value_or(""));
 		signal(SIGTERM, cleanup);
@@ -162,6 +168,7 @@ def main() -> int:
         assert '"setProximityStaleTimeoutMsNative"' in android_jni
         assert '"updatePlayerStateNative"' in android_jni
         assert "VC_ANDROID_DEFAULT_INI" in main_cpp
+        assert "VC_ANDROID_FOREGROUND_LOGFILE" in main_cpp
         assert "QStandardPaths" in main_cpp
         assert 'QString inifile = QString::fromStdString(cli_options.iniFile.value_or(""));' in main_cpp
         assert (murmur / "VCProximity.h").is_file()
