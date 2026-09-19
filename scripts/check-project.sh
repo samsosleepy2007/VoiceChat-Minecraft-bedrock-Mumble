@@ -68,7 +68,7 @@ grep -Fq 'STARTUP_PROBE_MAX_ATTEMPTS = 30' app/src/core/java/com/voicecraft/vcmu
 grep -Fq 'Mumble core loaded but TCP port ' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq '"● STARTING"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'public static final String FILE_NAME = "vc-mumble-server.log";' app/src/main/java/com/voicecraft/vcmumbleserver/ServerLog.java
-grep -Fq 'ServerLog.append(this, "PROBE"' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq '"PROBE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'ServerLog.append(this, "SERVICE"' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'ServerLog.file(context).getAbsolutePath()' app/src/main/java/com/voicecraft/vcmumbleserver/MumbleConfigWriter.java
 grep -Fq 'VC_ANDROID_FOREGROUND_LOGFILE' scripts/prepare-mumble-source.py
@@ -77,6 +77,9 @@ grep -Fq '"Download log.txt"' app/src/main/java/com/voicecraft/vcmumbleserver/Ma
 grep -Fq '"Clear Log"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'Intent.ACTION_CREATE_DOCUMENT' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'Intent.EXTRA_TITLE, "log.txt"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"PROBE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: TCP probe log tag" >&2; exit 1; }
+grep -Fq '"SERVICE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: service log tag" >&2; exit 1; }
+grep -Fq '"ERROR",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: error log tag" >&2; exit 1; }
 if grep -Fq 'Java_com_voicecraft_vcmumbleserver_NativeServer_setProximityEnabledNative' app/src/main/cpp/mumble_jni.cpp; then
   echo "ERROR: real core JNI must use RegisterNatives, not legacy Java_com_* discovery" >&2
   exit 1
