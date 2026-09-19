@@ -23,6 +23,7 @@
 
         <service
             android:name=".MumbleServerService"
+            android:process=":mumble"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <!-- Ignored by the smoke Service. In core builds QtService consumes
