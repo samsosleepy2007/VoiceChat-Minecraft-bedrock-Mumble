@@ -134,7 +134,17 @@ echo "  ${CORE_SO}"
 echo "  ABI: ${ANDROID_ABI}"
 echo "  ELF machine: ${CORE_MACHINE:-unknown}"
 
-if ! "${LLVM_READELF}" --dyn-syms "${CORE_SO}" | grep -Eq 'GLOBAL[[:space:]]+DEFAULT[[:space:]]+[0-9]+[[:space:]]+mainif ! printf '%s\n' "${CORE_DYNAMIC}" | grep -Eq 'Shared library: \[libQt6Gui(_[^]]+)?\.so\]'; then
+if ! "${LLVM_READELF}" --dyn-syms "${CORE_SO}" | grep -Eq 'GLOBAL[[:space:]]+DEFAULT[[:space:]]+[0-9]+[[:space:]]+main$'; then
+  echo "ERROR: libvcserver does not export dynamic symbol main; Qt Android cannot resolve the native entrypoint" >&2
+  "${LLVM_READELF}" --dyn-syms "${CORE_SO}" | grep -E 'main|JNI_OnLoad|NativeServer_' >&2 || true
+  exit 4
+fi
+echo "Qt Android native entrypoint export: main OK"
+
+CORE_DYNAMIC="$("${LLVM_READELF}" -d "${CORE_SO}")"
+echo "Native DT_NEEDED entries before AAR deployment:"
+printf '%s\n' "${CORE_DYNAMIC}" | grep 'Shared library:' || true
+if ! printf '%s\n' "${CORE_DYNAMIC}" | grep -Eq 'Shared library: \[libQt6Gui(_[^]]+)?\.so\]'; then
   echo "ERROR: core does not retain Qt Gui in DT_NEEDED; androiddeployqt cannot deploy the Android platform plugin" >&2
   exit 4
 fi
