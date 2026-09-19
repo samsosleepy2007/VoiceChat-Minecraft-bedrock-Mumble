@@ -61,6 +61,10 @@ grep -Fq '"updatePlayerStateNative"' app/src/main/cpp/mumble_jni.cpp
 grep -Fq 'private static native void setProximityStaleTimeoutMsNative(long timeoutMs);' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
 grep -Fq 'private static native void updatePlayerStateNative(' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
 grep -Fq 'if (runtimeLoaded) setProximityStaleTimeoutMsNative(timeoutMs);' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
+if grep -Fq 'Java_com_voicecraft_vcmumbleserver_NativeServer_setProximityEnabledNative' app/src/main/cpp/mumble_jni.cpp; then
+  echo "ERROR: real core JNI must use RegisterNatives, not legacy Java_com_* discovery" >&2
+  exit 1
+fi
 
 test "$(grep -Fc 'is_android_system_or_qt_lib()' scripts/build-mumble-android-core.sh)" -eq 1
 test "$(grep -Fc 'find_external_candidate()' scripts/build-mumble-android-core.sh)" -eq 1
