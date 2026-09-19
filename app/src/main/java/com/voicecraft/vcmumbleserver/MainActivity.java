@@ -322,13 +322,13 @@ public final class MainActivity extends Activity {
 
     private void refreshLogView() {
         if (logView != null) {
-            String value = ServerLog.readAll(this);
+            String value = ServerLog.read(this);
             logView.setText(value.isEmpty() ? "No log entries yet." : value);
         }
     }
 
     private void copyLogToClipboard() {
-        String value = ServerLog.read(this);
+        String value = ServerLog.readAll(this);
         ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         clipboard.setPrimaryClip(ClipData.newPlainText("VC Mumble Server log", value));
         Toast.makeText(this, "Log copied", Toast.LENGTH_SHORT).show();
