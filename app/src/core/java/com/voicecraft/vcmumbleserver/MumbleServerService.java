@@ -40,6 +40,18 @@ public final class MumbleServerService extends RestartableQtService {
     @Override
     public void onCreate() {
         createNotificationChannel();
+
+        // startForegroundService() gives the service only a short window to
+        // become foreground. QtServiceBase.onCreate() synchronously loads Qt
+        // and waits for native service setup, so enter foreground *before*
+        // invoking the Qt loader to avoid ForegroundServiceDidNotStartInTime.
+        Notification bootNotification = buildNotification("Starting Mumble runtime…");
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(NOTIFICATION_ID, bootNotification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } else {
+            startForeground(NOTIFICATION_ID, bootNotification);
+        }
+
         // The inherited Qt loader starts the AAR-packaged Qt runtime and
         // libvcserver on Qt's native application thread.
         super.onCreate();
@@ -59,12 +71,7 @@ public final class MumbleServerService extends RestartableQtService {
         }
 
         ServerConfig config = ServerConfig.load(this);
-        Notification notification = buildNotification("Starting on port " + config.port + "…");
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-        } else {
-            startForeground(NOTIFICATION_ID, notification);
-        }
+        updateNotification("Starting on port " + config.port + "…");
 
         NativeServer.setProximityStaleTimeoutMs(15000L);
         boolean proximityActive = config.proximityEnabled;
