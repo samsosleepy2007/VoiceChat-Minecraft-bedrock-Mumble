@@ -82,6 +82,10 @@ grep -Fq '"QT-ERROR"' app/src/core/java/org/qtproject/qt/android/RestartableQtSe
 grep -Fq 'qtStartupError()' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'Qt startup failed: ' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'useLegacyPackaging = true' app/build.gradle.kts
+grep -Fq '"JNI"' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'Scheduling TCP readiness probe' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'VC_ANDROID_BOOTSTRAP_LOG' scripts/prepare-mumble-source.py
+grep -Fq 'VC_ANDROID_NO_UNIX_DAEMON' scripts/prepare-mumble-source.py
 grep -Fq '"PROBE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: TCP probe log tag" >&2; exit 1; }
 grep -Fq '"SERVICE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: service log tag" >&2; exit 1; }
 grep -Fq '"ERROR",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: error log tag" >&2; exit 1; }
