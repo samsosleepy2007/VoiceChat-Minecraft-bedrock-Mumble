@@ -3,6 +3,7 @@ package com.voicecraft.vcmumbleserver;
 import android.content.Context;
 
 import java.io.File;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -54,7 +55,7 @@ public final class ServerLog {
                 if (skipped <= 0) break;
                 skip -= skipped;
             }
-            byte[] data = input.readAllBytes();
+            byte[] data = readRemaining(input);
             String text = new String(data, StandardCharsets.UTF_8);
             if (length > UI_MAX_BYTES) {
                 int firstNewline = text.indexOf('\n');
@@ -73,7 +74,15 @@ public final class ServerLog {
         File target = file(context);
         if (!target.isFile()) return new byte[0];
         try (FileInputStream input = new FileInputStream(target)) {
-            return input.readAllBytes();
+            return readRemaining(input);
+        }
+    }
+
+    public static synchronized String readAll(Context context) {
+        try {
+            return new String(readAllBytes(context), StandardCharsets.UTF_8);
+        } catch (IOException error) {
+            return "Unable to read log: " + error.getClass().getSimpleName() + ": " + error.getMessage();
         }
     }
 
@@ -86,12 +95,22 @@ public final class ServerLog {
         append(context, "APP", "Log cleared");
     }
 
+    private static byte[] readRemaining(FileInputStream input) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int count;
+        while ((count = input.read(buffer)) >= 0) {
+            if (count > 0) output.write(buffer, 0, count);
+        }
+        return output.toByteArray();
+    }
+
     private static void trimIfNeeded(File target) throws IOException {
         if (!target.isFile() || target.length() <= MAX_BYTES) return;
 
         byte[] data;
         try (FileInputStream input = new FileInputStream(target)) {
-            data = input.readAllBytes();
+            data = readRemaining(input);
         }
 
         int keepFrom = Math.max(0, data.length - (int) (MAX_BYTES / 2));
