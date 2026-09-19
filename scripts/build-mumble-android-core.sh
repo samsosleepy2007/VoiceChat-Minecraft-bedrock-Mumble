@@ -16,7 +16,13 @@ ANDROID_PACKAGE_SOURCE_DIR="${ROOT_DIR}/native/mumble_android/android-package"
 : "${QT_ANDROID_PREFIX:?QT_ANDROID_PREFIX is required (Qt 6 Android arm64 prefix)}"
 : "${QT_HOST_PATH:?QT_HOST_PATH is required (matching desktop Qt host tools)}"
 : "${VC_ANDROID_DEP_PREFIX:?VC_ANDROID_DEP_PREFIX is required (Android native dependency prefix)}"
+: "${VC_ANDROID_TLS_PREFIX:?VC_ANDROID_TLS_PREFIX is required (shared OpenSSL Android prefix)}"
 : "${PROTOC:?PROTOC is required (host-runnable protoc path)}"
+
+if ! command -v patchelf >/dev/null 2>&1; then
+  echo "ERROR: patchelf is required to prepare Qt Android OpenSSL runtime libraries" >&2
+  exit 2
+fi
 
 if [[ ! -x "${PROTOC}" ]]; then
   echo "ERROR: PROTOC is not executable: ${PROTOC}" >&2
@@ -197,6 +203,50 @@ while (( scan_index < ${#scan_queue[@]} )); do
     scan_queue+=("${EXTRA_STAGE_DIR}/${needed}")
   done < <("${LLVM_READELF}" -d "${current}" | sed -n 's/.*Shared library: \[\(.*\)\].*/\1/p')
 done
+
+find_tls_shared_lib() {
+  local stem="$1"
+  local candidate=""
+  candidate="$(find -L "${VC_ANDROID_TLS_PREFIX}/lib" -maxdepth 1 -type f -name "${stem}.so" -print -quit 2>/dev/null || true)"
+  if [[ -z "${candidate}" ]]; then
+    candidate="$(find -L "${VC_ANDROID_TLS_PREFIX}/lib" -maxdepth 1 -type f -name "${stem}.so.*" -print -quit 2>/dev/null || true)"
+  fi
+  printf '%s' "${candidate}"
+}
+
+stage_qt_openssl_runtime() {
+  local crypto_source ssl_source needed
+  crypto_source="$(find_tls_shared_lib libcrypto)"
+  ssl_source="$(find_tls_shared_lib libssl)"
+
+  if [[ -z "${crypto_source}" || -z "${ssl_source}" ]]; then
+    echo "ERROR: shared OpenSSL runtime not found under ${VC_ANDROID_TLS_PREFIX}/lib" >&2
+    find "${VC_ANDROID_TLS_PREFIX}" -maxdepth 2 -type f -name 'lib*.so*' -print >&2 || true
+    exit 5
+  fi
+
+  cp -Lf "${crypto_source}" "${EXTRA_STAGE_DIR}/libcrypto_3.so"
+  cp -Lf "${ssl_source}" "${EXTRA_STAGE_DIR}/libssl_3.so"
+
+  patchelf --set-soname libcrypto_3.so "${EXTRA_STAGE_DIR}/libcrypto_3.so"
+  patchelf --set-soname libssl_3.so "${EXTRA_STAGE_DIR}/libssl_3.so"
+
+  while IFS= read -r needed; do
+    case "${needed}" in
+      libcrypto.so|libcrypto.so.*)
+        patchelf --replace-needed "${needed}" libcrypto_3.so "${EXTRA_STAGE_DIR}/libssl_3.so"
+        ;;
+    esac
+  done < <("${LLVM_READELF}" -d "${EXTRA_STAGE_DIR}/libssl_3.so" | sed -n 's/.*Shared library: \[\(.*\)\].*/\1/p')
+
+  echo "Qt Android OpenSSL runtime staged:"
+  echo "  crypto: ${crypto_source} -> libcrypto_3.so"
+  echo "  ssl:    ${ssl_source} -> libssl_3.so"
+  "${LLVM_READELF}" -d "${EXTRA_STAGE_DIR}/libcrypto_3.so" | grep -E 'SONAME|NEEDED' || true
+  "${LLVM_READELF}" -d "${EXTRA_STAGE_DIR}/libssl_3.so" | grep -E 'SONAME|NEEDED' || true
+}
+
+stage_qt_openssl_runtime
 
 EXTRA_LIBS_CMAKE=""
 while IFS= read -r lib; do
