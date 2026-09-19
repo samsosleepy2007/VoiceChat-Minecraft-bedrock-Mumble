@@ -25,7 +25,7 @@ public final class MumbleConfigWriter {
         text.append("database=").append(quote(database.getAbsolutePath())).append('\n');
         text.append("logfile=\n");
         text.append("pidfile=\n");
-        text.append("host=\n");
+        text.append("host=0.0.0.0\\n");
         text.append("port=").append(config.port).append('\n');
         text.append("users=").append(config.maxUsers).append('\n');
         text.append("serverpassword=").append(quote(config.password)).append('\n');
