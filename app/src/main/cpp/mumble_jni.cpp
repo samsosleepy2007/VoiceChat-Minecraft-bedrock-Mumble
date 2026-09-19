@@ -10,6 +10,7 @@
 extern "C" void vc_mumble_server_request_stop();
 
 namespace {
+
 std::string fromJString(JNIEnv *env, jstring value) {
     if (value == nullptr) return {};
     const char *raw = env->GetStringUTFChars(value, nullptr);
@@ -18,53 +19,40 @@ std::string fromJString(JNIEnv *env, jstring value) {
     env->ReleaseStringUTFChars(value, raw);
     return result;
 }
-}
 
-// In core builds QtService/androiddeployqt owns loading Qt and entering Mumble's
-// main(). startNative exists only to keep the Java API identical to smoke builds.
-extern "C" JNIEXPORT jint JNICALL
-Java_com_voicecraft_vcmumbleserver_NativeServer_startNative(
-        JNIEnv *, jclass, jstring, jint, jstring) {
+jint startNative(JNIEnv *, jclass, jstring, jint, jstring) {
     return QCoreApplication::instance() != nullptr ? 0 : 1;
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_voicecraft_vcmumbleserver_NativeServer_stopNative(JNIEnv *, jclass) {
+void stopNative(JNIEnv *, jclass) {
     vc_mumble_server_request_stop();
 }
 
-extern "C" JNIEXPORT jboolean JNICALL
-Java_com_voicecraft_vcmumbleserver_NativeServer_isRunningNative(JNIEnv *, jclass) {
+jboolean isRunningNative(JNIEnv *, jclass) {
     return QCoreApplication::instance() != nullptr ? JNI_TRUE : JNI_FALSE;
 }
 
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_voicecraft_vcmumbleserver_NativeServer_lastErrorNative(JNIEnv *env, jclass) {
-    // Startup failures are currently surfaced by Qt/Mumble logcat. A structured
-    // error bridge is deliberately deferred until stock-client bring-up passes.
+jstring lastErrorNative(JNIEnv *env, jclass) {
     return env->NewStringUTF("");
 }
 
-extern "C" JNIEXPORT jint JNICALL
-Java_com_voicecraft_vcmumbleserver_NativeServer_connectedClientsNative(JNIEnv *, jclass) {
-    // TODO after protocol bring-up: expose authenticated Mumble session count.
+jint connectedClientsNative(JNIEnv *, jclass) {
     return 0;
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_voicecraft_vcmumbleserver_NativeServer_setProximityEnabledNative(
-        JNIEnv *, jclass, jboolean enabled) {
+void setProximityEnabledNative(JNIEnv *, jclass, jboolean enabled) {
     VCProximity::setEnabled(enabled == JNI_TRUE);
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_voicecraft_vcmumbleserver_NativeServer_setProximityStaleTimeoutMs(
-        JNIEnv *, jclass, jlong timeoutMs) {
+jint proximityPlayerCountNative(JNIEnv *, jclass) {
+    return VCProximity::playerCount();
+}
+
+void setProximityStaleTimeoutMsNative(JNIEnv *, jclass, jlong timeoutMs) {
     VCProximity::setStaleTimeoutMs(static_cast<qint64>(timeoutMs));
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_voicecraft_vcmumbleserver_NativeServer_updatePlayerState(
+void updatePlayerStateNative(
         JNIEnv *env, jclass, jstring mumbleNameValue, jstring dimensionValue,
         jdouble x, jdouble y, jdouble z, jfloat rangeBlocks) {
     const std::string mumbleName = fromJString(env, mumbleNameValue);
@@ -78,23 +66,75 @@ Java_com_voicecraft_vcmumbleserver_NativeServer_updatePlayerState(
             static_cast<float>(rangeBlocks));
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_voicecraft_vcmumbleserver_NativeServer_removePlayerState(
-        JNIEnv *env, jclass, jstring mumbleNameValue) {
+void removePlayerStateNative(JNIEnv *env, jclass, jstring mumbleNameValue) {
     const std::string mumbleName = fromJString(env, mumbleNameValue);
     VCProximity::removePlayer(QString::fromUtf8(mumbleName.c_str()));
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_voicecraft_vcmumbleserver_NativeServer_clearPlayerStates(JNIEnv *, jclass) {
+void clearPlayerStatesNative(JNIEnv *, jclass) {
     VCProximity::clearPlayers();
 }
 
-extern "C" JNIEXPORT jint JNICALL
-Java_com_voicecraft_vcmumbleserver_NativeServer_proximityPlayerCountNative(JNIEnv *, jclass) {
-    return VCProximity::playerCount();
-}
+JNINativeMethod kNativeMethods[] = {
+        {const_cast<char *>("startNative"),
+         const_cast<char *>("(Ljava/lang/String;ILjava/lang/String;)I"),
+         reinterpret_cast<void *>(startNative)},
+        {const_cast<char *>("stopNative"),
+         const_cast<char *>("()V"),
+         reinterpret_cast<void *>(stopNative)},
+        {const_cast<char *>("isRunningNative"),
+         const_cast<char *>("()Z"),
+         reinterpret_cast<void *>(isRunningNative)},
+        {const_cast<char *>("lastErrorNative"),
+         const_cast<char *>("()Ljava/lang/String;"),
+         reinterpret_cast<void *>(lastErrorNative)},
+        {const_cast<char *>("connectedClientsNative"),
+         const_cast<char *>("()I"),
+         reinterpret_cast<void *>(connectedClientsNative)},
+        {const_cast<char *>("setProximityEnabledNative"),
+         const_cast<char *>("(Z)V"),
+         reinterpret_cast<void *>(setProximityEnabledNative)},
+        {const_cast<char *>("proximityPlayerCountNative"),
+         const_cast<char *>("()I"),
+         reinterpret_cast<void *>(proximityPlayerCountNative)},
+        {const_cast<char *>("setProximityStaleTimeoutMsNative"),
+         const_cast<char *>("(J)V"),
+         reinterpret_cast<void *>(setProximityStaleTimeoutMsNative)},
+        {const_cast<char *>("updatePlayerStateNative"),
+         const_cast<char *>("(Ljava/lang/String;Ljava/lang/String;DDDF)V"),
+         reinterpret_cast<void *>(updatePlayerStateNative)},
+        {const_cast<char *>("removePlayerStateNative"),
+         const_cast<char *>("(Ljava/lang/String;)V"),
+         reinterpret_cast<void *>(removePlayerStateNative)},
+        {const_cast<char *>("clearPlayerStatesNative"),
+         const_cast<char *>("()V"),
+         reinterpret_cast<void *>(clearPlayerStatesNative)},
+};
 
-JNIEXPORT jint JNI_OnLoad(JavaVM *, void *) {
+} // namespace
+
+extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *) {
+    JNIEnv *env = nullptr;
+    if (vm == nullptr || vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) != JNI_OK
+            || env == nullptr) {
+        return JNI_ERR;
+    }
+
+    jclass nativeServerClass =
+            env->FindClass("com/voicecraft/vcmumbleserver/NativeServer");
+    if (nativeServerClass == nullptr) {
+        env->ExceptionClear();
+        return JNI_ERR;
+    }
+
+    const jint methodCount =
+            static_cast<jint>(sizeof(kNativeMethods) / sizeof(kNativeMethods[0]));
+    if (env->RegisterNatives(nativeServerClass, kNativeMethods, methodCount) != JNI_OK) {
+        env->ExceptionClear();
+        env->DeleteLocalRef(nativeServerClass);
+        return JNI_ERR;
+    }
+
+    env->DeleteLocalRef(nativeServerClass);
     return JNI_VERSION_1_6;
 }
