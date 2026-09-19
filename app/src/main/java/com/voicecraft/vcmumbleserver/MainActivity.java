@@ -322,7 +322,7 @@ public final class MainActivity extends Activity {
 
     private void refreshLogView() {
         if (logView != null) {
-            String value = ServerLog.read(this);
+            String value = ServerLog.readAll(this);
             logView.setText(value.isEmpty() ? "No log entries yet." : value);
         }
     }
@@ -338,7 +338,7 @@ public final class MainActivity extends Activity {
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("text/plain");
-        intent.putExtra(Intent.EXTRA_TITLE, "vc-mumble-server-log.txt");
+        intent.putExtra(Intent.EXTRA_TITLE, "log.txt");
         startActivityForResult(intent, REQUEST_EXPORT_LOG);
     }
 
