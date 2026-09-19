@@ -1,0 +1,15 @@
+.gradle/
+.idea/
+local.properties
+**/build/
+.externalNativeBuild/
+.cxx/
+*.iml
+*.apk
+*.aab
+.DS_Store
+
+# Local native/source preparation
+.build/
+__pycache__/
+*.pyc

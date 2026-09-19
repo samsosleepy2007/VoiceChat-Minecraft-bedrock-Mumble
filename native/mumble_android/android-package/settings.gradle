@@ -1,0 +1,4 @@
+// Keep Gradle's root project name aligned with androiddeployqt's output
+// directory basename. Qt 6.8 derives the expected AAR filename from that
+// directory (for example android-build-release.aar).
+rootProject.name = rootDir.name
