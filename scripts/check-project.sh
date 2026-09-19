@@ -95,6 +95,12 @@ grep -Fq 'patchelf --set-soname libcrypto_3.so' scripts/build-mumble-android-cor
 grep -Fq 'ANDROID_OPENSSL_SUFFIX' scripts/prepare-mumble-source.py
 grep -Fq 'probeSystemLoad(nativeDir, "crypto_3", "openssl")' app/src/core/java/org/qtproject/qt/android/RestartableQtService.java
 grep -Fq 'probeSystemLoad(nativeDir, "ssl_3", "openssl")' app/src/core/java/org/qtproject/qt/android/RestartableQtService.java
+grep -Fq 'android:process=":mumble"' app/src/main/AndroidManifest.xml
+grep -Fq 'terminateProcessOnDestroy' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'android.os.Process.killProcess(pid)' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'Startup failed; stopping isolated Mumble process' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'refreshServerStateFromTcp()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'new InetSocketAddress("127.0.0.1", probePort)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"PROBE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: TCP probe log tag" >&2; exit 1; }
 grep -Fq '"SERVICE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: service log tag" >&2; exit 1; }
 grep -Fq '"ERROR",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: error log tag" >&2; exit 1; }
