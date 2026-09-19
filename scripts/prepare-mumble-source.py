@@ -253,6 +253,7 @@ def patch_embedded_lifecycle(murmur: pathlib.Path) -> None:
             "int main(int argc, char **argv) {\n"
             "#ifdef Q_OS_ANDROID\n"
             "\tqputenv(\"QT_ANDROID_NO_EXIT_CALL\", \"1\"); // VC_ANDROID_NO_EXIT_CALL\n"
+            "\tqputenv(\"ANDROID_OPENSSL_SUFFIX\", \"_3\"); // VC_ANDROID_OPENSSL_SUFFIX\n"
             "#endif",
             "Android no-exit guard",
         )
@@ -597,6 +598,7 @@ def prepare(
         "ordinary main retained": re.search(r"\bint\s+main\s*\(", final_main) is not None,
         "Android main exported for Qt loader": "VC_ANDROID_MAIN_EXPORT" in final_main,
         "Qt Android process exit disabled": "VC_ANDROID_NO_EXIT_CALL" in final_main,
+        "Qt Android OpenSSL suffix": "VC_ANDROID_OPENSSL_SUFFIX" in final_main,
         "Android native bootstrap logging": "VC_ANDROID_BOOTSTRAP_LOG" in final_main,
         "Android default ini": "VC_ANDROID_DEFAULT_INI" in final_main,
         "Android foreground logfile": "VC_ANDROID_FOREGROUND_LOGFILE" in final_main,
