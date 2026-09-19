@@ -78,6 +78,20 @@ def patch_embedded_lifecycle(murmur: pathlib.Path) -> None:
     main_cpp = murmur / "main.cpp"
     text = main_cpp.read_text(encoding="utf-8")
 
+    # Qt's Android platform loader resolves the application entrypoint with
+    # dlsym(mainLibraryHandle, "main"). Mumble builds with hidden visibility,
+    # so explicitly export only main() for the Android shared-module target.
+    if "VC_ANDROID_MAIN_EXPORT" not in text:
+        text = replace_literal_once(
+            text,
+            "int main(int argc, char **argv) {",
+            "#if defined(Q_OS_ANDROID) && defined(__GNUC__)\n"
+            "__attribute__((visibility(\"default\"))) // VC_ANDROID_MAIN_EXPORT\n"
+            "#endif\n"
+            "int main(int argc, char **argv) {",
+            "Android main entrypoint",
+        )
+
     if "VC_MUMBLE_EMBEDDED_RETURN" not in text:
         text = replace_once(
             text,
@@ -390,6 +404,7 @@ def prepare(
         "Qt Android GUI deployment dependency": "Qt6::Gui" in final_cmake,
         "Qt Android GUI dependency retention": "LINKER:--no-as-needed" in final_cmake,
         "ordinary main retained": re.search(r"\bint\s+main\s*\(", final_main) is not None,
+        "Android main exported for Qt loader": "VC_ANDROID_MAIN_EXPORT" in final_main,
         "Android default ini": "VC_ANDROID_DEFAULT_INI" in final_main,
         "embedded cleanup return": "VC_MUMBLE_EMBEDDED_RETURN" in final_main,
         "embedded signal guard": "VC_MUMBLE_EMBEDDED_SIGNALS" in final_main,
