@@ -144,7 +144,7 @@ public final class MumbleServerService extends RestartableQtService {
         if (attempt < STARTUP_PROBE_MAX_ATTEMPTS) {
             String starting = "Starting • " + serverAddress
                     + " • waiting for TCP (" + attempt + "/" + STARTUP_PROBE_MAX_ATTEMPTS + ")";
-            publish(false, starting);
+            publish(true, starting);
             updateNotification(starting);
             handler.postDelayed(coreHealthCheck, STARTUP_PROBE_INTERVAL_MS);
             return;
