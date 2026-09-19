@@ -49,6 +49,7 @@ public final class MumbleServerService extends RestartableQtService {
     @Override
     public void onCreate() {
         createNotificationChannel();
+        ServerLog.append(this, "SERVICE", "onCreate; sdk=" + Build.VERSION.SDK_INT);
 
         // startForegroundService() gives the service only a short window to
         // become foreground. QtServiceBase.onCreate() synchronously loads Qt
@@ -66,8 +67,10 @@ public final class MumbleServerService extends RestartableQtService {
         super.onCreate();
         if (isQtRuntimeStarted()) {
             NativeServer.markRuntimeLoaded();
+            ServerLog.append(this, "QT", "Qt runtime reports started; NativeServer marked loaded");
         } else {
             NativeServer.markRuntimeUnloaded();
+            ServerLog.append(this, "QT", "Qt runtime did not report started after QtServiceBase.onCreate");
         }
     }
 
@@ -80,6 +83,16 @@ public final class MumbleServerService extends RestartableQtService {
         }
 
         ServerConfig config = ServerConfig.load(this);
+        ServerLog.append(
+                this,
+                "SERVICE",
+                "Start requested; port=" + config.port
+                        + ", maxUsers=" + config.maxUsers
+                        + ", proximity=" + config.proximityEnabled
+                        + ", passwordSet=" + (config.password != null && !config.password.isEmpty())
+                        + ", ini=" + new java.io.File(getFilesDir(), "mumble/mumble-server.ini").getAbsolutePath()
+                        + ", nativeLibDir=" + getApplicationInfo().nativeLibraryDir
+        );
         serverPort = config.port;
         startupProbeAttempt = 0;
         updateNotification("Starting on port " + config.port + "…");
@@ -114,7 +127,7 @@ public final class MumbleServerService extends RestartableQtService {
             final int port = serverPort;
 
             Thread probeThread = new Thread(() -> {
-                boolean tcpReady = probeTcpListener(port);
+                boolean tcpReady = probeTcpListener(port, attempt);
                 handler.post(() -> handleProbeResult(attempt, tcpReady));
             }, "VCMumble-TCP-Probe");
             probeThread.setDaemon(true);
@@ -122,20 +135,35 @@ public final class MumbleServerService extends RestartableQtService {
         }
     };
 
-    private boolean probeTcpListener(int port) {
+    private boolean probeTcpListener(int port, int attempt) {
         try (Socket socket = new Socket()) {
             socket.connect(
                     new InetSocketAddress("127.0.0.1", port),
                     STARTUP_PROBE_CONNECT_TIMEOUT_MS
             );
-            return socket.isConnected();
-        } catch (IOException ignored) {
+            boolean connected = socket.isConnected();
+            ServerLog.append(
+                    this,
+                    "PROBE",
+                    "TCP 127.0.0.1:" + port + " attempt " + attempt + " => "
+                            + (connected ? "OPEN" : "NOT_CONNECTED")
+            );
+            return connected;
+        } catch (IOException error) {
+            ServerLog.append(
+                    this,
+                    "PROBE",
+                    "TCP 127.0.0.1:" + port + " attempt " + attempt + " => "
+                            + error.getClass().getSimpleName() + ": " + String.valueOf(error.getMessage())
+            );
             return false;
         }
     }
 
     private void handleProbeResult(int attempt, boolean tcpReady) {
         if (tcpReady) {
+            ServerLog.append(this, "SERVICE", "Mumble TCP listener is ready at " + serverAddress
+                    + " after " + attempt + " probe attempt(s)");
             updateNotification(null);
             publish(true, serverAddress);
             return;
@@ -154,6 +182,7 @@ public final class MumbleServerService extends RestartableQtService {
         String message = error.isEmpty()
                 ? "Mumble core loaded but TCP port " + serverPort + " did not open"
                 : error;
+        ServerLog.append(this, "ERROR", message);
         publish(false, message);
         updateNotification(message);
         stopRelay();
@@ -163,6 +192,7 @@ public final class MumbleServerService extends RestartableQtService {
 
     @Override
     public void onDestroy() {
+        ServerLog.append(this, "SERVICE", "onDestroy; runtimeLoaded=" + NativeServer.runtimeLoaded());
         handler.removeCallbacks(coreHealthCheck);
         stopRelay();
         if (NativeServer.runtimeLoaded()) {
@@ -175,6 +205,7 @@ public final class MumbleServerService extends RestartableQtService {
     }
 
     private void stopCoreAndSelf() {
+        ServerLog.append(this, "SERVICE", "Stop requested");
         handler.removeCallbacks(coreHealthCheck);
         stopRelay();
         if (NativeServer.runtimeLoaded()) {
@@ -189,7 +220,11 @@ public final class MumbleServerService extends RestartableQtService {
 
     private void startRelay(ServerConfig config) {
         stopRelay();
+        ServerLog.append(this, "BRIDGE", "Starting Minecraft bridge client to "
+                + config.bridgeHost + ":" + config.bridgePort);
         bridgeClient = new VCMumbleBridgeClient(config, (status, connected, tracked) -> {
+            ServerLog.append(this, "BRIDGE", "status=" + status + ", connected=" + connected
+                    + ", tracked=" + tracked);
             bridgeStatus = status;
             trackedPlayers = tracked;
             updateNotification(null);
