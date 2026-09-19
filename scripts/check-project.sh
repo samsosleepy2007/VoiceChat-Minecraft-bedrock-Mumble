@@ -41,4 +41,9 @@ grep -Fq 'Using Android ELF inspector:' scripts/build-mumble-android-core.sh
 grep -Fq 'VC_ANDROID_PACKAGE_SOURCE_DIR' scripts/build-mumble-android-core.sh
 grep -Fq 'QT_ANDROID_PACKAGE_SOURCE_DIR' scripts/prepare-mumble-source.py
 grep -Fq 'rootProject.name = rootDir.name' native/mumble_android/android-package/settings.gradle
+grep -Fq 'VC_ANDROID_MAIN_EXPORT' scripts/prepare-mumble-source.py
+grep -Fq 'QT_ANDROID_NO_EXIT_CALL' scripts/prepare-mumble-source.py
+grep -Fq -- '--dyn-syms' scripts/build-mumble-android-core.sh
+grep -Fq 'Qt Android native entrypoint export: main OK' scripts/build-mumble-android-core.sh
+grep -Fq 'Starting Mumble runtime' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 echo "VC Mumble Server project structure: OK"
