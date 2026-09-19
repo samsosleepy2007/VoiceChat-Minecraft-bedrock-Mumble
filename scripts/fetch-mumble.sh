@@ -11,14 +11,50 @@ URL="https://github.com/mumble-voip/mumble/releases/download/v${VERSION}/mumble-
 
 mkdir -p "${BUILD_DIR}"
 
+download_archive() {
+  local part="${ARCHIVE}.part"
+  local attempt
+  rm -f "${part}"
+
+  for attempt in 1 2 3 4 5; do
+    echo "Downloading Mumble ${VERSION} (attempt ${attempt}/5)..."
+    rm -f "${part}"
+    if curl \
+      --fail \
+      --location \
+      --connect-timeout 20 \
+      --max-time 300 \
+      --retry 2 \
+      --retry-delay 2 \
+      --retry-all-errors \
+      --output "${part}" \
+      "${URL}"; then
+      mv -f "${part}" "${ARCHIVE}"
+      return 0
+    fi
+
+    echo "WARN: Mumble source download attempt ${attempt} failed" >&2
+    sleep "$((attempt * 2))"
+  done
+
+  rm -f "${part}"
+  echo "ERROR: unable to download Mumble ${VERSION} after 5 attempts" >&2
+  return 1
+}
+
 if [[ ! -f "${ARCHIVE}" ]]; then
-  echo "Downloading Mumble ${VERSION}..."
-  curl --fail --location --retry 3 --output "${ARCHIVE}" "${URL}"
+  download_archive
+fi
+
+if ! echo "${EXPECTED_SHA256}  ${ARCHIVE}" | sha256sum --check --status; then
+  echo "WARN: cached Mumble source checksum mismatch; downloading a clean copy" >&2
+  rm -f "${ARCHIVE}"
+  download_archive
 fi
 
 echo "${EXPECTED_SHA256}  ${ARCHIVE}" | sha256sum --check --status || {
-  echo "ERROR: Mumble source archive checksum mismatch" >&2
-  rm -f "${ARCHIVE}"
+  echo "ERROR: Mumble source archive checksum mismatch after fresh download" >&2
+  rm -f "${ARCHIVE}" "${ARCHIVE}.part"
   exit 2
 }
 
