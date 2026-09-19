@@ -45,5 +45,7 @@ grep -Fq 'VC_ANDROID_MAIN_EXPORT' scripts/prepare-mumble-source.py
 grep -Fq 'QT_ANDROID_NO_EXIT_CALL' scripts/prepare-mumble-source.py
 grep -Fq -- '--dyn-syms' scripts/build-mumble-android-core.sh
 grep -Fq 'Qt Android native entrypoint export: main OK' scripts/build-mumble-android-core.sh
+grep -Fq 'libvcserver does not export dynamic symbol main' scripts/build-mumble-android-core.sh
+grep -Fq 'CORE_DYNAMIC="$("${LLVM_READELF}" -d "${CORE_SO}")"' scripts/build-mumble-android-core.sh
 grep -Fq 'Starting Mumble runtime' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 echo "VC Mumble Server project structure: OK"
