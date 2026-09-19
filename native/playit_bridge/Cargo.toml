@@ -1,0 +1,11 @@
+[package]
+name = "vc-playit-helper"
+version = "0.1.0"
+edition = "2024"
+description = "VC Mumble Server helper for Playit tunnel provisioning"
+license = "BSD-2-Clause"
+
+[dependencies]
+tokio = { workspace = true }
+serde_json = { workspace = true }
+playit-api-client = { path = "../api_client", version = "0.2.0" }
