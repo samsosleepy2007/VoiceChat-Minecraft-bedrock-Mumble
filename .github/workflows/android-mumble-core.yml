@@ -3,7 +3,7 @@ name: Android Embedded Mumble Core (experimental)
 on:
   workflow_dispatch:
   push:
-    branches: ['test/vc-mumble-github-import', 'main']
+    branches: ['test/vc-mumble-github-import', 'main', 'feature/playit-embedded-tunnel']
 
 permissions:
   contents: write
@@ -46,6 +46,10 @@ jobs:
           sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;${NDK_VERSION}"
           echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
 
+      - name: Build embedded playit Android executables
+        if: github.ref == 'refs/heads/feature/playit-embedded-tunnel'
+        run: bash ./scripts/build-playit-android-agent.sh
+
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '9.6.0'
@@ -53,7 +57,7 @@ jobs:
       - name: Install host build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build autoconf automake libtool pkg-config patchelf
+          sudo apt-get install -y ninja-build autoconf automake libtool pkg-config patchelf file binutils
           python3 -m pip install --upgrade pip
           python3 -m pip install 'aqtinstall==3.3.0'
 
@@ -119,13 +123,22 @@ jobs:
         run: ./scripts/build-mumble-android-core.sh
 
       - name: Build core APK
-        run: gradle -PvcMumbleCore=true :app:assembleDebug --stacktrace
+        run: |
+          if [[ "$GITHUB_REF" == "refs/heads/feature/playit-embedded-tunnel" ]]; then
+            gradle -PvcMumbleCore=true -PvcEmbeddedPlayit=true :app:assembleDebug --stacktrace
+          else
+            gradle -PvcMumbleCore=true :app:assembleDebug --stacktrace
+          fi
 
       - name: Inventory Qt runtime AAR and packaged APK
         run: |
           test -f .build/android-stage/vc-mumble-runtime.aar
           cat .build/android-stage/vc-mumble-runtime.contents.txt
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -E 'lib/arm64-v8a/|classes' || true
+          if [[ "$GITHUB_REF" == "refs/heads/feature/playit-embedded-tunnel" ]]; then
+            unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -F 'lib/arm64-v8a/libplayit_cli_exec.so'
+            unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -F 'lib/arm64-v8a/libplayitd_exec.so'
+          fi
 
       - uses: actions/upload-artifact@v7
         with:
@@ -135,6 +148,7 @@ jobs:
             .build/android-stage/vc-mumble-runtime.aar
             .build/android-stage/vc-mumble-runtime.contents.txt
             .build/android-stage/extra-libs/arm64-v8a/
+            .build/playit-android/
           retention-days: 14
 
       - name: Prepare GitHub release assets
