@@ -24,6 +24,17 @@ android {
         buildConfig = true
     }
 
+    // Qt 6.8's Android service loader resolves bundled libraries through
+    // ApplicationInfo.nativeLibraryDir and System.load(fullPath). Modern AGP
+    // normally keeps JNI libraries unextracted inside the APK, leaving that
+    // directory empty on-device. Legacy JNI packaging makes Android extract
+    // every packaged .so into nativeLibraryDir before Qt starts.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     buildTypes {
         getByName("debug") {
             isMinifyEnabled = false
