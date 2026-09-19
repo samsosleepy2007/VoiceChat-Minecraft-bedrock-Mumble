@@ -3,6 +3,8 @@ package com.voicecraft.vcmumbleserver;
 import android.Manifest;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -11,6 +13,7 @@ import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
+import android.graphics.Typeface;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -20,7 +23,12 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.IOException;
+import java.io.OutputStream;
+
 public final class MainActivity extends Activity {
+    private static final int REQUEST_EXPORT_LOG = 4201;
+
     private TextView status;
     private TextView address;
     private TextView bridgeStatus;
@@ -34,6 +42,7 @@ public final class MainActivity extends Activity {
     private EditText bridgePort;
     private EditText bridgeSecret;
     private Button startStop;
+    private TextView logView;
     private boolean running;
 
     private final BroadcastReceiver stateReceiver = new BroadcastReceiver() {
@@ -45,6 +54,7 @@ public final class MainActivity extends Activity {
                     intent.getStringExtra(MumbleServerService.EXTRA_BRIDGE),
                     intent.getIntExtra(MumbleServerService.EXTRA_TRACKED, 0)
             );
+            refreshLogView();
         }
     };
 
@@ -64,6 +74,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onStart() {
         super.onStart();
+        refreshLogView();
         IntentFilter filter = new IntentFilter(MumbleServerService.ACTION_STATE);
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(stateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
@@ -161,6 +172,33 @@ public final class MainActivity extends Activity {
         note.setTextColor(Color.GRAY);
         root.addView(note, marginTop(18));
 
+        root.addView(section("Server Log"), marginTop(22));
+        logView = text("", 11, false);
+        logView.setTypeface(Typeface.MONOSPACE);
+        logView.setTextIsSelectable(true);
+        logView.setMinLines(8);
+        logView.setPadding(dp(12), dp(12), dp(12), dp(12));
+        logView.setBackgroundColor(Color.WHITE);
+        root.addView(logView, marginTop(8));
+
+        Button copyLog = button("Copy Log");
+        copyLog.setOnClickListener(v -> copyLogToClipboard());
+        root.addView(copyLog, marginTop(8));
+
+        Button downloadLog = button("Download log.txt");
+        downloadLog.setOnClickListener(v -> exportLog());
+        root.addView(downloadLog, marginTop(8));
+
+        Button clearLog = button("Clear Log");
+        clearLog.setOnClickListener(v -> {
+            ServerLog.clear(this);
+            refreshLogView();
+            Toast.makeText(this, "Log cleared", Toast.LENGTH_SHORT).show();
+        });
+        root.addView(clearLog, marginTop(8));
+
+        refreshLogView();
+
         ScrollView scroll = new ScrollView(this);
         scroll.addView(root);
         return scroll;
@@ -168,6 +206,7 @@ public final class MainActivity extends Activity {
 
     private void toggleServer() {
         if (running) {
+            ServerLog.append(this, "UI", "Stop server button pressed");
             startService(new Intent(this, MumbleServerService.class).setAction(MumbleServerService.ACTION_STOP));
             return;
         }
@@ -178,8 +217,19 @@ public final class MainActivity extends Activity {
             // Core builds are launched by QtService, which may enter native main()
             // during service creation. Write the ini before starting the service
             // so Mumble always sees a complete configuration on first boot.
-            MumbleConfigWriter.write(this, cfg);
+            java.io.File ini = MumbleConfigWriter.write(this, cfg);
+            ServerLog.append(
+                    this,
+                    "UI",
+                    "Start server; address=" + NetworkUtil.bestLanIpv4() + ":" + cfg.port
+                            + ", ini=" + ini.getAbsolutePath()
+                            + ", maxUsers=" + cfg.maxUsers
+                            + ", proximity=" + cfg.proximityEnabled
+            );
+            refreshLogView();
         } catch (IllegalArgumentException | IllegalStateException | java.io.IOException e) {
+            ServerLog.append(this, "ERROR", "Unable to start: " + e.getClass().getSimpleName()
+                    + ": " + String.valueOf(e.getMessage()));
             Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
             return;
         }
@@ -268,6 +318,49 @@ public final class MainActivity extends Activity {
     private String currentAddress() {
         ServerConfig c = ServerConfig.load(this);
         return NetworkUtil.bestLanIpv4() + ":" + c.port;
+    }
+
+    private void refreshLogView() {
+        if (logView != null) {
+            String value = ServerLog.read(this);
+            logView.setText(value.isEmpty() ? "No log entries yet." : value);
+        }
+    }
+
+    private void copyLogToClipboard() {
+        String value = ServerLog.read(this);
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        clipboard.setPrimaryClip(ClipData.newPlainText("VC Mumble Server log", value));
+        Toast.makeText(this, "Log copied", Toast.LENGTH_SHORT).show();
+    }
+
+    private void exportLog() {
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TITLE, "vc-mumble-server-log.txt");
+        startActivityForResult(intent, REQUEST_EXPORT_LOG);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_EXPORT_LOG || resultCode != RESULT_OK
+                || data == null || data.getData() == null) {
+            return;
+        }
+
+        try (OutputStream output = getContentResolver().openOutputStream(data.getData(), "w")) {
+            if (output == null) throw new IOException("Unable to open selected destination");
+            output.write(ServerLog.readAllBytes(this));
+            output.flush();
+            Toast.makeText(this, "log.txt saved", Toast.LENGTH_SHORT).show();
+        } catch (IOException error) {
+            ServerLog.append(this, "ERROR", "Log export failed: " + error.getClass().getSimpleName()
+                    + ": " + String.valueOf(error.getMessage()));
+            refreshLogView();
+            Toast.makeText(this, "Unable to save log.txt: " + error.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     private void requestNotificationsIfNeeded() {
