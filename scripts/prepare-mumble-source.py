@@ -142,6 +142,29 @@ def patch_embedded_lifecycle(murmur: pathlib.Path) -> None:
     main_cpp.write_text(text, encoding="utf-8")
 
 
+def patch_android_foreground_logfile(murmur: pathlib.Path) -> None:
+    """Allow the Android foreground server to keep Mumble's own QFile logger active."""
+    main_cpp = murmur / "main.cpp"
+    text = main_cpp.read_text(encoding="utf-8")
+
+    if "VC_ANDROID_FOREGROUND_LOGFILE" in text:
+        return
+
+    old = 'if (detach && !Meta::mp->qsLogfile.isEmpty() && !unixhandler.logToSyslog) {'
+    if old not in text:
+        raise RuntimeError("could not locate Mumble Unix logfile-open condition")
+
+    replacement = (
+        "#ifdef Q_OS_ANDROID // VC_ANDROID_FOREGROUND_LOGFILE\n"
+        "\t\tif (!Meta::mp->qsLogfile.isEmpty() && !unixhandler.logToSyslog) {\n"
+        "#else\n"
+        "\t\t" + old + "\n"
+        "#endif"
+    )
+    text = replace_literal_once(text, old, replacement, "Android foreground logfile condition")
+    main_cpp.write_text(text, encoding="utf-8")
+
+
 def patch_android_default_ini(murmur: pathlib.Path) -> None:
     """Use app-private config only when Mumble was not given an explicit -i/--ini."""
     main_cpp = murmur / "main.cpp"
@@ -403,6 +426,7 @@ def prepare(
     patch_android_compat(murmur)
     patch_embedded_lifecycle(murmur)
     patch_android_default_ini(murmur)
+    patch_android_foreground_logfile(murmur)
     patch_server_routing(murmur)
 
     final_cmake = cmake.read_text(encoding="utf-8")
@@ -421,6 +445,7 @@ def prepare(
         "Android main exported for Qt loader": "VC_ANDROID_MAIN_EXPORT" in final_main,
         "Qt Android process exit disabled": "VC_ANDROID_NO_EXIT_CALL" in final_main,
         "Android default ini": "VC_ANDROID_DEFAULT_INI" in final_main,
+        "Android foreground logfile": "VC_ANDROID_FOREGROUND_LOGFILE" in final_main,
         "embedded cleanup return": "VC_MUMBLE_EMBEDDED_RETURN" in final_main,
         "embedded signal guard": "VC_MUMBLE_EMBEDDED_SIGNALS" in final_main,
         "proximity include": PROXIMITY_INCLUDE in final_server,
