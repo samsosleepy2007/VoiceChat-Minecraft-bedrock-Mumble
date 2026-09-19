@@ -123,10 +123,10 @@ async fn list_tunnels(api: &PlayitApi) -> Result<(), String> {
         .map(|tunnel| {
             json!({
                 "id": tunnel.id.to_string(),
-                "name": tunnel.name,
+                "name": tunnel.name.clone(),
                 "enabled": tunnel.user_enabled,
                 "endpoint": tunnel.connect_addresses.iter().find_map(connect_address),
-                "offline_reasons": tunnel.offline_reasons
+                "offline_reasons": tunnel.offline_reasons.clone()
             })
         })
         .collect();
@@ -143,10 +143,10 @@ fn print_tunnel(tunnel: &playit_api_client::api::AccountTunnelV1, created: bool)
             "ok": true,
             "created": created,
             "tunnel_id": tunnel.id.to_string(),
-            "name": tunnel.name,
+            "name": tunnel.name.clone(),
             "enabled": tunnel.user_enabled,
             "endpoint": endpoint,
-            "offline_reasons": tunnel.offline_reasons
+            "offline_reasons": tunnel.offline_reasons.clone()
         })
     );
 }
