@@ -54,6 +54,13 @@ grep -Fq 'Qt Android native entrypoint export: main OK' scripts/build-mumble-and
 grep -Fq 'libvcserver does not export dynamic symbol main' scripts/build-mumble-android-core.sh
 grep -Fq 'CORE_DYNAMIC="$("${LLVM_READELF}" -d "${CORE_SO}")"' scripts/build-mumble-android-core.sh
 grep -Fq 'Starting Mumble runtime' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'RegisterNatives' app/src/main/cpp/mumble_jni.cpp
+grep -Fq 'FindClass("com/voicecraft/vcmumbleserver/NativeServer")' app/src/main/cpp/mumble_jni.cpp
+grep -Fq '"setProximityStaleTimeoutMsNative"' app/src/main/cpp/mumble_jni.cpp
+grep -Fq '"updatePlayerStateNative"' app/src/main/cpp/mumble_jni.cpp
+grep -Fq 'private static native void setProximityStaleTimeoutMsNative(long timeoutMs);' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
+grep -Fq 'private static native void updatePlayerStateNative(' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
+grep -Fq 'if (runtimeLoaded) setProximityStaleTimeoutMsNative(timeoutMs);' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
 
 test "$(grep -Fc 'is_android_system_or_qt_lib()' scripts/build-mumble-android-core.sh)" -eq 1
 test "$(grep -Fc 'find_external_candidate()' scripts/build-mumble-android-core.sh)" -eq 1
