@@ -12,6 +12,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.net.Uri;
 import android.text.InputType;
 import android.graphics.Typeface;
 import android.view.View;
@@ -46,6 +47,11 @@ public final class MainActivity extends Activity {
     private Button startStop;
     private Button playitProbeButton;
     private TextView playitProbeStatus;
+    private TextView playitPublicStatus;
+    private TextView playitEndpoint;
+    private Button playitSetupButton;
+    private Button playitStartButton;
+    private Button playitStopButton;
     private TextView logView;
     private boolean running;
 
@@ -57,6 +63,20 @@ public final class MainActivity extends Activity {
                     intent.getStringExtra(MumbleServerService.EXTRA_MESSAGE),
                     intent.getStringExtra(MumbleServerService.EXTRA_BRIDGE),
                     intent.getIntExtra(MumbleServerService.EXTRA_TRACKED, 0)
+            );
+            refreshLogView();
+        }
+    };
+
+
+    private final BroadcastReceiver playitStateReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (!PlayitTunnelService.ACTION_STATE.equals(intent.getAction())) return;
+            updatePlayitState(
+                    intent.getBooleanExtra(PlayitTunnelService.EXTRA_ACTIVE, false),
+                    intent.getBooleanExtra(PlayitTunnelService.EXTRA_CONFIGURED, false),
+                    intent.getStringExtra(PlayitTunnelService.EXTRA_STATUS),
+                    intent.getStringExtra(PlayitTunnelService.EXTRA_ENDPOINT)
             );
             refreshLogView();
         }
@@ -77,16 +97,24 @@ public final class MainActivity extends Activity {
         super.onStart();
         refreshLogView();
         IntentFilter filter = new IntentFilter(MumbleServerService.ACTION_STATE);
+        IntentFilter playitFilter = new IntentFilter(PlayitTunnelService.ACTION_STATE);
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(stateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            registerReceiver(playitStateReceiver, playitFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {
             registerReceiver(stateReceiver, filter);
+            registerReceiver(playitStateReceiver, playitFilter);
         }
         refreshServerStateFromTcp();
+        if (BuildConfig.VC_EMBEDDED_PLAYIT) {
+            startService(new Intent(this, PlayitTunnelService.class)
+                    .setAction(PlayitTunnelService.ACTION_STATUS));
+        }
     }
 
     @Override protected void onStop() {
         unregisterReceiver(stateReceiver);
+        unregisterReceiver(playitStateReceiver);
         super.onStop();
     }
 
@@ -177,8 +205,8 @@ public final class MainActivity extends Activity {
         root.addView(section("Public Access (Playit Experimental)"), marginTop(22));
         TextView playitNote = text(
                 BuildConfig.VC_EMBEDDED_PLAYIT
-                        ? "This APK contains playit-agent binaries compiled from the pinned BSD-2-Clause source. "
-                            + "This step only verifies that Android can execute the packaged CLI and daemon."
+                        ? "Set up Playit once, approve this device in your browser, then the app can "
+                            + "run its own TCP+UDP public tunnel to the local Mumble port."
                         : "Embedded playit is not included in this build.",
                 12,
                 false
@@ -186,19 +214,47 @@ public final class MainActivity extends Activity {
         playitNote.setTextColor(Color.GRAY);
         root.addView(playitNote, marginTop(6));
 
+        playitPublicStatus = text(
+                BuildConfig.VC_EMBEDDED_PLAYIT
+                        ? "Public access: checking status…"
+                        : "Public access: unavailable",
+                14,
+                true
+        );
+        root.addView(playitPublicStatus, marginTop(8));
+
+        playitEndpoint = text("Public endpoint: —", 13, false);
+        playitEndpoint.setTextIsSelectable(true);
+        root.addView(playitEndpoint, marginTop(6));
+
+        playitSetupButton = button("SET UP PLAYIT");
+        playitSetupButton.setEnabled(BuildConfig.VC_EMBEDDED_PLAYIT);
+        playitSetupButton.setOnClickListener(v -> setupPlayit());
+        root.addView(playitSetupButton, marginTop(8));
+
+        playitStartButton = button("START PUBLIC ACCESS");
+        playitStartButton.setEnabled(false);
+        playitStartButton.setOnClickListener(v -> startPlayitPublicAccess());
+        root.addView(playitStartButton, marginTop(8));
+
+        playitStopButton = button("STOP PUBLIC ACCESS");
+        playitStopButton.setEnabled(false);
+        playitStopButton.setOnClickListener(v -> stopPlayitPublicAccess());
+        root.addView(playitStopButton, marginTop(8));
+
         playitProbeStatus = text(
                 BuildConfig.VC_EMBEDDED_PLAYIT
-                        ? "Embedded playit: not tested on this device"
-                        : "Embedded playit: unavailable",
-                13,
+                        ? "Embedded playit runtime: available"
+                        : "Embedded playit runtime: unavailable",
+                12,
                 false
         );
-        root.addView(playitProbeStatus, marginTop(8));
+        root.addView(playitProbeStatus, marginTop(10));
 
         playitProbeButton = button("TEST EMBEDDED PLAYIT");
         playitProbeButton.setEnabled(BuildConfig.VC_EMBEDDED_PLAYIT);
         playitProbeButton.setOnClickListener(v -> runEmbeddedPlayitProbe());
-        root.addView(playitProbeButton, marginTop(8));
+        root.addView(playitProbeButton, marginTop(6));
 
         root.addView(section("Server Log"), marginTop(22));
         logView = text("", 11, false);
@@ -373,6 +429,72 @@ public final class MainActivity extends Activity {
                 }
             });
         }, "VCMumble-UI-State-Probe").start();
+    }
+
+    private void setupPlayit() {
+        if (!BuildConfig.VC_EMBEDDED_PLAYIT) return;
+
+        String code = PlayitTunnelService.newClaimCode();
+        String claimUrl = "https://playit.gg/claim/" + code;
+
+        Intent service = new Intent(this, PlayitTunnelService.class)
+                .setAction(PlayitTunnelService.ACTION_CLAIM)
+                .putExtra(PlayitTunnelService.EXTRA_CLAIM_CODE, code);
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
+
+        playitPublicStatus.setText("Public access: waiting for Playit approval");
+        playitSetupButton.setEnabled(false);
+        playitStartButton.setEnabled(false);
+        playitStopButton.setEnabled(true);
+
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(claimUrl)));
+            Toast.makeText(this, "Approve VC Mumble Server in Playit, then return here.", Toast.LENGTH_LONG).show();
+        } catch (Exception error) {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            clipboard.setPrimaryClip(ClipData.newPlainText("Playit claim URL", claimUrl));
+            Toast.makeText(this, "Browser unavailable. Claim link copied.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void startPlayitPublicAccess() {
+        Intent service = new Intent(this, PlayitTunnelService.class)
+                .setAction(PlayitTunnelService.ACTION_START);
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
+        playitPublicStatus.setText("Public access: starting…");
+        playitStartButton.setEnabled(false);
+        playitStopButton.setEnabled(true);
+    }
+
+    private void stopPlayitPublicAccess() {
+        startService(new Intent(this, PlayitTunnelService.class)
+                .setAction(PlayitTunnelService.ACTION_STOP));
+        playitPublicStatus.setText("Public access: stopping…");
+        playitStopButton.setEnabled(false);
+    }
+
+    private void updatePlayitState(
+            boolean active,
+            boolean configured,
+            String message,
+            String endpoint
+    ) {
+        String statusText = message == null || message.isEmpty()
+                ? (active ? "Public access online" : "Public access stopped")
+                : message;
+        playitPublicStatus.setText("Public access: " + statusText);
+        playitPublicStatus.setTextColor(
+                active ? Color.rgb(25, 135, 84) : Color.rgb(80, 80, 80)
+        );
+
+        String endpointValue = endpoint == null ? "" : endpoint.trim();
+        playitEndpoint.setText(endpointValue.isEmpty()
+                ? "Public endpoint: —"
+                : "Public endpoint: " + endpointValue);
+
+        playitSetupButton.setEnabled(BuildConfig.VC_EMBEDDED_PLAYIT && !active);
+        playitStartButton.setEnabled(BuildConfig.VC_EMBEDDED_PLAYIT && configured && !active);
+        playitStopButton.setEnabled(BuildConfig.VC_EMBEDDED_PLAYIT && active);
     }
 
     private void runEmbeddedPlayitProbe() {
