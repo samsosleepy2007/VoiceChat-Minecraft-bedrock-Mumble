@@ -12,6 +12,10 @@ import android.os.Looper;
 
 import org.qtproject.qt.android.RestartableQtService;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+
 /**
  * Core build service.
  *
@@ -30,12 +34,17 @@ public final class MumbleServerService extends RestartableQtService {
 
     private static final int NOTIFICATION_ID = 4107;
     private static final String CHANNEL_ID = "vc_mumble_server";
+    private static final int STARTUP_PROBE_MAX_ATTEMPTS = 30;
+    private static final long STARTUP_PROBE_INTERVAL_MS = 500L;
+    private static final int STARTUP_PROBE_CONNECT_TIMEOUT_MS = 350;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private VCMumbleBridgeClient bridgeClient;
     private String serverAddress = "";
     private String bridgeStatus = "Bridge disabled";
     private int trackedPlayers;
+    private int serverPort = 64738;
+    private int startupProbeAttempt;
 
     @Override
     public void onCreate() {
@@ -71,6 +80,8 @@ public final class MumbleServerService extends RestartableQtService {
         }
 
         ServerConfig config = ServerConfig.load(this);
+        serverPort = config.port;
+        startupProbeAttempt = 0;
         updateNotification("Starting on port " + config.port + "…");
 
         NativeServer.setProximityStaleTimeoutMs(15000L);
@@ -93,26 +104,62 @@ public final class MumbleServerService extends RestartableQtService {
         publish(true, "Starting • " + serverAddress);
         updateNotification("Starting • " + serverAddress);
         handler.removeCallbacks(coreHealthCheck);
-        handler.postDelayed(coreHealthCheck, 1000L);
+        handler.postDelayed(coreHealthCheck, STARTUP_PROBE_INTERVAL_MS);
         return START_STICKY;
     }
 
     private final Runnable coreHealthCheck = new Runnable() {
         @Override public void run() {
-            if (NativeServer.isRunning()) {
-                updateNotification(null);
-                publish(true, serverAddress);
-                return;
-            }
-            String error = NativeServer.lastError();
-            publish(false, error.isEmpty() ? "Mumble core did not start" : error);
-            stopRelay();
-            NativeServer.setProximityEnabled(false);
-            NativeServer.clearPlayerStates();
-            stopForeground(STOP_FOREGROUND_REMOVE);
-            stopSelf();
+            final int attempt = ++startupProbeAttempt;
+            final int port = serverPort;
+
+            Thread probeThread = new Thread(() -> {
+                boolean tcpReady = probeTcpListener(port);
+                handler.post(() -> handleProbeResult(attempt, tcpReady));
+            }, "VCMumble-TCP-Probe");
+            probeThread.setDaemon(true);
+            probeThread.start();
         }
     };
+
+    private boolean probeTcpListener(int port) {
+        try (Socket socket = new Socket()) {
+            socket.connect(
+                    new InetSocketAddress("127.0.0.1", port),
+                    STARTUP_PROBE_CONNECT_TIMEOUT_MS
+            );
+            return socket.isConnected();
+        } catch (IOException ignored) {
+            return false;
+        }
+    }
+
+    private void handleProbeResult(int attempt, boolean tcpReady) {
+        if (tcpReady) {
+            updateNotification(null);
+            publish(true, serverAddress);
+            return;
+        }
+
+        if (attempt < STARTUP_PROBE_MAX_ATTEMPTS) {
+            String starting = "Starting • " + serverAddress
+                    + " • waiting for TCP (" + attempt + "/" + STARTUP_PROBE_MAX_ATTEMPTS + ")";
+            publish(false, starting);
+            updateNotification(starting);
+            handler.postDelayed(coreHealthCheck, STARTUP_PROBE_INTERVAL_MS);
+            return;
+        }
+
+        String error = NativeServer.lastError();
+        String message = error.isEmpty()
+                ? "Mumble core loaded but TCP port " + serverPort + " did not open"
+                : error;
+        publish(false, message);
+        updateNotification(message);
+        stopRelay();
+        NativeServer.setProximityEnabled(false);
+        NativeServer.clearPlayerStates();
+    }
 
     @Override
     public void onDestroy() {
