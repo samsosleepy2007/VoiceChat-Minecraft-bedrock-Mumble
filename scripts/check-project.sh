@@ -75,6 +75,12 @@ grep -Fq '"Download log.txt"' app/src/main/java/com/voicecraft/vcmumbleserver/Ma
 grep -Fq '"Clear Log"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'Intent.ACTION_CREATE_DOCUMENT' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'Intent.EXTRA_TITLE, "log.txt"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'QtServiceLoader.loadQtLibraries' app/src/core/java/org/qtproject/qt/android/RestartableQtService.java
+grep -Fq 'System.load(candidate.getAbsolutePath())' app/src/core/java/org/qtproject/qt/android/RestartableQtService.java
+grep -Fq '"QT-LIB"' app/src/core/java/org/qtproject/qt/android/RestartableQtService.java
+grep -Fq '"QT-ERROR"' app/src/core/java/org/qtproject/qt/android/RestartableQtService.java
+grep -Fq 'qtStartupError()' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'Qt startup failed: ' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq '"PROBE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: TCP probe log tag" >&2; exit 1; }
 grep -Fq '"SERVICE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: service log tag" >&2; exit 1; }
 grep -Fq '"ERROR",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: error log tag" >&2; exit 1; }
