@@ -35,7 +35,6 @@ done
 python3 tests/test_prepare_mumble_source.py
 python3 tests/test_vc_mumble_bridge_contract.py
 
-# Shell structure must be valid before any expensive CI work begins.
 bash -n scripts/build-mumble-android-core.sh
 
 grep -Fq 'libvcserver_${ANDROID_ABI}.so' scripts/build-mumble-android-core.sh
@@ -50,17 +49,16 @@ grep -Fq 'VC_ANDROID_MAIN_EXPORT' scripts/prepare-mumble-source.py
 grep -Fq 'QT_ANDROID_NO_EXIT_CALL' scripts/prepare-mumble-source.py
 grep -Fq -- '--dyn-syms' scripts/build-mumble-android-core.sh
 grep -Fq 'CORE_DYNSYMS="$("${LLVM_READELF}" --dyn-syms "${CORE_SO}")"' scripts/build-mumble-android-core.sh
-grep -Fq 'printf '''%s\n''' "${CORE_DYNSYMS}"' scripts/build-mumble-android-core.sh
+grep -Fq '<<<"${CORE_DYNSYMS}"' scripts/build-mumble-android-core.sh
 grep -Fq 'Qt Android native entrypoint export: main OK' scripts/build-mumble-android-core.sh
 grep -Fq 'libvcserver does not export dynamic symbol main' scripts/build-mumble-android-core.sh
 grep -Fq 'CORE_DYNAMIC="$("${LLVM_READELF}" -d "${CORE_SO}")"' scripts/build-mumble-android-core.sh
 grep -Fq 'Starting Mumble runtime' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 
-# The core build script previously became duplicated by partial edits. Keep the
-# major sections singular so malformed appended tails cannot pass unnoticed.
 test "$(grep -Fc 'is_android_system_or_qt_lib()' scripts/build-mumble-android-core.sh)" -eq 1
 test "$(grep -Fc 'find_external_candidate()' scripts/build-mumble-android-core.sh)" -eq 1
 test "$(grep -Fc 'stage_external_lib()' scripts/build-mumble-android-core.sh)" -eq 1
 test "$(grep -Fc 'Build the APK with:' scripts/build-mumble-android-core.sh)" -eq 1
+test "$(grep -Fc 'CORE_DYNSYMS=' scripts/build-mumble-android-core.sh)" -eq 1
 
 echo "VC Mumble Server project structure: OK"
