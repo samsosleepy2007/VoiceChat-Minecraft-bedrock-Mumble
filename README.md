@@ -1,75 +1,282 @@
 # VC Mumble Server
 
-Standalone Android-hosted Mumble-compatible server for Minecraft Bedrock proximity voice chat.
+Android-hosted Mumble server for Minecraft Bedrock voice chat.
 
-**VC Mumble Server is a separate project from VoiceCraft.** It has its own Endstone plugin, bridge protocol, pairing data and Android app. The long-term client goal stays simple: players use normal Mumble/Mumla clients while Minecraft-aware routing is enforced by the server.
+> Release line: **v0.5.0-beta.1**  
+> Embedded server: **Mumble 1.6.870**  
+> Qt: **6.8.3**  
+> OpenSSL: **3.6.3**  
+> Target: **Android ARM64-v8a**
 
-## Current status — Phase 4 standalone bridge
+VC Mumble Server runs a real Mumble/Murmur server directly on an Android phone. Stock Mumble-compatible clients such as Mumla connect normally over TCP/UDP. The Minecraft/Endstone bridge is a separate layer that supplies player identity and position data for proximity routing.
 
-Implemented and tested in source:
+## Current status
 
-- one-tap **Quick Start** Android UI
-- configurable Mumble server name / port / password / max users
-- configurable Minecraft voice range
-- Android foreground-service lifecycle
-- Android Keystore + AES-GCM storage for the bridge secret
-- direct Android -> Endstone TCP bridge; no VoiceCraft relay dependency
-- HMAC-SHA256 challenge-response authentication; the shared secret is not sent in the hello packet
-- standalone Endstone plugin with `/vcmumble` commands
-- authoritative player name / XUID / dimension / XYZ / rotation tracking
-- explicit Minecraft XUID -> Mumble username pairing
-- per-player voice range in the position stream
-- snapshot + incremental state synchronization
-- native proximity state table with same-dimension, range and stale-state checks
-- regular-speech receiver hook prepared for Mumble `Server::processMsg()`
-- pinned Mumble **1.5.915** source preparation
-- QtService / Qt AAR embedding path for the Android Mumble server core
-- fallback TCP+UDP Android transport smoke test
+The Android Mumble core has passed the physical-device startup gate:
 
-Verified on the project MCSV Endstone 0.11.10 test server:
+- Qt native runtime loads successfully on Android
+- OpenSSL TLS backend loads successfully
+- Mumble database initializes
+- the default virtual server boots
+- Mumble binds on `0.0.0.0:64738`
+- the app verifies the listener with a localhost TCP readiness probe
+- Stop -> Start works repeatedly by restarting the isolated Mumble process cleanly
+- stock Mumble/Mumla clients can use the normal Mumble protocol path
 
-- `VC Mumble Endstone v0.1.1` loads beside the existing VoiceCraft plugin without modifying it
-- bridge binds on `0.0.0.0:27220/TCP`
-- `/vcmumble status` responds successfully
+The Minecraft/Endstone proximity layer is still the next integration phase. The bridge/plugin code exists in this repository, but this release is primarily the first working standalone Android Mumble-server milestone.
 
-**Not claimed yet:** the full Mumble 1.5.915 Android core has not yet passed the final physical-device gate where stock Mumble/Mumla clients log in and exchange real voice through the APK. Until that passes, core mode remains experimental.
+## How the system works
+
+### 1. Android UI process
+
+The normal app UI runs in the main Android process:
+
+```text
+com.voicecraft.vcmumbleserver
+```
+
+It is responsible for:
+
+- server name, port, password and max-user settings
+- writing `mumble-server.ini`
+- showing ONLINE / STARTING / OFFLINE state
+- showing and exporting server logs
+- starting and stopping the Mumble service
+
+The UI does **not** host Qt or Murmur directly.
+
+### 2. Dedicated Mumble process
+
+The embedded Mumble server runs in a separate Android process:
+
+```text
+com.voicecraft.vcmumbleserver:mumble
+```
+
+This separation is important. Qt/Murmur keeps native process-wide state and cannot be safely restarted inside the same already-used process. When the user presses Stop, the app:
+
+1. asks the native Mumble server to stop
+2. shuts down Qt
+3. stops the foreground service
+4. terminates only the isolated `:mumble` process
+
+The main app remains open. The next Start launches a completely fresh Mumble/Qt process, avoiding stale `AlreadyLoaded` state and failed restarts.
+
+### 3. Qt and native library loading
+
+The APK contains the ARM64 Qt runtime and Mumble native library.
+
+Important packaged libraries include:
+
+```text
+libQt6Core_arm64-v8a.so
+libQt6Gui_arm64-v8a.so
+libQt6Network_arm64-v8a.so
+libQt6Sql_arm64-v8a.so
+libplugins_platforms_qtforandroid_arm64-v8a.so
+libplugins_tls_qopensslbackend_arm64-v8a.so
+libcrypto_3.so
+libssl_3.so
+libvcserver_arm64-v8a.so
+```
+
+Android is configured with legacy JNI packaging so these libraries are extracted to `ApplicationInfo.nativeLibraryDir`, which is required by the Qt Android service loader used by this project.
+
+The app preflights the native libraries and records exact `System.load()` failures in the app log before Murmur starts.
+
+### 4. TLS / OpenSSL
+
+Mumble requires TLS for its control connection.
+
+Qt's Android OpenSSL backend is packaged together with shared OpenSSL 3.6.3 libraries:
+
+```text
+libcrypto_3.so
+libssl_3.so
+```
+
+The process sets:
+
+```text
+ANDROID_OPENSSL_SUFFIX=_3
+```
+
+before Mumble initializes SSL, allowing Qt's `qopensslbackend` plugin to resolve the bundled OpenSSL runtime.
+
+### 5. Mumble startup
+
+The native Mumble entrypoint is exported from `libvcserver_arm64-v8a.so` and launched by Qt's Android service loader.
+
+Startup flow:
+
+```text
+Start button
+    |
+    v
+Write mumble-server.ini
+    |
+    v
+Start foreground service in :mumble process
+    |
+    v
+Load Qt + OpenSSL + libvcserver
+    |
+    v
+MumbleSSL initialization
+    |
+    v
+Read config
+    |
+    v
+Open / create SQLite database
+    |
+    v
+Boot default virtual server
+    |
+    v
+Bind TCP + UDP on configured port
+    |
+    v
+App TCP readiness probe
+    |
+    v
+ONLINE
+```
+
+The default listener is:
+
+```text
+0.0.0.0:64738
+```
+
+so other devices on the same LAN can connect using the phone's LAN IPv4 address.
+
+### 6. Readiness checking
+
+The app does not mark the server ONLINE merely because Qt is alive.
+
+It repeatedly probes:
+
+```text
+127.0.0.1:<configured port>
+```
+
+and only reports ONLINE after the TCP listener actually accepts a connection.
+
+If the listener does not open within the startup window, the isolated Mumble process is shut down so the next retry starts cleanly.
+
+### 7. Logging
+
+Android and native Mumble write into the same app-private log:
+
+```text
+/data/user/0/com.voicecraft.vcmumbleserver/files/vc-mumble-server.log
+```
+
+The UI provides:
+
+- Copy Log
+- Download `log.txt`
+- Clear Log
+
+Useful log components include:
+
+```text
+[UI]
+[SERVICE]
+[QT]
+[QT-RES]
+[QT-LIB]
+[QT-ERROR]
+[JNI]
+[PROBE]
+[NATIVE-BOOT]
+[BRIDGE]
+```
 
 ## Default topology
 
 ```text
-Minecraft Bedrock
-      |
-      v
-VC Mumble Endstone Plugin
-TCP :27220
-      ^
-      | authenticated NDJSON + HMAC challenge/response
-      |
-VC Mumble Server APK
-      |
-      +-- Mumble TCP :64738
-      +-- Mumble UDP :64738
-      |
-      v
-Stock Mumble / Mumla clients
+                     +---------------------------+
+                     |   Android phone / tablet  |
+                     |                           |
+Mumble / Mumla <---->| TCP + UDP :64738         |
+clients              |                           |
+                     | VC Mumble Server APK      |
+                     | Qt 6.8.3 + Mumble 1.6.870|
+                     +-------------+-------------+
+                                   |
+                                   | optional authenticated
+                                   | Minecraft bridge
+                                   v
+                     +---------------------------+
+                     | Endstone Minecraft server |
+                     | VC Mumble Endstone plugin |
+                     | TCP :27220                |
+                     +---------------------------+
 ```
 
 ## Defaults
 
 | Setting | Default |
 | --- | --- |
-| Mumble server name | Minecraft Voice |
+| Server name | Minecraft Voice |
 | Mumble port | 64738 TCP + UDP |
 | Max users | 20 |
 | Proximity range | 30 blocks |
 | Endstone bridge port | 27220 TCP |
-| Proximity | Off until explicitly enabled |
+| Proximity routing | Off by default |
 
-No real bridge secret is included in this repository or APK source.
+## Quick start
 
-## Endstone plugin
+1. Install the APK on an ARM64 Android device.
+2. Open **VC Mumble Server**.
+3. Press **QUICK START** or configure the server manually.
+4. Wait until the app shows **ONLINE**.
+5. From the same phone, connect a Mumble client to `127.0.0.1:64738`.
+6. From another device on the same Wi-Fi/LAN, connect to the Android phone's displayed LAN IP and port `64738`.
+7. If prompted about the self-signed server certificate during testing, review and accept it in the client.
 
-The standalone plugin lives in [`endstone-plugin/`](endstone-plugin/).
+## Stop / restart behavior
+
+A normal Stop intentionally destroys the isolated Mumble process.
+
+Expected lifecycle:
+
+```text
+START -> ONLINE -> STOP -> :mumble process exits
+                      |
+                      v
+             next START creates
+             a new clean process
+```
+
+This is by design and fixes the Qt/Murmur same-process restart problem.
+
+## Endstone proximity bridge
+
+The standalone Endstone plugin lives in:
+
+```text
+endstone-plugin/
+```
+
+The planned/implemented bridge topology is:
+
+```text
+Minecraft Bedrock player state
+        |
+        v
+VC Mumble Endstone plugin
+        |
+        | TCP + authenticated NDJSON
+        | HMAC-SHA256 challenge/response
+        v
+VC Mumble Server APK
+        |
+        v
+Native Mumble proximity routing
+```
 
 Commands:
 
@@ -81,79 +288,94 @@ Commands:
 /vcmumble range <blocks>
 ```
 
-On first enable it generates a bridge secret and saves it in:
+The bridge tracks Minecraft identity, dimension and XYZ position and maps those players to Mumble usernames. Proximity mode is intentionally disabled by default until configured.
 
-```text
-plugins/vc_mumble/config.toml
-```
+## Building the Android Mumble core
 
-Copy that value into the VC Mumble Server app. Do not publish it.
-
-The test server uses:
-
-```text
-Minecraft: sv5.mcsv.me:10459
-VC Mumble bridge: sv5.mcsv.me:27220 TCP
-```
-
-See [`docs/SETUP.md`](docs/SETUP.md) and [`docs/VC_MUMBLE_ENDSTONE.md`](docs/VC_MUMBLE_ENDSTONE.md).
-
-## Normal Android build
-
-Requirements:
+Requirements used by CI:
 
 - JDK 17
 - Android SDK 36
-- Android Build Tools 36.0.0
 - Android NDK 28.2.13676358
-- CMake 4.1.0
 - Gradle 9.6.0
+- Qt 6.8.3 Android ARM64
+- vcpkg 2026.07.29
+- OpenSSL 3.6.3
 
-```bash
-gradle :app:assembleDebug
-```
-
-The normal build intentionally uses the lightweight TCP+UDP smoke-test server. It validates Android UI/service/network lifecycle but is **not** a Mumble protocol server.
-
-## Embedded Mumble core build
-
-Prepare the pinned upstream source:
+Build:
 
 ```bash
 ./scripts/fetch-mumble.sh
-```
-
-Build the Android core and package the APK:
-
-```bash
 ./scripts/build-mumble-android-core.sh
 gradle -PvcMumbleCore=true :app:assembleDebug
 ```
 
-The manual **Android Embedded Mumble Core (experimental)** GitHub Actions workflow provisions Qt and native dependencies, builds the prepared server core/AAR path, packages the APK and uploads build artifacts for validation.
-
-## Required validation gate
-
-A release is not considered Mumble-compatible until all of these pass on a physical Android ARM64 device:
+The generated embedded runtime AAR is staged at:
 
 ```text
-1. Start VC Mumble Server
-2. Stock Mumble/Mumla client connects
-3. Client authenticates and joins Root
-4. A second stock client joins
-5. Both clients exchange voice over the normal Mumble TCP/UDP protocol
-6. Endstone bridge connects
-7. /vcmumble pair maps both Minecraft players to Mumble identities
-8. Moving outside voice range removes the receiver
-9. Returning inside range restores the receiver
-10. Changing Minecraft dimension isolates voice immediately
+.build/android-stage/vc-mumble-runtime.aar
+```
+
+The APK is produced at:
+
+```text
+app/build/outputs/apk/debug/app-debug.apk
+```
+
+## Source pinning
+
+The Android core build currently pins:
+
+- Mumble **v1.6.870**
+- Qt **6.8.3**
+- OpenSSL **3.6.3**
+- NDK **28.2.13676358**
+- vcpkg **2026.07.29**
+
+The Mumble source tarball is checksum-validated before use.
+
+## Release validation
+
+For the standalone Android server milestone, a release should pass:
+
+```text
+1. Install APK on ARM64 Android
+2. Start server
+3. Qt/OpenSSL initialization succeeds
+4. Mumble database initializes
+5. Server listens on configured TCP/UDP port
+6. App reports ONLINE only after TCP readiness succeeds
+7. Stock Mumble/Mumla client connects
+8. Stop server
+9. Start again
+10. Listener opens again without Qt AlreadyLoaded/main() restart failure
+```
+
+Minecraft proximity routing has its own later validation gate involving Endstone pairing, range checks and dimension isolation.
+
+## Project layout
+
+```text
+app/                    Android application
+app/src/core/           Embedded Qt/Mumble service implementation
+app/src/smoke/          Lightweight transport-only development runtime
+native/mumble_android/  Android/Mumble patches and native proximity code
+endstone-plugin/        Standalone Endstone integration
+scripts/                Source preparation, build and validation scripts
+docs/                   Additional design and setup documentation
 ```
 
 ## Documentation
 
-- [`docs/SETUP.md`](docs/SETUP.md)
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-- [`docs/VC_MUMBLE_ENDSTONE.md`](docs/VC_MUMBLE_ENDSTONE.md)
-- [`docs/MUMBLE_ANDROID_PORT.md`](docs/MUMBLE_ANDROID_PORT.md)
-- [`docs/MUMBLE_CORE_BUILD.md`](docs/MUMBLE_CORE_BUILD.md)
-- [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- [Setup](docs/SETUP.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Endstone integration](docs/VC_MUMBLE_ENDSTONE.md)
+- [Android Mumble port](docs/MUMBLE_ANDROID_PORT.md)
+- [Mumble core build](docs/MUMBLE_CORE_BUILD.md)
+- [Roadmap](docs/ROADMAP.md)
+
+## License / upstream projects
+
+This project embeds and adapts upstream Mumble and Qt components. Check the repository and upstream dependency licenses before redistribution.
+
+Mumble is an upstream project of the Mumble developers. Qt is provided by The Qt Company/community. OpenSSL is provided by the OpenSSL Project.
