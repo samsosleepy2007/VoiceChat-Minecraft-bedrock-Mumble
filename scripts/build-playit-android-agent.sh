@@ -30,6 +30,23 @@ if [[ "$actual_commit" != "$PLAYIT_COMMIT" ]]; then
   exit 1
 fi
 
+cp -R "${ROOT_DIR}/native/playit_bridge" "${SRC_DIR}/packages/vc_mumble_helper"
+python3 - "${SRC_DIR}/Cargo.toml" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = '    "packages/api_client",\n]'
+if needle not in text:
+    raise SystemExit("playit workspace member anchor missing")
+text = text.replace(
+    needle,
+    '    "packages/api_client",\n    "packages/vc_mumble_helper",\n]',
+    1,
+)
+path.write_text(text)
+PY
+
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$linker"
 export CC_aarch64_linux_android="$linker"
 export AR_aarch64_linux_android="${toolchain}/llvm-ar"
@@ -38,25 +55,30 @@ cargo build --locked --release --target aarch64-linux-android   --manifest-path 
 
 cargo build --locked --release --target aarch64-linux-android   --manifest-path "$SRC_DIR/Cargo.toml" -p playitd --bin playitd
 
+cargo build --release --target aarch64-linux-android   --manifest-path "$SRC_DIR/Cargo.toml" -p vc-playit-helper
+
 cli="${SRC_DIR}/target/aarch64-linux-android/release/playit-cli"
 daemon="${SRC_DIR}/target/aarch64-linux-android/release/playitd"
+helper="${SRC_DIR}/target/aarch64-linux-android/release/vc-playit-helper"
 
 test -s "$cli"
 test -s "$daemon"
+test -s "$helper"
 
 cp "$cli" "${ABI_DIR}/libplayit_cli_exec.so"
 cp "$daemon" "${ABI_DIR}/libplayitd_exec.so"
-chmod 0755 "${ABI_DIR}/libplayit_cli_exec.so" "${ABI_DIR}/libplayitd_exec.so"
+cp "$helper" "${ABI_DIR}/libvc_playit_helper_exec.so"
+chmod 0755   "${ABI_DIR}/libplayit_cli_exec.so"   "${ABI_DIR}/libplayitd_exec.so"   "${ABI_DIR}/libvc_playit_helper_exec.so"
 
 cp "${SRC_DIR}/LICENSE.txt" "${STAGE_DIR}/LICENSE.playit-agent.txt"
 printf '%s\n' "$actual_commit" > "${STAGE_DIR}/SOURCE_COMMIT.txt"
 
-for bin in "${ABI_DIR}/libplayit_cli_exec.so" "${ABI_DIR}/libplayitd_exec.so"; do
+for bin in   "${ABI_DIR}/libplayit_cli_exec.so"   "${ABI_DIR}/libplayitd_exec.so"   "${ABI_DIR}/libvc_playit_helper_exec.so"; do
   file "$bin"
   readelf -l "$bin" | grep -F '/system/bin/linker64'
   readelf -d "$bin" | grep -F 'Shared library: [libc.so]'
 done
 
-sha256sum "${ABI_DIR}/libplayit_cli_exec.so"   "${ABI_DIR}/libplayitd_exec.so" | tee "${STAGE_DIR}/SHA256SUMS"
+sha256sum   "${ABI_DIR}/libplayit_cli_exec.so"   "${ABI_DIR}/libplayitd_exec.so"   "${ABI_DIR}/libvc_playit_helper_exec.so" | tee "${STAGE_DIR}/SHA256SUMS"
 
 echo "Embedded playit Android payload staged at $STAGE_DIR"
