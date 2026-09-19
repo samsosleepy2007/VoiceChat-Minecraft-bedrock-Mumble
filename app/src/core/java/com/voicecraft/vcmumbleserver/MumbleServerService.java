@@ -70,7 +70,14 @@ public final class MumbleServerService extends RestartableQtService {
             ServerLog.append(this, "QT", "Qt runtime reports started; NativeServer marked loaded");
         } else {
             NativeServer.markRuntimeUnloaded();
-            ServerLog.append(this, "QT", "Qt runtime did not report started after QtServiceBase.onCreate");
+            String qtError = qtStartupError();
+            ServerLog.append(
+                    this,
+                    "QT",
+                    qtError.isEmpty()
+                            ? "Qt runtime did not report started after service startup"
+                            : "Qt runtime startup failed: " + qtError
+            );
         }
     }
 
@@ -83,6 +90,22 @@ public final class MumbleServerService extends RestartableQtService {
         }
 
         ServerConfig config = ServerConfig.load(this);
+
+        if (!NativeServer.runtimeLoaded()) {
+            String qtError = qtStartupError();
+            String message = qtError.isEmpty()
+                    ? "Qt runtime did not start"
+                    : "Qt startup failed: " + qtError;
+            ServerLog.append(this, "ERROR", message);
+            serverAddress = NetworkUtil.bestLanIpv4() + ":" + config.port;
+            bridgeStatus = "Minecraft proximity off";
+            publish(false, message);
+            updateNotification(message);
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
         ServerLog.append(
                 this,
                 "SERVICE",
