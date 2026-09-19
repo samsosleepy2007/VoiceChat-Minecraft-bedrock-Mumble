@@ -230,8 +230,14 @@ public final class MainActivity extends Activity {
 
     private void updateState(boolean isRunning, String message, String bridge, int tracked) {
         running = isRunning;
-        status.setText(isRunning ? "● ONLINE" : "● OFFLINE");
-        status.setTextColor(isRunning ? Color.rgb(25, 135, 84) : Color.rgb(180, 45, 45));
+        boolean starting = isRunning && message != null && message.startsWith("Starting");
+        if (starting) {
+            status.setText("● STARTING");
+            status.setTextColor(Color.rgb(180, 120, 20));
+        } else {
+            status.setText(isRunning ? "● ONLINE" : "● OFFLINE");
+            status.setTextColor(isRunning ? Color.rgb(25, 135, 84) : Color.rgb(180, 45, 45));
+        }
         address.setText(message == null ? "" : message);
         String bridgeText = bridge == null ? "" : bridge;
         if (tracked > 0) bridgeText += " • " + tracked + " Minecraft player" + (tracked == 1 ? "" : "s");
