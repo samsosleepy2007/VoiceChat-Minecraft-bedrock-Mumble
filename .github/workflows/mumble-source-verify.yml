@@ -27,21 +27,21 @@ jobs:
         run: python3 tests/test_prepare_mumble_source.py
       - name: Standalone bridge contract static test
         run: python3 tests/test_vc_mumble_bridge_contract.py
-      - name: Download, verify and patch Mumble 1.5.915
+      - name: Download, verify and patch Mumble 1.6.870
         run: ./scripts/fetch-mumble.sh
       - name: Verify prepared symbols
         run: |
-          grep -F 'qt_add_executable(mumble-server MANUAL_FINALIZATION' .build/mumble-1.5.915/src/murmur/CMakeLists.txt
-          grep -F 'VC_MUMBLE_EMBEDDED_RETURN' .build/mumble-1.5.915/src/murmur/main.cpp
-          grep -F 'VC_ANDROID_DEFAULT_INI' .build/mumble-1.5.915/src/murmur/main.cpp
-          grep -F 'VCProximity::shouldRoute' .build/mumble-1.5.915/src/murmur/Server.cpp
-          grep -F 'OUTPUT_NAME "vcserver"' .build/mumble-1.5.915/src/murmur/CMakeLists.txt
-          grep -F 'VC_PROXIMITY_REGULAR_CHANNEL' .build/mumble-1.5.915/src/murmur/Server.cpp
-          grep -F 'VC_PROXIMITY_LINKED_CHANNEL' .build/mumble-1.5.915/src/murmur/Server.cpp
+          grep -F 'qt_add_executable(mumble-server MANUAL_FINALIZATION' .build/mumble-1.6.870/src/murmur/CMakeLists.txt
+          grep -F 'VC_MUMBLE_EMBEDDED_RETURN' .build/mumble-1.6.870/src/murmur/main.cpp
+          grep -F 'VC_ANDROID_DEFAULT_INI' .build/mumble-1.6.870/src/murmur/main.cpp
+          grep -F 'VCProximity::shouldRoute' .build/mumble-1.6.870/src/murmur/Server.cpp
+          grep -F 'OUTPUT_NAME "vcserver"' .build/mumble-1.6.870/src/murmur/CMakeLists.txt
+          grep -F 'VC_PROXIMITY_REGULAR_CHANNEL' .build/mumble-1.6.870/src/murmur/Server.cpp
+          grep -F 'VC_PROXIMITY_LINKED_CHANNEL' .build/mumble-1.6.870/src/murmur/Server.cpp
       - name: Package prepared source for the Android core build job
-        run: tar -C .build -czf mumble-1.5.915-vc-android-prepared.tar.gz mumble-1.5.915
+        run: tar -C .build -czf mumble-1.6.870-vc-android-prepared.tar.gz mumble-1.6.870
       - uses: actions/upload-artifact@v7
         with:
-          name: mumble-1.5.915-vc-android-prepared
-          path: mumble-1.5.915-vc-android-prepared.tar.gz
+          name: mumble-1.6.870-vc-android-prepared
+          path: mumble-1.6.870-vc-android-prepared.tar.gz
           retention-days: 7
