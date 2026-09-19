@@ -1,10 +1,9 @@
 use std::env;
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use playit_api_client::api::{
-    AccountTunnelOriginCreate, AgentOrigin, AgentTunnelAttr, AgentTunnelConfig,
-    ConnectAddress, CreateTunnelAllocationRequest, PlayitNetwork, ReqTunnelsCreateV1,
-    TunnelPortDetails, UseAllocRegion,
+    AssignedAgentCreate, ConnectAddress, PlayitNetwork, PortType, ReqTunnelsCreate,
+    TunnelCreateUseAllocation, TunnelOriginCreate, UseRegion,
 };
 use playit_api_client::PlayitApi;
 use serde_json::json;
@@ -56,31 +55,32 @@ async fn ensure_mumble(api: &PlayitApi, local_port: u16) -> Result<(), String> {
         return Ok(());
     }
 
+    // The v1 create endpoint expects agent schema/config fields and currently
+    // rejects the body produced by playit-agent 1.0.10 with "failed to parse
+    // body". Use the current /tunnels/create API instead. It takes the local
+    // address directly and binds the new tunnel to this claimed agent.
+    let run_data = api
+        .v1_agents_rundata()
+        .await
+        .map_err(|error| format!("agent rundata failed: {error}"))?;
+
     let created = api
-        .v1_tunnels_create(ReqTunnelsCreateV1 {
-            ports: TunnelPortDetails::CustomBoth(1),
-            origin: AccountTunnelOriginCreate::Agent(AgentOrigin {
-                agent_id: None,
-                config: AgentTunnelConfig {
-                    fields: vec![
-                        AgentTunnelAttr {
-                            name: "local_ip".to_string(),
-                            value: "127.0.0.1".to_string(),
-                        },
-                        AgentTunnelAttr {
-                            name: "local_port".to_string(),
-                            value: local_port.to_string(),
-                        },
-                    ],
-                },
+        .tunnels_create(ReqTunnelsCreate {
+            name: Some(TUNNEL_NAME.to_string()),
+            tunnel_type: None,
+            port_type: PortType::Both,
+            port_count: 1,
+            origin: TunnelOriginCreate::Agent(AssignedAgentCreate {
+                agent_id: run_data.agent_id,
+                local_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
+                local_port: Some(local_port),
             }),
             enabled: true,
-            alloc: Some(CreateTunnelAllocationRequest::Region(UseAllocRegion {
+            alloc: Some(TunnelCreateUseAllocation::Region(UseRegion {
                 region: PlayitNetwork::Global,
-                port: None,
             })),
-            name: Some(TUNNEL_NAME.to_string()),
             firewall_id: None,
+            proxy_protocol: None,
         })
         .await
         .map_err(|error| format!("create tunnel failed: {error}"))?;
