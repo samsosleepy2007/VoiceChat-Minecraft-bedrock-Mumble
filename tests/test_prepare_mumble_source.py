@@ -119,6 +119,7 @@ def main() -> int:
         main_cpp = (murmur / "main.cpp").read_text(encoding="utf-8")
         server_cpp = (murmur / "Server.cpp").read_text(encoding="utf-8")
         unix_cpp = (murmur / "UnixMurmur.cpp").read_text(encoding="utf-8")
+        android_jni = (murmur / "AndroidJni.cpp").read_text(encoding="utf-8")
 
         assert 'if(ANDROID)\n\tqt_add_executable(mumble-server MANUAL_FINALIZATION "main.cpp")' in cmake
         assert 'add_executable(mumble-server WIN32 "main.cpp")' in cmake
@@ -156,6 +157,10 @@ def main() -> int:
         assert "VC_PROXIMITY_LINKED_CHANNEL" in server_cpp
         assert (murmur / "AndroidEmbed.cpp").is_file()
         assert (murmur / "AndroidJni.cpp").is_file()
+        assert "RegisterNatives" in android_jni
+        assert 'FindClass("com/voicecraft/vcmumbleserver/NativeServer")' in android_jni
+        assert '"setProximityStaleTimeoutMsNative"' in android_jni
+        assert '"updatePlayerStateNative"' in android_jni
         assert "VC_ANDROID_DEFAULT_INI" in main_cpp
         assert "QStandardPaths" in main_cpp
         assert 'QString inifile = QString::fromStdString(cli_options.iniFile.value_or(""));' in main_cpp
