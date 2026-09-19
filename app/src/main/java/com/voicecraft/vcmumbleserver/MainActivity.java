@@ -25,6 +25,8 @@ import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 
 public final class MainActivity extends Activity {
     private static final int REQUEST_EXPORT_LOG = 4201;
@@ -64,12 +66,9 @@ public final class MainActivity extends Activity {
         requestNotificationsIfNeeded();
         setContentView(buildUi());
         fillConfig(ServerConfig.load(this));
-        updateState(
-                NativeServer.isRunning(),
-                NativeServer.isRunning() ? currentAddress() : "Ready",
-                NativeServer.isRunning() ? "Waiting for service status" : "Bridge idle",
-                NativeServer.proximityPlayerCount()
-        );
+        // MumbleServerService runs in the dedicated :mumble process. NativeServer
+        // static state is therefore intentionally not used by the UI process.
+        updateState(false, "Ready", "Bridge idle", 0);
     }
 
     @Override protected void onStart() {
@@ -81,6 +80,7 @@ public final class MainActivity extends Activity {
         } else {
             registerReceiver(stateReceiver, filter);
         }
+        refreshServerStateFromTcp();
     }
 
     @Override protected void onStop() {
@@ -318,6 +318,33 @@ public final class MainActivity extends Activity {
     private String currentAddress() {
         ServerConfig c = ServerConfig.load(this);
         return NetworkUtil.bestLanIpv4() + ":" + c.port;
+    }
+
+    private void refreshServerStateFromTcp() {
+        final ServerConfig config = ServerConfig.load(this);
+        final int probePort = config.port;
+        new Thread(() -> {
+            boolean open = false;
+            try (Socket socket = new Socket()) {
+                socket.connect(new InetSocketAddress("127.0.0.1", probePort), 300);
+                open = socket.isConnected();
+            } catch (IOException ignored) {
+            }
+
+            final boolean serverOpen = open;
+            runOnUiThread(() -> {
+                if (serverOpen) {
+                    updateState(
+                            true,
+                            NetworkUtil.bestLanIpv4() + ":" + probePort,
+                            "Mumble process detected",
+                            0
+                    );
+                } else if (!running) {
+                    updateState(false, "Ready", "Bridge idle", 0);
+                }
+            });
+        }, "VCMumble-UI-State-Probe").start();
     }
 
     private void refreshLogView() {
