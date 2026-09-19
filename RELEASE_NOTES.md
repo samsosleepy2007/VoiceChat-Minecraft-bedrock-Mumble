@@ -60,3 +60,6 @@ The release APK is built by GitHub Actions from the main branch using pinned:
 - vcpkg 2026.07.29
 
 A SHA-256 checksum file is published beside the APK.
+
+
+Release channel: GitHub Actions main build.
