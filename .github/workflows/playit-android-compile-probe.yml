@@ -1,0 +1,96 @@
+name: Playit Android Cross-Compile Probe
+
+on:
+  push:
+    branches: ['feature/playit-embedded-tunnel']
+    paths:
+      - '.github/workflows/playit-android-compile-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PLAYIT_TAG: 'v1.0.10'
+  NDK_VERSION: '28.2.13676358'
+  ANDROID_API: '28'
+
+jobs:
+  build-playit-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - name: Install Android NDK
+        run: |
+          sdkmanager "ndk;${NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Set up Rust Android target
+        run: |
+          rustup target add aarch64-linux-android
+          rustc --version
+          cargo --version
+
+      - name: Fetch official playit-agent source
+        run: |
+          git clone --depth 1 --branch "${PLAYIT_TAG}" https://github.com/playit-cloud/playit-agent.git .build/playit-agent
+          test -f .build/playit-agent/LICENSE.txt
+          cp .build/playit-agent/LICENSE.txt playit-agent-BSD-2-Clause.txt
+          git -C .build/playit-agent rev-parse HEAD | tee playit-agent-source-commit.txt
+
+      - name: Configure Android linker
+        run: |
+          toolchain="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          linker="${toolchain}/aarch64-linux-android${ANDROID_API}-clang"
+          test -x "$linker"
+          echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$linker" >> "$GITHUB_ENV"
+          echo "CC_aarch64_linux_android=$linker" >> "$GITHUB_ENV"
+          echo "AR_aarch64_linux_android=${toolchain}/llvm-ar" >> "$GITHUB_ENV"
+
+      - name: Cross-compile playit CLI for Android ARM64
+        working-directory: .build/playit-agent
+        run: |
+          cargo build --locked --release --target aarch64-linux-android -p playit-cli
+
+      - name: Inspect Android executable
+        run: |
+          bin=.build/playit-agent/target/aarch64-linux-android/release/playit-cli
+          test -s "$bin"
+          {
+            echo "=== file ==="
+            file "$bin"
+            echo
+            echo "=== ELF header ==="
+            readelf -h "$bin"
+            echo
+            echo "=== interpreter ==="
+            readelf -l "$bin" | grep -E 'INTERP|Requesting program interpreter' || true
+            echo
+            echo "=== NEEDED ==="
+            readelf -d "$bin" | grep NEEDED || true
+            echo
+            echo "=== SHA256 ==="
+            sha256sum "$bin"
+          } | tee playit-android-elf-report.txt
+
+      - name: Stage executable as APK-native payload candidate
+        run: |
+          mkdir -p playit-jni/arm64-v8a
+          cp .build/playit-agent/target/aarch64-linux-android/release/playit-cli             playit-jni/arm64-v8a/libplayit_agent_exec.so
+          chmod 0755 playit-jni/arm64-v8a/libplayit_agent_exec.so
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: playit-android-cross-compile-probe
+          path: |
+            playit-jni/
+            playit-android-elf-report.txt
+            playit-agent-BSD-2-Clause.txt
+            playit-agent-source-commit.txt
+          retention-days: 7
