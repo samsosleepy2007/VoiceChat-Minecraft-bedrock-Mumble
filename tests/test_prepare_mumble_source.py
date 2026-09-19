@@ -114,7 +114,15 @@ def main() -> int:
         (murmur / "Server.cpp").write_text(server_fixture(), encoding="utf-8")
         (murmur / "UnixMurmur.cpp").write_text(
             "#ifdef Q_OS_LINUX\n# include <sys/capability.h>\n#endif\n"
-            "#if defined(Q_OS_LINUX)\nint linux_only = 1;\n#endif\n",
+            "#if defined(Q_OS_LINUX)\nint linux_only = 1;\n#endif\n"
+            "UnixMurmur::UnixMurmur() {\n"
+            "\tbRoot = true;\n"
+            "\tlogToSyslog = false;\n"
+            "}\n"
+            "UnixMurmur::~UnixMurmur() {\n"
+            "}\n"
+            "void UnixMurmur::setuid() {\n"
+            "}\n",
             encoding="utf-8",
         )
 
@@ -152,6 +160,8 @@ def main() -> int:
         assert "VC_ANDROID_MAIN_EXPORT" in main_cpp
         assert '__attribute__((visibility("default")))' in main_cpp
         assert "VC_ANDROID_NO_EXIT_CALL" in main_cpp
+        assert "VC_ANDROID_BOOTSTRAP_LOG" in main_cpp
+        assert 'vcAndroidBootstrapLog("main entered")' in main_cpp
         assert 'qputenv("QT_ANDROID_NO_EXIT_CALL", "1")' in main_cpp
         assert "VC_MUMBLE_EMBEDDED_RETURN" in main_cpp
         assert "VC_MUMBLE_EMBEDDED_SIGNALS" in main_cpp
@@ -175,6 +185,7 @@ def main() -> int:
         assert (murmur / "VCProximity.cpp").is_file()
         assert "VC Android syslog include" in main_cpp
         assert "!defined(Q_OS_ANDROID)" in unix_cpp
+        assert "VC_ANDROID_NO_UNIX_DAEMON" in unix_cpp
 
         cmake_once = cmake
         main_once = main_cpp
