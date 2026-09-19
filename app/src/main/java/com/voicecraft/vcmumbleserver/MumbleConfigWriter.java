@@ -23,7 +23,7 @@ public final class MumbleConfigWriter {
 
         StringBuilder text = new StringBuilder();
         text.append("database=").append(quote(database.getAbsolutePath())).append('\n');
-        text.append("logfile=\n");
+        text.append("logfile=").append(quote(ServerLog.file(context).getAbsolutePath())).append('\n');
         text.append("pidfile=\n");
         text.append("host=0.0.0.0\n");
         text.append("port=").append(config.port).append('\n');
