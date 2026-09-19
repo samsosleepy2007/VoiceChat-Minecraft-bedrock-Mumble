@@ -1,0 +1,361 @@
+package com.voicecraft.vcmumbleserver;
+
+import android.content.Context;
+
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+import java.util.zip.GZIPInputStream;
+
+/**
+ * Experimental compatibility probe for the official PortWarp Linux ARM64 CLI.
+ *
+ * The PortWarp binary is intentionally NOT bundled in the APK. The user starts
+ * this probe explicitly; it downloads the public vendor archive and checksum,
+ * verifies SHA-256, extracts pwrp into app-private storage, and only runs
+ * "pwrp version". No account credentials or tunnel commands are used here.
+ */
+public final class PortWarpExecProbe {
+    public interface Callback {
+        void onComplete(boolean success, String message);
+    }
+
+    private static final String VERSION = "0.3.6";
+    private static final String ARCHIVE_NAME = "pwrp-" + VERSION + "-linux-arm64.tar.gz";
+    private static final String ARCHIVE_URL =
+            "https://portwarp.com/download/" + ARCHIVE_NAME;
+    private static final String CHECKSUMS_URL =
+            "https://portwarp.com/download/checksums.txt";
+    private static final int CONNECT_TIMEOUT_MS = 10000;
+    private static final int READ_TIMEOUT_MS = 30000;
+    private static final long MAX_ARCHIVE_BYTES = 32L * 1024L * 1024L;
+    private static final long MAX_BINARY_BYTES = 32L * 1024L * 1024L;
+
+    private PortWarpExecProbe() {}
+
+    public static void run(Context context, Callback callback) {
+        Context app = context.getApplicationContext();
+        new Thread(() -> {
+            boolean ok = false;
+            String result;
+            try {
+                result = runBlocking(app);
+                ok = true;
+            } catch (Throwable error) {
+                result = error.getClass().getSimpleName() + ": " + String.valueOf(error.getMessage());
+                ServerLog.append(app, "PORTWARP", "Execution probe FAILED: " + result);
+            }
+
+            final boolean success = ok;
+            final String message = result;
+            if (context instanceof android.app.Activity) {
+                ((android.app.Activity) context).runOnUiThread(
+                        () -> callback.onComplete(success, message)
+                );
+            } else {
+                callback.onComplete(success, message);
+            }
+        }, "PortWarp-Exec-Probe").start();
+    }
+
+    private static String runBlocking(Context context) throws Exception {
+        if (!isArm64()) {
+            throw new IllegalStateException("PortWarp probe requires an ARM64 Android device");
+        }
+
+        File root = new File(context.getNoBackupFilesDir(), "portwarp-probe");
+        if (!root.isDirectory() && !root.mkdirs()) {
+            throw new IOException("Unable to create PortWarp probe directory");
+        }
+        File archive = new File(root, ARCHIVE_NAME);
+        File binary = new File(root, "pwrp");
+        File home = new File(root, "home");
+        if (!home.isDirectory() && !home.mkdirs()) {
+            throw new IOException("Unable to create PortWarp HOME directory");
+        }
+
+        ServerLog.append(context, "PORTWARP",
+                "Downloading official " + ARCHIVE_NAME + " for execution probe");
+        downloadToFile(ARCHIVE_URL, archive, MAX_ARCHIVE_BYTES);
+
+        String actualSha = sha256(archive);
+        String checksums = downloadText(CHECKSUMS_URL, 2L * 1024L * 1024L);
+        String expectedSha = findChecksum(checksums, ARCHIVE_NAME);
+        if (expectedSha == null) {
+            throw new IOException("Official checksum entry not found for " + ARCHIVE_NAME);
+        }
+        if (!actualSha.equalsIgnoreCase(expectedSha)) {
+            throw new SecurityException("SHA-256 mismatch: expected=" + expectedSha
+                    + ", actual=" + actualSha);
+        }
+        ServerLog.append(context, "PORTWARP",
+                "SHA-256 verified for official archive: " + actualSha);
+
+        extractNamedTarGzEntry(archive, "pwrp", binary);
+        if (!binary.setReadable(true, true)) {
+            throw new IOException("Unable to mark pwrp readable");
+        }
+        if (!binary.setExecutable(true, true)) {
+            throw new IOException("Unable to mark pwrp executable");
+        }
+
+        ServerLog.append(context, "PORTWARP",
+                "Attempting Android exec; path=" + binary.getAbsolutePath()
+                        + ", bytes=" + binary.length()
+                        + ", canExecute=" + binary.canExecute());
+
+        ProcessBuilder builder = new ProcessBuilder(binary.getAbsolutePath(), "version");
+        builder.redirectErrorStream(true);
+        builder.directory(root);
+        builder.environment().put("HOME", home.getAbsolutePath());
+        builder.environment().put("TMPDIR", context.getCacheDir().getAbsolutePath());
+
+        final Process process;
+        try {
+            process = builder.start();
+        } catch (IOException error) {
+            throw new IOException("Android exec failed for static ARM64 pwrp: "
+                    + error.getMessage(), error);
+        }
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Thread reader = new Thread(() -> {
+            try (InputStream input = process.getInputStream()) {
+                byte[] buffer = new byte[4096];
+                int count;
+                while ((count = input.read(buffer)) >= 0) {
+                    if (count > 0 && output.size() < 64 * 1024) {
+                        output.write(buffer, 0, Math.min(count, 64 * 1024 - output.size()));
+                    }
+                }
+            } catch (IOException ignored) {
+            }
+        }, "PortWarp-Probe-Output");
+        reader.start();
+
+        boolean exited = process.waitFor(12, TimeUnit.SECONDS);
+        if (!exited) {
+            process.destroy();
+            if (!process.waitFor(2, TimeUnit.SECONDS)) process.destroyForcibly();
+            throw new IOException("pwrp version timed out after 12 seconds");
+        }
+        reader.join(1000);
+
+        int exit = process.exitValue();
+        String text = output.toString(StandardCharsets.UTF_8.name()).trim()
+                .replace("\r", " ").replace("\n", " | ");
+        ServerLog.append(context, "PORTWARP",
+                "pwrp version exit=" + exit + ", output=" + text);
+        if (exit != 0) {
+            throw new IOException("pwrp version exited " + exit + ": " + text);
+        }
+        if (text.isEmpty()) text = "pwrp exited 0 with no text output";
+        return "PortWarp CLI executed on Android: " + text;
+    }
+
+    private static boolean isArm64() {
+        for (String abi : android.os.Build.SUPPORTED_ABIS) {
+            if ("arm64-v8a".equals(abi)) return true;
+        }
+        return false;
+    }
+
+    private static void downloadToFile(String url, File target, long maxBytes) throws IOException {
+        HttpURLConnection connection = open(url);
+        long declared = connection.getContentLengthLong();
+        if (declared > maxBytes) {
+            connection.disconnect();
+            throw new IOException("Download is unexpectedly large: " + declared);
+        }
+
+        try (InputStream input = new BufferedInputStream(connection.getInputStream());
+             FileOutputStream output = new FileOutputStream(target, false)) {
+            copyLimited(input, output, maxBytes);
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private static String downloadText(String url, long maxBytes) throws IOException {
+        HttpURLConnection connection = open(url);
+        try (InputStream input = new BufferedInputStream(connection.getInputStream());
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            copyLimited(input, output, maxBytes);
+            return output.toString(StandardCharsets.UTF_8.name());
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private static HttpURLConnection open(String value) throws IOException {
+        URL url = new URL(value);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setInstanceFollowRedirects(true);
+        connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        connection.setReadTimeout(READ_TIMEOUT_MS);
+        connection.setRequestProperty("User-Agent", "VC-Mumble-PortWarp-Compatibility-Probe/1");
+        int status = connection.getResponseCode();
+        if (status < 200 || status >= 300) {
+            connection.disconnect();
+            throw new IOException("HTTP " + status + " for " + value);
+        }
+        return connection;
+    }
+
+    private static long copyLimited(InputStream input, java.io.OutputStream output, long max)
+            throws IOException {
+        byte[] buffer = new byte[8192];
+        long total = 0;
+        int count;
+        while ((count = input.read(buffer)) >= 0) {
+            if (count == 0) continue;
+            total += count;
+            if (total > max) throw new IOException("Download/extract exceeded " + max + " bytes");
+            output.write(buffer, 0, count);
+        }
+        output.flush();
+        return total;
+    }
+
+    private static String sha256(File file) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (FileInputStream input = new FileInputStream(file)) {
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = input.read(buffer)) >= 0) {
+                if (count > 0) digest.update(buffer, 0, count);
+            }
+        }
+        StringBuilder value = new StringBuilder();
+        for (byte b : digest.digest()) value.append(String.format(Locale.US, "%02x", b & 0xff));
+        return value.toString();
+    }
+
+    private static String findChecksum(String text, String fileName) {
+        for (String raw : text.split("\n")) {
+            String line = raw.trim();
+            if (line.isEmpty() || !line.endsWith(fileName)) continue;
+            String[] parts = line.split("\\s+");
+            if (parts.length >= 2 && parts[0].matches("[0-9a-fA-F]{64}")) {
+                return parts[0].toLowerCase(Locale.US);
+            }
+        }
+        return null;
+    }
+
+    private static void extractNamedTarGzEntry(File archive, String wanted, File output)
+            throws IOException {
+        try (GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(archive))) {
+            byte[] header = new byte[512];
+            while (true) {
+                int headerBytes = readFully(gzip, header, 0, header.length);
+                if (headerBytes == 0) break;
+                if (headerBytes != 512) throw new IOException("Truncated tar header");
+                if (allZero(header)) break;
+
+                String name = cString(header, 0, 100);
+                long size = parseTarOctal(header, 124, 12);
+                if (size < 0 || size > MAX_BINARY_BYTES) {
+                    throw new IOException("Invalid tar entry size for " + name + ": " + size);
+                }
+
+                boolean match = wanted.equals(name) || name.endsWith("/" + wanted);
+                if (match) {
+                    try (FileOutputStream target = new FileOutputStream(output, false)) {
+                        copyExactly(gzip, target, size);
+                    }
+                } else {
+                    skipExactly(gzip, size);
+                }
+
+                long padding = (512 - (size % 512)) % 512;
+                skipExactly(gzip, padding);
+                if (match) {
+                    if (!output.isFile() || output.length() == 0) {
+                        throw new IOException("Extracted pwrp is empty");
+                    }
+                    return;
+                }
+            }
+        }
+        throw new IOException("pwrp entry not found in official archive");
+    }
+
+    private static int readFully(InputStream input, byte[] buffer, int offset, int length)
+            throws IOException {
+        int total = 0;
+        while (total < length) {
+            int count = input.read(buffer, offset + total, length - total);
+            if (count < 0) break;
+            if (count > 0) total += count;
+        }
+        return total;
+    }
+
+    private static void copyExactly(InputStream input, java.io.OutputStream output, long length)
+            throws IOException {
+        byte[] buffer = new byte[8192];
+        long remaining = length;
+        while (remaining > 0) {
+            int count = input.read(buffer, 0, (int) Math.min(buffer.length, remaining));
+            if (count < 0) throw new IOException("Unexpected EOF in tar entry");
+            if (count == 0) continue;
+            output.write(buffer, 0, count);
+            remaining -= count;
+        }
+        output.flush();
+    }
+
+    private static void skipExactly(InputStream input, long length) throws IOException {
+        byte[] buffer = new byte[8192];
+        long remaining = length;
+        while (remaining > 0) {
+            long skipped = input.skip(remaining);
+            if (skipped > 0) {
+                remaining -= skipped;
+                continue;
+            }
+            int count = input.read(buffer, 0, (int) Math.min(buffer.length, remaining));
+            if (count < 0) throw new IOException("Unexpected EOF while skipping tar entry");
+            remaining -= count;
+        }
+    }
+
+    private static boolean allZero(byte[] block) {
+        for (byte b : block) if (b != 0) return false;
+        return true;
+    }
+
+    private static String cString(byte[] data, int offset, int length) {
+        int end = offset;
+        int limit = offset + length;
+        while (end < limit && data[end] != 0) end++;
+        return new String(data, offset, end - offset, StandardCharsets.US_ASCII);
+    }
+
+    private static long parseTarOctal(byte[] data, int offset, int length) throws IOException {
+        long value = 0;
+        boolean sawDigit = false;
+        for (int i = offset; i < offset + length; i++) {
+            int c = data[i] & 0xff;
+            if (c == 0 || c == ' ') {
+                if (sawDigit) break;
+                continue;
+            }
+            if (c < '0' || c > '7') throw new IOException("Invalid tar size");
+            sawDigit = true;
+            value = (value << 3) + (c - '0');
+        }
+        return value;
+    }
+}
