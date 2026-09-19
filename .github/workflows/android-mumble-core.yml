@@ -51,7 +51,7 @@ jobs:
       - name: Install host build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build autoconf automake libtool pkg-config
+          sudo apt-get install -y ninja-build autoconf automake libtool pkg-config patchelf
           python3 -m pip install --upgrade pip
           python3 -m pip install 'aqtinstall==3.3.0'
 
@@ -105,7 +105,12 @@ jobs:
             boost-algorithm:arm64-android \
             protobuf:x64-linux \
             --clean-after-build
+          "$HOME/vcpkg/vcpkg" install \
+            openssl:arm64-android-dynamic \
+            --overlay-triplets="$GITHUB_WORKSPACE/cmake/triplets" \
+            --clean-after-build
           echo "VC_ANDROID_DEP_PREFIX=$HOME/vcpkg/installed/arm64-android" >> "$GITHUB_ENV"
+          echo "VC_ANDROID_TLS_PREFIX=$HOME/vcpkg/installed/arm64-android-dynamic" >> "$GITHUB_ENV"
           echo "PROTOC=$HOME/vcpkg/installed/x64-linux/tools/protobuf/protoc" >> "$GITHUB_ENV"
 
       - name: Build and stage embedded Mumble core
