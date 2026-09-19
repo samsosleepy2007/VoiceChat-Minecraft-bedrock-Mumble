@@ -74,6 +74,153 @@ def patch_android_compat(murmur: pathlib.Path) -> None:
         main_cpp.write_text(text, encoding="utf-8")
 
 
+def patch_android_unix_daemon(murmur: pathlib.Path) -> None:
+    """Disable desktop Unix daemon/signal plumbing inside the Android service process."""
+    unix_cpp = murmur / "UnixMurmur.cpp"
+    if not unix_cpp.is_file():
+        return
+
+    text = unix_cpp.read_text(encoding="utf-8")
+    if "VC_ANDROID_NO_UNIX_DAEMON" in text:
+        return
+
+    ctor = "UnixMurmur::UnixMurmur() {"
+    if ctor not in text:
+        raise RuntimeError("could not locate UnixMurmur constructor")
+    text = replace_literal_once(
+        text,
+        ctor,
+        ctor
+        + "\n#ifdef Q_OS_ANDROID // VC_ANDROID_NO_UNIX_DAEMON"
+        + "\n\tbRoot = false;"
+        + "\n\tlogToSyslog = false;"
+        + "\n\tqsnHup = nullptr;"
+        + "\n\tqsnTerm = nullptr;"
+        + "\n\tqsnUsr1 = nullptr;"
+        + "\n\tiHupFd[0] = iHupFd[1] = -1;"
+        + "\n\tiTermFd[0] = iTermFd[1] = -1;"
+        + "\n\tiUsr1Fd[0] = iUsr1Fd[1] = -1;"
+        + "\n\treturn;"
+        + "\n#endif",
+        "UnixMurmur Android constructor guard",
+    )
+
+    dtor = "UnixMurmur::~UnixMurmur() {"
+    if dtor not in text:
+        raise RuntimeError("could not locate UnixMurmur destructor")
+    text = replace_literal_once(
+        text,
+        dtor,
+        dtor
+        + "\n#ifdef Q_OS_ANDROID"
+        + "\n\treturn;"
+        + "\n#endif",
+        "UnixMurmur Android destructor guard",
+    )
+
+    setuid = "void UnixMurmur::setuid() {"
+    if setuid not in text:
+        raise RuntimeError("could not locate UnixMurmur::setuid")
+    text = replace_literal_once(
+        text,
+        setuid,
+        setuid
+        + "\n#ifdef Q_OS_ANDROID"
+        + "\n\treturn;"
+        + "\n#endif",
+        "UnixMurmur Android setuid guard",
+    )
+
+    unix_cpp.write_text(text, encoding="utf-8")
+
+
+def patch_android_bootstrap_logging(murmur: pathlib.Path) -> None:
+    """Persist native-main checkpoints before Murmur's normal logger is available."""
+    main_cpp = murmur / "main.cpp"
+    text = main_cpp.read_text(encoding="utf-8")
+
+    if "VC_ANDROID_BOOTSTRAP_LOG" in text:
+        return
+
+    include_anchor = "#include <QSslSocket>"
+    if include_anchor not in text:
+        raise RuntimeError("could not locate QSslSocket include for bootstrap logging")
+    text = replace_literal_once(
+        text,
+        include_anchor,
+        include_anchor + "\n#include <cstdio>\n#include <cstdlib>",
+        "Android bootstrap logging includes",
+    )
+
+    main_anchor = "int main(int argc, char **argv) {"
+    if main_anchor not in text:
+        raise RuntimeError("could not locate main for bootstrap logging")
+
+    helper = r'''
+#ifdef Q_OS_ANDROID
+static void vcAndroidBootstrapLog(const char *message) { // VC_ANDROID_BOOTSTRAP_LOG
+	const char *home = std::getenv("HOME");
+	if (!home || !*home || !message)
+		return;
+	const std::string path = std::string(home) + "/vc-mumble-server.log";
+	FILE *file = std::fopen(path.c_str(), "a");
+	if (!file)
+		return;
+	std::fprintf(file, "[NATIVE-BOOT] %s\n", message);
+	std::fflush(file);
+	std::fclose(file);
+}
+#else
+static void vcAndroidBootstrapLog(const char *) {}
+#endif
+
+'''
+    text = replace_literal_once(
+        text,
+        main_anchor,
+        helper + main_anchor + '\n\tvcAndroidBootstrapLog("main entered");',
+        "Android bootstrap logger",
+    )
+
+    checkpoints = [
+        ("ServerApplication a(argc, argv);",
+         'vcAndroidBootstrapLog("creating ServerApplication");\n\t\tServerApplication a(argc, argv);\n\t\tvcAndroidBootstrapLog("ServerApplication created");'),
+        ("MumbleSSL::initialize();",
+         'vcAndroidBootstrapLog("initializing MumbleSSL");\n\t\tMumbleSSL::initialize();\n\t\tvcAndroidBootstrapLog("MumbleSSL initialized");'),
+        ("CLIOptions cli_options = parseCLI(argc, argv);",
+         'vcAndroidBootstrapLog("parsing CLI");\n\t\tCLIOptions cli_options = parseCLI(argc, argv);\n\t\tvcAndroidBootstrapLog("CLI parsed");'),
+        ("if (QSslSocket::supportsSsl()) {",
+         'vcAndroidBootstrapLog(QSslSocket::supportsSsl() ? "QSslSocket supports SSL" : "QSslSocket SSL unsupported");\n\t\tif (QSslSocket::supportsSsl()) {'),
+        ("Meta::mp->read(inifile);",
+         'vcAndroidBootstrapLog("reading Mumble ini");\n\t\tMeta::mp->read(inifile);\n\t\tvcAndroidBootstrapLog("Mumble ini read");'),
+        ("MumbleSSL::addSystemCA();",
+         'vcAndroidBootstrapLog("adding system CA");\n\t\tMumbleSSL::addSystemCA();\n\t\tvcAndroidBootstrapLog("system CA added");'),
+        ("meta = new Meta(Meta::getConnectionParameter());",
+         'vcAndroidBootstrapLog("creating Meta/database");\n\t\tmeta = new Meta(Meta::getConnectionParameter());\n\t\tvcAndroidBootstrapLog("Meta/database ready");'),
+        ("meta->bootAll(Meta::getConnectionParameter(), true);",
+         'vcAndroidBootstrapLog("bootAll begin");\n\t\tmeta->bootAll(Meta::getConnectionParameter(), true);\n\t\tvcAndroidBootstrapLog("bootAll complete");'),
+        ("res = a.exec();",
+         'vcAndroidBootstrapLog("entering Qt event loop");\n\t\tres = a.exec();\n\t\tvcAndroidBootstrapLog("Qt event loop returned");'),
+    ]
+    for old, new in checkpoints:
+        if old in text:
+            text = text.replace(old, new, 1)
+
+    handler_anchor = "static void murmurMessageOutputQString(QtMsgType type, const QString &msg) {"
+    if handler_anchor in text:
+        text = replace_literal_once(
+            text,
+            handler_anchor,
+            handler_anchor
+            + '\n#ifdef Q_OS_ANDROID'
+            + '\n\tvcAndroidBootstrapLog(qPrintable(msg));'
+            + '\n#endif',
+            "Android early Qt message logging",
+        )
+
+    main_cpp.write_text(text, encoding="utf-8")
+
+
 def patch_embedded_lifecycle(murmur: pathlib.Path) -> None:
     main_cpp = murmur / "main.cpp"
     text = main_cpp.read_text(encoding="utf-8")
@@ -424,6 +571,8 @@ def prepare(
     shutil.copyfile(proximity_source, murmur / "VCProximity.cpp")
 
     patch_android_compat(murmur)
+    patch_android_unix_daemon(murmur)
+    patch_android_bootstrap_logging(murmur)
     patch_embedded_lifecycle(murmur)
     patch_android_default_ini(murmur)
     patch_android_foreground_logfile(murmur)
@@ -444,6 +593,7 @@ def prepare(
         "ordinary main retained": re.search(r"\bint\s+main\s*\(", final_main) is not None,
         "Android main exported for Qt loader": "VC_ANDROID_MAIN_EXPORT" in final_main,
         "Qt Android process exit disabled": "VC_ANDROID_NO_EXIT_CALL" in final_main,
+        "Android native bootstrap logging": "VC_ANDROID_BOOTSTRAP_LOG" in final_main,
         "Android default ini": "VC_ANDROID_DEFAULT_INI" in final_main,
         "Android foreground logfile": "VC_ANDROID_FOREGROUND_LOGFILE" in final_main,
         "embedded cleanup return": "VC_MUMBLE_EMBEDDED_RETURN" in final_main,
