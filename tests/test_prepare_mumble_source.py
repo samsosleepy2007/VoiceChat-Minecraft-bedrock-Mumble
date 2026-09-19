@@ -142,6 +142,8 @@ def main() -> int:
         assert "VC_ANDROID_EXTRA_LIBS" in cmake
         assert "QT_ANDROID_PACKAGE_SOURCE_DIR" in cmake
         assert "VC_ANDROID_PACKAGE_SOURCE_DIR" in cmake
+        assert "VC_ANDROID_MAIN_EXPORT" in main_cpp
+        assert '__attribute__((visibility("default")))' in main_cpp
         assert "VC_MUMBLE_EMBEDDED_RETURN" in main_cpp
         assert "VC_MUMBLE_EMBEDDED_SIGNALS" in main_cpp
         assert "exit(signum);" in main_cpp
