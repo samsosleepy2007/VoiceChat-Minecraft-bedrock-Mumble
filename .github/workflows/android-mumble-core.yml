@@ -3,20 +3,22 @@ name: Android Embedded Mumble Core (experimental)
 on:
   workflow_dispatch:
   push:
-    branches: ['test/vc-mumble-github-import']
+    branches: ['test/vc-mumble-github-import', 'main']
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   QT_VERSION: '6.8.3'
   VCPKG_TAG: '2026.07.29'
   NDK_VERSION: '28.2.13676358'
+  RELEASE_TAG: 'v0.5.0-beta.1'
+  RELEASE_APK: 'VC-Mumble-Server-v0.5.0-beta.1-arm64-v8a.apk'
 
 jobs:
   build-core-apk:
     # Explicit checkpoints only; ordinary commits keep running the smoke build.
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[core-build]')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[core-build]') || contains(github.event.head_commit.message, '[release]')
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -134,3 +136,22 @@ jobs:
             .build/android-stage/vc-mumble-runtime.contents.txt
             .build/android-stage/extra-libs/arm64-v8a/
           retention-days: 14
+
+      - name: Prepare GitHub release assets
+        if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]')
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk "${RELEASE_APK}"
+          sha256sum "${RELEASE_APK}" > "${RELEASE_APK}.sha256"
+          cat "${RELEASE_APK}.sha256"
+
+      - name: Publish GitHub prerelease
+        if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Release ${RELEASE_TAG} already exists; replacing assets"
+            gh release upload "${RELEASE_TAG}" "${RELEASE_APK}" "${RELEASE_APK}.sha256" --clobber
+          else
+            gh release create "${RELEASE_TAG}"               "${RELEASE_APK}"               "${RELEASE_APK}.sha256"               --target "${GITHUB_SHA}"               --title "VC Mumble Server ${RELEASE_TAG}"               --notes-file RELEASE_NOTES.md               --prerelease
+          fi
