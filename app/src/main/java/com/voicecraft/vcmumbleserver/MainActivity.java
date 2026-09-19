@@ -44,6 +44,8 @@ public final class MainActivity extends Activity {
     private EditText bridgePort;
     private EditText bridgeSecret;
     private Button startStop;
+    private Button portWarpProbeButton;
+    private TextView portWarpProbeStatus;
     private TextView logView;
     private boolean running;
 
@@ -171,6 +173,24 @@ public final class MainActivity extends Activity {
         TextView note = text(nativeMode, 12, false);
         note.setTextColor(Color.GRAY);
         root.addView(note, marginTop(18));
+
+        root.addView(section("Public Access (Experimental)"), marginTop(22));
+        TextView portWarpNote = text(
+                "Compatibility test only. The APK does not bundle PortWarp. "
+                        + "When pressed, it downloads the official ARM64 CLI from portwarp.com, "
+                        + "verifies its published SHA-256, and runs only 'pwrp version'.",
+                12,
+                false
+        );
+        portWarpNote.setTextColor(Color.GRAY);
+        root.addView(portWarpNote, marginTop(6));
+
+        portWarpProbeStatus = text("PortWarp CLI: not tested on this device", 13, false);
+        root.addView(portWarpProbeStatus, marginTop(8));
+
+        portWarpProbeButton = button("TEST PORTWARP CLI");
+        portWarpProbeButton.setOnClickListener(v -> runPortWarpProbe());
+        root.addView(portWarpProbeButton, marginTop(8));
 
         root.addView(section("Server Log"), marginTop(22));
         logView = text("", 11, false);
@@ -345,6 +365,26 @@ public final class MainActivity extends Activity {
                 }
             });
         }, "VCMumble-UI-State-Probe").start();
+    }
+
+    private void runPortWarpProbe() {
+        portWarpProbeButton.setEnabled(false);
+        portWarpProbeStatus.setText("PortWarp CLI: downloading and testing…");
+        ServerLog.append(this, "PORTWARP", "User started on-device execution probe");
+        refreshLogView();
+
+        PortWarpExecProbe.run(this, (success, message) -> {
+            portWarpProbeButton.setEnabled(true);
+            portWarpProbeStatus.setText(
+                    success ? "PortWarp CLI: EXECUTION PASSED" : "PortWarp CLI: EXECUTION BLOCKED"
+            );
+            Toast.makeText(
+                    this,
+                    message,
+                    success ? Toast.LENGTH_SHORT : Toast.LENGTH_LONG
+            ).show();
+            refreshLogView();
+        });
     }
 
     private void refreshLogView() {
