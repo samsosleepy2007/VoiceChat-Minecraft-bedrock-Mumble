@@ -138,6 +138,7 @@ jobs:
           if [[ "$GITHUB_REF" == "refs/heads/feature/playit-embedded-tunnel" ]]; then
             unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -F 'lib/arm64-v8a/libplayit_cli_exec.so'
             unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -F 'lib/arm64-v8a/libplayitd_exec.so'
+            unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -F 'lib/arm64-v8a/libvc_playit_helper_exec.so'
           fi
 
       - uses: actions/upload-artifact@v7
