@@ -86,6 +86,15 @@ grep -Fq '"JNI"' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerSer
 grep -Fq 'Scheduling TCP readiness probe' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'VC_ANDROID_BOOTSTRAP_LOG' scripts/prepare-mumble-source.py
 grep -Fq 'VC_ANDROID_NO_UNIX_DAEMON' scripts/prepare-mumble-source.py
+grep -Fq 'VCPKG_LIBRARY_LINKAGE dynamic' cmake/triplets/arm64-android-dynamic.cmake
+grep -Fq 'openssl:arm64-android-dynamic' .github/workflows/android-mumble-core.yml
+grep -Fq 'VC_ANDROID_TLS_PREFIX' .github/workflows/android-mumble-core.yml
+grep -Fq 'libcrypto_3.so' scripts/build-mumble-android-core.sh
+grep -Fq 'libssl_3.so' scripts/build-mumble-android-core.sh
+grep -Fq 'patchelf --set-soname libcrypto_3.so' scripts/build-mumble-android-core.sh
+grep -Fq 'ANDROID_OPENSSL_SUFFIX' scripts/prepare-mumble-source.py
+grep -Fq 'probeSystemLoad(nativeDir, "crypto_3", "openssl")' app/src/core/java/org/qtproject/qt/android/RestartableQtService.java
+grep -Fq 'probeSystemLoad(nativeDir, "ssl_3", "openssl")' app/src/core/java/org/qtproject/qt/android/RestartableQtService.java
 grep -Fq '"PROBE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: TCP probe log tag" >&2; exit 1; }
 grep -Fq '"SERVICE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: service log tag" >&2; exit 1; }
 grep -Fq '"ERROR",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: error log tag" >&2; exit 1; }
