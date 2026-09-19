@@ -18,6 +18,9 @@ for f in \
   app/src/main/java/com/voicecraft/vcmumbleserver/SecretStore.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerConfig.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerLog.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/PlayitEmbeddedProbe.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/PlayitSecretStore.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java \
   endstone-plugin/pyproject.toml \
   endstone-plugin/src/endstone_vc_mumble/plugin.py \
   endstone-plugin/src/endstone_vc_mumble/bridge.py \
@@ -25,9 +28,12 @@ for f in \
   native/mumble_android/VCProximity.h \
   native/mumble_android/VCProximity.cpp \
   native/mumble_android/AndroidEmbed.cpp \
+  native/playit_bridge/Cargo.toml \
+  native/playit_bridge/src/main.rs \
   native/mumble_android/android-package/settings.gradle \
   scripts/fetch-mumble.sh \
   scripts/build-mumble-android-core.sh \
+  scripts/build-playit-android-agent.sh \
   scripts/prepare-mumble-source.py
 do
   test -f "$f" || { echo "Missing: $f" >&2; exit 1; }
@@ -37,8 +43,25 @@ python3 tests/test_prepare_mumble_source.py
 python3 tests/test_vc_mumble_bridge_contract.py
 
 bash -n scripts/build-mumble-android-core.sh
+bash -n scripts/build-playit-android-agent.sh
 bash -n scripts/fetch-mumble.sh
 
+grep -Fq 'PLAYIT_COMMIT="9e7b9a1cb42d057e7993e21ef4fe32348d1e7fcd"' scripts/build-playit-android-agent.sh
+grep -Fq 'libplayit_cli_exec.so' scripts/build-playit-android-agent.sh
+grep -Fq 'libplayitd_exec.so' scripts/build-playit-android-agent.sh
+grep -Fq 'libvc_playit_helper_exec.so' scripts/build-playit-android-agent.sh
+grep -Fq 'CustomBoth(1)' native/playit_bridge/src/main.rs
+grep -Fq '"local_ip".to_string()' native/playit_bridge/src/main.rs
+grep -Fq '"127.0.0.1".to_string()' native/playit_bridge/src/main.rs
+grep -Fq '"local_port".to_string()' native/playit_bridge/src/main.rs
+grep -Fq 'android:process=":tunnel"' app/src/main/AndroidManifest.xml
+grep -Fq 'PlayitSecretStore.save(this, secret);' app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java
+grep -Fq 'PLAYIT_SECRET_KEY' app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java
+grep -Fq 'ACTION_CLAIM' app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java
+grep -Fq 'ACTION_START' app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java
+grep -Fq 'ACTION_STOP' app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java
+grep -Fq '"SET UP PLAYIT"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"START PUBLIC ACCESS"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq -- '--retry-all-errors' scripts/fetch-mumble.sh
 grep -Fq 'for attempt in 1 2 3 4 5' scripts/fetch-mumble.sh
 grep -Fq 'ARCHIVE}.part' scripts/fetch-mumble.sh
