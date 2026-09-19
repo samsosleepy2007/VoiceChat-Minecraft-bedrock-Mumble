@@ -17,6 +17,7 @@ for f in \
   app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/SecretStore.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerConfig.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/ServerLog.java \
   endstone-plugin/pyproject.toml \
   endstone-plugin/src/endstone_vc_mumble/plugin.py \
   endstone-plugin/src/endstone_vc_mumble/bridge.py \
@@ -66,6 +67,16 @@ grep -Fq 'new InetSocketAddress("127.0.0.1", port)' app/src/core/java/com/voicec
 grep -Fq 'STARTUP_PROBE_MAX_ATTEMPTS = 30' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'Mumble core loaded but TCP port ' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq '"● STARTING"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'public static final String FILE_NAME = "vc-mumble-server.log";' app/src/main/java/com/voicecraft/vcmumbleserver/ServerLog.java
+grep -Fq 'ServerLog.append(this, "PROBE"' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'ServerLog.append(this, "SERVICE"' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'ServerLog.file(context).getAbsolutePath()' app/src/main/java/com/voicecraft/vcmumbleserver/MumbleConfigWriter.java
+grep -Fq 'VC_ANDROID_FOREGROUND_LOGFILE' scripts/prepare-mumble-source.py
+grep -Fq '"Copy Log"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"Download log.txt"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"Clear Log"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'Intent.ACTION_CREATE_DOCUMENT' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'Intent.EXTRA_TITLE, "log.txt"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 if grep -Fq 'Java_com_voicecraft_vcmumbleserver_NativeServer_setProximityEnabledNative' app/src/main/cpp/mumble_jni.cpp; then
   echo "ERROR: real core JNI must use RegisterNatives, not legacy Java_com_* discovery" >&2
   exit 1
