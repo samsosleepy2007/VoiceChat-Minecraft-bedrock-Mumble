@@ -22,6 +22,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Shell syntax preflight
+        run: |
+          sh -n ./scripts/check-project.sh
+          bash -n ./scripts/build-mumble-android-core.sh
+
       - name: Project contract checks
         run: bash ./scripts/check-project.sh
 
