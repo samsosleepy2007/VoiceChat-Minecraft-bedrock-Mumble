@@ -92,6 +92,20 @@ def patch_embedded_lifecycle(murmur: pathlib.Path) -> None:
             "Android main entrypoint",
         )
 
+    # Qt's Android runner calls exit(ret) after main() returns unless this
+    # environment flag is set. The VC app must keep its Java UI process alive
+    # across server startup failures and Stop/Start cycles.
+    if "VC_ANDROID_NO_EXIT_CALL" not in text:
+        text = replace_literal_once(
+            text,
+            "int main(int argc, char **argv) {",
+            "int main(int argc, char **argv) {\n"
+            "#ifdef Q_OS_ANDROID\n"
+            "\tqputenv(\"QT_ANDROID_NO_EXIT_CALL\", \"1\"); // VC_ANDROID_NO_EXIT_CALL\n"
+            "#endif",
+            "Android no-exit guard",
+        )
+
     if "VC_MUMBLE_EMBEDDED_RETURN" not in text:
         text = replace_once(
             text,
@@ -405,6 +419,7 @@ def prepare(
         "Qt Android GUI dependency retention": "LINKER:--no-as-needed" in final_cmake,
         "ordinary main retained": re.search(r"\bint\s+main\s*\(", final_main) is not None,
         "Android main exported for Qt loader": "VC_ANDROID_MAIN_EXPORT" in final_main,
+        "Qt Android process exit disabled": "VC_ANDROID_NO_EXIT_CALL" in final_main,
         "Android default ini": "VC_ANDROID_DEFAULT_INI" in final_main,
         "embedded cleanup return": "VC_MUMBLE_EMBEDDED_RETURN" in final_main,
         "embedded signal guard": "VC_MUMBLE_EMBEDDED_SIGNALS" in final_main,
