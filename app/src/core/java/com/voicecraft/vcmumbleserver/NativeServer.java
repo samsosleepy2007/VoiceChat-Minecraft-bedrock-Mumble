@@ -3,9 +3,8 @@ package com.voicecraft.vcmumbleserver;
 /**
  * JNI facade used by the embedded Mumble core build.
  *
- * QtService/androiddeployqt owns loading libvcserver.so and entering Mumble's
- * main(). This class deliberately does not call System.loadLibrary(); it only
- * exposes state/control JNI after QtService has loaded the runtime.
+ * QtService/androiddeployqt owns loading libvcserver and entering Mumble's
+ * main(). JNI_OnLoad in that library explicitly registers the methods below.
  */
 public final class NativeServer {
     private static volatile boolean runtimeLoaded;
@@ -21,9 +20,8 @@ public final class NativeServer {
     private static native void setProximityEnabledNative(boolean enabled);
     private static native int proximityPlayerCountNative();
 
-    // These names intentionally match the JNI exports compiled into libvcserver.
-    public static native void setProximityStaleTimeoutMs(long timeoutMs);
-    public static native void updatePlayerState(
+    private static native void setProximityStaleTimeoutMsNative(long timeoutMs);
+    private static native void updatePlayerStateNative(
             String mumbleName,
             String dimension,
             double x,
@@ -31,8 +29,8 @@ public final class NativeServer {
             double z,
             float rangeBlocks
     );
-    public static native void removePlayerState(String mumbleName);
-    public static native void clearPlayerStates();
+    private static native void removePlayerStateNative(String mumbleName);
+    private static native void clearPlayerStatesNative();
 
     public static synchronized int start(String iniPath, int fallbackPort, String nativeLibraryDir) {
         if (!runtimeLoaded) return 1;
@@ -81,5 +79,30 @@ public final class NativeServer {
 
     public static int proximityPlayerCount() {
         return runtimeLoaded ? proximityPlayerCountNative() : 0;
+    }
+
+    public static void setProximityStaleTimeoutMs(long timeoutMs) {
+        if (runtimeLoaded) setProximityStaleTimeoutMsNative(timeoutMs);
+    }
+
+    public static void updatePlayerState(
+            String mumbleName,
+            String dimension,
+            double x,
+            double y,
+            double z,
+            float rangeBlocks
+    ) {
+        if (runtimeLoaded) {
+            updatePlayerStateNative(mumbleName, dimension, x, y, z, rangeBlocks);
+        }
+    }
+
+    public static void removePlayerState(String mumbleName) {
+        if (runtimeLoaded) removePlayerStateNative(mumbleName);
+    }
+
+    public static void clearPlayerStates() {
+        if (runtimeLoaded) clearPlayerStatesNative();
     }
 }
