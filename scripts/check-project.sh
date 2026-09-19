@@ -61,6 +61,11 @@ grep -Fq '"updatePlayerStateNative"' app/src/main/cpp/mumble_jni.cpp
 grep -Fq 'private static native void setProximityStaleTimeoutMsNative(long timeoutMs);' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
 grep -Fq 'private static native void updatePlayerStateNative(' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
 grep -Fq 'if (runtimeLoaded) setProximityStaleTimeoutMsNative(timeoutMs);' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
+grep -Fq 'host=0.0.0.0' app/src/main/java/com/voicecraft/vcmumbleserver/MumbleConfigWriter.java
+grep -Fq 'new InetSocketAddress("127.0.0.1", port)' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'STARTUP_PROBE_MAX_ATTEMPTS = 30' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'Mumble core loaded but TCP port ' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq '"● STARTING"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 if grep -Fq 'Java_com_voicecraft_vcmumbleserver_NativeServer_setProximityEnabledNative' app/src/main/cpp/mumble_jni.cpp; then
   echo "ERROR: real core JNI must use RegisterNatives, not legacy Java_com_* discovery" >&2
   exit 1
