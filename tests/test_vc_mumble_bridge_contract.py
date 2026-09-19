@@ -53,9 +53,23 @@ assert 'version = "0.1.0"' in pyproject
 assert 'version = "0.1.1"' in plugin
 assert 'vc-mumble = "endstone_vc_mumble:VCMumblePlugin"' in pyproject
 
-for source in [real_jni, smoke_jni]:
-    assert 'NativeServer_setProximityEnabledNative' in source
-    for symbol in ['updatePlayerState', 'removePlayerState', 'clearPlayerStates', 'proximityPlayerCount']:
-        assert f'NativeServer_{symbol}' in source, symbol
+# The real core uses explicit RegisterNatives binding from JNI_OnLoad so ART
+# does not have to discover Java_com_* symbols in the Qt-loaded main library.
+for expected in [
+    'RegisterNatives',
+    'FindClass("com/voicecraft/vcmumbleserver/NativeServer")',
+    '"setProximityEnabledNative"',
+    '"setProximityStaleTimeoutMsNative"',
+    '"updatePlayerStateNative"',
+    '"removePlayerStateNative"',
+    '"clearPlayerStatesNative"',
+    '"proximityPlayerCountNative"',
+]:
+    assert expected in real_jni, expected
+
+# The lightweight smoke target still uses conventional Java_com_* exports.
+assert 'NativeServer_setProximityEnabledNative' in smoke_jni
+for symbol in ['updatePlayerState', 'removePlayerState', 'clearPlayerStates', 'proximityPlayerCount']:
+    assert f'NativeServer_{symbol}' in smoke_jni, symbol
 
 print('VC Mumble standalone bridge contract static test: OK')
