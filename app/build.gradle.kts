@@ -3,7 +3,9 @@ plugins {
 }
 
 val vcMumbleCore = providers.gradleProperty("vcMumbleCore").orNull == "true"
+val vcEmbeddedPlayit = providers.gradleProperty("vcEmbeddedPlayit").orNull == "true"
 val vcMumbleRuntimeAar = rootProject.layout.projectDirectory.file(".build/android-stage/vc-mumble-runtime.aar").asFile
+val vcPlayitStageDir = rootProject.layout.projectDirectory.dir(".build/playit-android").asFile
 
 android {
     namespace = "com.voicecraft.vcmumbleserver"
@@ -17,6 +19,7 @@ android {
         versionName = "0.5.0-beta.1"
 
         buildConfigField("boolean", "VC_MUMBLE_CORE", vcMumbleCore.toString())
+        buildConfigField("boolean", "VC_EMBEDDED_PLAYIT", vcEmbeddedPlayit.toString())
 
     }
 
@@ -51,6 +54,11 @@ android {
     sourceSets.getByName("main").java.srcDir(
         if (vcMumbleCore) "src/core/java" else "src/smoke/java"
     )
+    if (vcEmbeddedPlayit) {
+        // playit executables are Android PIE binaries built from BSD-2-Clause
+        // source during CI and intentionally staged as extracted native payloads.
+        sourceSets.getByName("main").jniLibs.srcDir(vcPlayitStageDir)
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -63,6 +71,16 @@ if (vcMumbleCore && !vcMumbleRuntimeAar.isFile) {
         "VC Mumble runtime AAR is missing. Run scripts/build-mumble-android-core.sh before Gradle core builds: " +
             vcMumbleRuntimeAar.absolutePath
     )
+}
+
+if (vcEmbeddedPlayit) {
+    val cli = File(vcPlayitStageDir, "arm64-v8a/libplayit_cli_exec.so")
+    val daemon = File(vcPlayitStageDir, "arm64-v8a/libplayitd_exec.so")
+    if (!cli.isFile || !daemon.isFile) {
+        throw GradleException(
+            "Embedded playit payload is missing. Run scripts/build-playit-android-agent.sh before Gradle."
+        )
+    }
 }
 
 dependencies {
