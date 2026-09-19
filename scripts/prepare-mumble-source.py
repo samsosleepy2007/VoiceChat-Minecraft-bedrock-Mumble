@@ -148,7 +148,11 @@ def patch_android_bootstrap_logging(murmur: pathlib.Path) -> None:
     text = replace_literal_once(
         text,
         include_anchor,
-        include_anchor + "\n#include <cstdio>\n#include <cstdlib>",
+        include_anchor
+        + "\n#include <cstdio>\n#include <cstdlib>\n#include <string>"
+        + "\n#ifdef Q_OS_ANDROID"
+        + "\nstatic void vcAndroidBootstrapLog(const char *message);"
+        + "\n#endif",
         "Android bootstrap logging includes",
     )
 
