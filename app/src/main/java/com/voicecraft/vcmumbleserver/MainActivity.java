@@ -44,6 +44,8 @@ public final class MainActivity extends Activity {
     private EditText bridgePort;
     private EditText bridgeSecret;
     private Button startStop;
+    private Button playitProbeButton;
+    private TextView playitProbeStatus;
     private TextView logView;
     private boolean running;
 
@@ -171,6 +173,32 @@ public final class MainActivity extends Activity {
         TextView note = text(nativeMode, 12, false);
         note.setTextColor(Color.GRAY);
         root.addView(note, marginTop(18));
+
+        root.addView(section("Public Access (Playit Experimental)"), marginTop(22));
+        TextView playitNote = text(
+                BuildConfig.VC_EMBEDDED_PLAYIT
+                        ? "This APK contains playit-agent binaries compiled from the pinned BSD-2-Clause source. "
+                            + "This step only verifies that Android can execute the packaged CLI and daemon."
+                        : "Embedded playit is not included in this build.",
+                12,
+                false
+        );
+        playitNote.setTextColor(Color.GRAY);
+        root.addView(playitNote, marginTop(6));
+
+        playitProbeStatus = text(
+                BuildConfig.VC_EMBEDDED_PLAYIT
+                        ? "Embedded playit: not tested on this device"
+                        : "Embedded playit: unavailable",
+                13,
+                false
+        );
+        root.addView(playitProbeStatus, marginTop(8));
+
+        playitProbeButton = button("TEST EMBEDDED PLAYIT");
+        playitProbeButton.setEnabled(BuildConfig.VC_EMBEDDED_PLAYIT);
+        playitProbeButton.setOnClickListener(v -> runEmbeddedPlayitProbe());
+        root.addView(playitProbeButton, marginTop(8));
 
         root.addView(section("Server Log"), marginTop(22));
         logView = text("", 11, false);
@@ -345,6 +373,27 @@ public final class MainActivity extends Activity {
                 }
             });
         }, "VCMumble-UI-State-Probe").start();
+    }
+
+    private void runEmbeddedPlayitProbe() {
+        if (!BuildConfig.VC_EMBEDDED_PLAYIT) {
+            Toast.makeText(this, "This APK does not include embedded playit", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        playitProbeButton.setEnabled(false);
+        playitProbeStatus.setText("Embedded playit: testing…");
+        ServerLog.append(this, "PLAYIT", "User started packaged executable probe");
+        refreshLogView();
+
+        PlayitEmbeddedProbe.run(this, (success, message) -> {
+            playitProbeButton.setEnabled(true);
+            playitProbeStatus.setText(
+                    success ? "Embedded playit: EXECUTION PASSED" : "Embedded playit: EXECUTION BLOCKED"
+            );
+            Toast.makeText(this, message, success ? Toast.LENGTH_SHORT : Toast.LENGTH_LONG).show();
+            refreshLogView();
+        });
     }
 
     private void refreshLogView() {
