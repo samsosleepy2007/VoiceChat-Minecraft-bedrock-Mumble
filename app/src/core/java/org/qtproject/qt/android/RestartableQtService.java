@@ -141,6 +141,8 @@ public class RestartableQtService extends Service {
         expected.addAll(librariesForAbi("qt_libs", abi));
         expected.addAll(librariesForAbi("load_local_libs", abi));
         expected.addAll(librariesForAbi("bundled_libs", abi));
+        expected.add("crypto_3");
+        expected.add("ssl_3");
         expected.add("vcserver_" + abi);
 
         File nativeDir = new File(getApplicationInfo().nativeLibraryDir);
@@ -162,6 +164,8 @@ public class RestartableQtService extends Service {
                 probeSystemLoad(nativeDir, library, resourceName);
             }
         }
+        probeSystemLoad(nativeDir, "crypto_3", "openssl");
+        probeSystemLoad(nativeDir, "ssl_3", "openssl");
         probeSystemLoad(nativeDir, "vcserver_" + abi, "main");
     }
 
