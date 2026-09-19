@@ -298,6 +298,18 @@ if ! grep -Eqi 'qsqlite|sqldrivers.*sqlite' "${AAR_STAGE_DIR}/vc-mumble-runtime.
   echo "ERROR: AAR does not contain Qt SQLite driver" >&2
   exit 7
 fi
+if ! grep -Eqi 'qopensslbackend|plugins_tls.*openssl' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
+  echo "ERROR: AAR does not contain Qt OpenSSL TLS backend plugin" >&2
+  exit 7
+fi
+if ! grep -q 'libcrypto_3.so' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
+  echo "ERROR: AAR does not contain libcrypto_3.so for Qt TLS" >&2
+  exit 7
+fi
+if ! grep -q 'libssl_3.so' "${AAR_STAGE_DIR}/vc-mumble-runtime.contents.txt"; then
+  echo "ERROR: AAR does not contain libssl_3.so for Qt TLS" >&2
+  exit 7
+fi
 
 CLASSES_JAR="$(mktemp)"
 trap 'rm -f "${CLASSES_JAR}"' EXIT
