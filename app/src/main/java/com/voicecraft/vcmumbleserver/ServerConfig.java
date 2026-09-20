@@ -32,7 +32,7 @@ public final class ServerConfig {
         this.password = password;
         this.maxUsers = maxUsers;
         this.voiceRange = voiceRange;
-        this.proximityEnabled = proximityEnabled;
+        this.proximityEnabled = true;
         this.bridgeHost = bridgeHost;
         this.bridgePort = bridgePort;
         this.bridgeSecret = bridgeSecret;
@@ -46,7 +46,7 @@ public final class ServerConfig {
                 p.getString("password", ""),
                 p.getInt("max_users", 20),
                 p.getInt("voice_range", 30),
-                p.getBoolean("proximity_enabled", false),
+                true,
                 p.getString("bridge_host", ""),
                 p.getInt("bridge_port", 27220),
                 SecretStore.load(context)
@@ -60,7 +60,7 @@ public final class ServerConfig {
                 .putString("password", password)
                 .putInt("max_users", maxUsers)
                 .putInt("voice_range", voiceRange)
-                .putBoolean("proximity_enabled", proximityEnabled)
+                .putBoolean("proximity_enabled", true)
                 .putString("bridge_host", bridgeHost)
                 .putInt("bridge_port", bridgePort)
                 .apply();
