@@ -10,15 +10,17 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
-import android.graphics.Typeface;
-import android.net.Uri;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -31,10 +33,19 @@ import java.net.Socket;
 
 public final class MainActivity extends Activity {
     private static final int REQUEST_EXPORT_LOG = 4201;
+    private static final int PAGE_HOME = 0;
+    private static final int PAGE_LOG = 1;
+    private static final int PAGE_SETTINGS = 2;
+
+    private CyberTheme theme;
 
     private TextView status;
     private TextView address;
     private TextView bridgeStatus;
+    private TextView homeSummary;
+    private TextView portWarpTarget;
+    private TextView headerPageName;
+
     private EditText serverName;
     private EditText port;
     private EditText password;
@@ -44,12 +55,23 @@ public final class MainActivity extends Activity {
     private EditText bridgeHost;
     private EditText bridgePort;
     private EditText bridgeSecret;
+
     private Button startStop;
     private TextView logView;
+
+    private FrameLayout pageHost;
+    private View homePage;
+    private View logPage;
+    private View settingsPage;
+    private Button navHome;
+    private Button navLog;
+    private Button navSettings;
+
     private boolean running;
 
     private final BroadcastReceiver stateReceiver = new BroadcastReceiver() {
-        @Override public void onReceive(Context context, Intent intent) {
+        @Override
+        public void onReceive(Context context, Intent intent) {
             if (!MumbleServerService.ACTION_STATE.equals(intent.getAction())) return;
             updateState(
                     intent.getBooleanExtra(MumbleServerService.EXTRA_RUNNING, false),
@@ -61,19 +83,21 @@ public final class MainActivity extends Activity {
         }
     };
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        theme = CyberTheme.from(this);
+        theme.applyWindow(this);
         requestNotificationsIfNeeded();
+
         setContentView(buildUi());
         fillConfig(ServerConfig.load(this));
-        // MumbleServerService runs in the dedicated :mumble process. NativeServer
-        // static state is therefore intentionally not used by the UI process.
         updateState(false, "Ready", "Bridge idle", 0);
+        showPage(PAGE_HOME);
     }
 
-    @Override protected void onStart() {
+    @Override
+    protected void onStart() {
         super.onStart();
         refreshLogView();
         IntentFilter filter = new IntentFilter(MumbleServerService.ACTION_STATE);
@@ -85,77 +109,121 @@ public final class MainActivity extends Activity {
         refreshServerStateFromTcp();
     }
 
-    @Override protected void onStop() {
+    @Override
+    protected void onStop() {
         unregisterReceiver(stateReceiver);
         super.onStop();
     }
 
     private View buildUi() {
-        int pad = dp(20);
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(pad, pad, pad, pad);
-        root.setBackgroundColor(Color.rgb(245, 249, 255));
+        LinearLayout shell = new LinearLayout(this);
+        shell.setOrientation(LinearLayout.VERTICAL);
+        shell.setBackgroundColor(theme.background);
 
-        root.addView(text("VC Mumble Server", 28, true));
-        TextView sub = text("One-tap Mumble server for Minecraft Bedrock", 14, false);
-        sub.setTextColor(Color.DKGRAY);
-        root.addView(sub, marginTop(6));
+        shell.addView(buildHeader());
 
-        LinearLayout card = card();
-        status = text("● OFFLINE", 20, true);
-        address = text("Ready", 15, false);
-        bridgeStatus = text("Bridge idle", 13, false);
-        bridgeStatus.setTextColor(Color.GRAY);
-        card.addView(status);
-        card.addView(address, marginTop(6));
-        card.addView(bridgeStatus, marginTop(6));
-        root.addView(card, marginTop(20));
+        pageHost = new FrameLayout(this);
+        LinearLayout.LayoutParams pageHostParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+        );
+        shell.addView(pageHost, pageHostParams);
 
-        root.addView(section("Mumble Server"), marginTop(18));
-        serverName = field("Server name", InputType.TYPE_CLASS_TEXT);
-        port = field("Port", InputType.TYPE_CLASS_NUMBER);
-        password = field("Server password (optional)", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        maxUsers = field("Max players", InputType.TYPE_CLASS_NUMBER);
-        root.addView(serverName, marginTop(8));
-        root.addView(port, marginTop(10));
-        root.addView(password, marginTop(10));
-        root.addView(maxUsers, marginTop(10));
+        homePage = buildHomePage();
+        logPage = buildLogPage();
+        settingsPage = buildSettingsPage();
 
-        root.addView(section("Minecraft Proximity"), marginTop(20));
-        voiceRange = field("Voice range (blocks)", InputType.TYPE_CLASS_NUMBER);
-        root.addView(voiceRange, marginTop(8));
+        FrameLayout.LayoutParams match = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+        );
+        pageHost.addView(homePage, match);
+        pageHost.addView(logPage, match);
+        pageHost.addView(settingsPage, match);
 
-        proximityEnabled = new CheckBox(this);
-        proximityEnabled.setText("Enable Minecraft proximity routing");
-        proximityEnabled.setTextSize(15);
-        proximityEnabled.setOnCheckedChangeListener((buttonView, checked) -> updateBridgeFieldVisibility());
-        root.addView(proximityEnabled, marginTop(10));
+        shell.addView(buildBottomNavigation());
+        return shell;
+    }
 
-        TextView proximityNote = text(
-                "VC Mumble Endstone supplies the Mumble username, dimension and range. Use /vcmumble pair <name> in Minecraft when your Mumble username is different.",
-                12,
+    private View buildHeader() {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setPadding(dp(18), dp(14), dp(18), dp(12));
+        header.setBackgroundColor(theme.surface);
+
+        TextView brand = text("VC MUMBLE // NODE", 22, true);
+        brand.setTextColor(theme.accent);
+        brand.setLetterSpacing(0.08f);
+        theme.glowTitle(brand);
+        header.addView(brand);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView subtitle = text("Mumble Server สำหรับ Minecraft Bedrock", 12, false);
+        subtitle.setTextColor(theme.textSecondary);
+        row.addView(subtitle, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        headerPageName = text("หน้าหลัก", 12, true);
+        headerPageName.setTextColor(theme.accent);
+        row.addView(headerPageName);
+        header.addView(row, marginTop(4));
+
+        TextView line = text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", 9, false);
+        line.setTextColor(theme.border);
+        header.addView(line, marginTop(3));
+        return header;
+    }
+
+    private View buildHomePage() {
+        LinearLayout root = pageContainer();
+
+        TextView eyebrow = text("SYSTEM // OVERVIEW", 11, true);
+        eyebrow.setTextColor(theme.accent);
+        eyebrow.setLetterSpacing(0.12f);
+        root.addView(eyebrow);
+
+        TextView title = text("ศูนย์ควบคุมเซิร์ฟเวอร์", 25, true);
+        root.addView(title, marginTop(4));
+
+        TextView desc = text(
+                "เปิด Mumble Server บนมือถือและดูสถานะระบบจากหน้าหลัก",
+                13,
                 false
         );
-        proximityNote.setTextColor(Color.GRAY);
-        root.addView(proximityNote, marginTop(4));
+        desc.setTextColor(theme.textSecondary);
+        root.addView(desc, marginTop(4));
 
-        bridgeHost = field("Minecraft server host (example: sv5.mcsv.me)", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        bridgePort = field("VC Mumble bridge port", InputType.TYPE_CLASS_NUMBER);
-        bridgeSecret = field("Bridge secret", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        root.addView(bridgeHost, marginTop(10));
-        root.addView(bridgePort, marginTop(10));
-        root.addView(bridgeSecret, marginTop(10));
+        LinearLayout statusCard = card(true);
+        TextView nodeLabel = text("NODE // STATUS", 11, true);
+        nodeLabel.setTextColor(theme.accent);
+        nodeLabel.setLetterSpacing(0.12f);
+        statusCard.addView(nodeLabel);
 
-        TextView secretNote = text("Bridge secret is encrypted with Android Keystore before it is saved on this phone.", 11, false);
-        secretNote.setTextColor(Color.GRAY);
-        root.addView(secretNote, marginTop(4));
+        status = text("● ออฟไลน์", 27, true);
+        status.setTextColor(theme.danger);
+        statusCard.addView(status, marginTop(8));
 
-        startStop = button("START SERVER");
+        address = text("พร้อมใช้งาน", 16, true);
+        address.setTextIsSelectable(true);
+        statusCard.addView(address, marginTop(7));
+
+        bridgeStatus = text("Bridge พร้อมใช้งาน", 13, false);
+        bridgeStatus.setTextColor(theme.textSecondary);
+        statusCard.addView(bridgeStatus, marginTop(5));
+
+        homeSummary = text("", 12, false);
+        homeSummary.setTextColor(theme.textSecondary);
+        statusCard.addView(homeSummary, marginTop(10));
+        root.addView(statusCard, marginTop(16));
+
+        startStop = primaryButton("เปิดเซิร์ฟเวอร์");
         startStop.setOnClickListener(v -> toggleServer());
-        root.addView(startStop, marginTop(20));
+        root.addView(startStop, marginTop(14));
 
-        Button quick = button("QUICK START");
+        Button quick = button("เริ่มแบบด่วน  //  QUICK START");
         quick.setOnClickListener(v -> {
             serverName.setText("Minecraft Voice");
             port.setText("64738");
@@ -163,87 +231,269 @@ public final class MainActivity extends Activity {
             maxUsers.setText("20");
             voiceRange.setText("30");
             proximityEnabled.setChecked(false);
+            saveSettings(false);
             if (!running) toggleServer();
         });
-        root.addView(quick, marginTop(10));
+        root.addView(quick, marginTop(8));
 
         String nativeMode = NativeServer.hasMumbleCore()
-                ? "Embedded Mumble core build: stock Mumble/Mumla protocol path enabled."
-                : "Transport smoke-test build: TCP/UDP lifecycle only; this build does not speak the Mumble protocol.";
-        TextView note = text(nativeMode, 12, false);
-        note.setTextColor(Color.GRAY);
-        root.addView(note, marginTop(18));
+                ? "MUMBLE CORE // พร้อมใช้งานด้วย stock Mumble/Mumla protocol"
+                : "TRANSPORT TEST // build นี้ใช้สำหรับทดสอบ TCP/UDP เท่านั้น";
+        TextView core = text(nativeMode, 11, false);
+        core.setTextColor(theme.textSecondary);
+        root.addView(core, marginTop(10));
 
-        root.addView(section("Public Access with PortWarp"), marginTop(22));
-        TextView portWarpNote = text(
-                "Use this app together with the official PortWarp Android app. "
-                        + "1) Start the Mumble server here. "
-                        + "2) Open PortWarp and create a TCP+UDP tunnel. "
-                        + "3) Set Local Host to 127.0.0.1 and Local Port to the same Mumble Port shown above. "
-                        + "Keep both apps running while the server is public.",
+        LinearLayout publicCard = card(false);
+        TextView publicTitle = text("PUBLIC ACCESS // PORTWARP", 13, true);
+        publicTitle.setTextColor(theme.accent);
+        publicCard.addView(publicTitle);
+
+        TextView publicBody = text(
+                "ใช้คู่กับแอป PortWarp ทางการเพื่อเปิดเซิร์ฟเวอร์ออกอินเทอร์เน็ต "
+                        + "สร้าง Tunnel แบบ TCP+UDP แล้วชี้มาที่ Local Host 127.0.0.1 "
+                        + "และใช้พอร์ตเดียวกับ Mumble Server",
                 12,
                 false
         );
-        portWarpNote.setTextColor(Color.GRAY);
-        root.addView(portWarpNote, marginTop(6));
+        publicBody.setTextColor(theme.textSecondary);
+        publicCard.addView(publicBody, marginTop(7));
 
-        TextView portWarpTarget = text(
-                "PortWarp target: 127.0.0.1:" + ServerConfig.load(this).port,
-                14,
-                true
-        );
+        portWarpTarget = text("เป้าหมาย PortWarp: 127.0.0.1:64738", 14, true);
+        portWarpTarget.setTextColor(theme.accent);
         portWarpTarget.setTextIsSelectable(true);
-        root.addView(portWarpTarget, marginTop(8));
+        publicCard.addView(portWarpTarget, marginTop(10));
 
-        Button portWarpPlayStoreButton = button("GET PORTWARP ON GOOGLE PLAY");
+        Button portWarpPlayStoreButton = button("เปิด PORTWARP ใน GOOGLE PLAY");
         portWarpPlayStoreButton.setOnClickListener(v -> openPortWarpPlayStore());
-        root.addView(portWarpPlayStoreButton, marginTop(8));
+        publicCard.addView(portWarpPlayStoreButton, marginTop(10));
+        root.addView(publicCard, marginTop(18));
 
-        root.addView(section("Server Log"), marginTop(22));
+        TextView tip = text(
+                "TIP // ตั้งค่าพอร์ตและ Proximity Voice ได้ที่เมนู “ตั้งค่า” ด้านล่าง",
+                11,
+                false
+        );
+        tip.setTextColor(theme.textSecondary);
+        root.addView(tip, marginTop(12));
+
+        return scroll(root);
+    }
+
+    private View buildLogPage() {
+        LinearLayout root = pageContainer();
+
+        TextView eyebrow = text("DIAGNOSTICS // LIVE", 11, true);
+        eyebrow.setTextColor(theme.accent);
+        eyebrow.setLetterSpacing(0.12f);
+        root.addView(eyebrow);
+
+        TextView title = text("LOG // TERMINAL", 25, true);
+        theme.glowTitle(title);
+        root.addView(title, marginTop(4));
+
+        TextView note = text(
+                "ข้อความภายใน Log จะคงเป็นภาษาอังกฤษเพื่อให้ง่ายต่อการตรวจสอบและส่ง debug",
+                12,
+                false
+        );
+        note.setTextColor(theme.textSecondary);
+        root.addView(note, marginTop(5));
+
         logView = text("", 11, false);
         logView.setTypeface(Typeface.MONOSPACE);
+        logView.setTextColor(theme.terminalText);
         logView.setTextIsSelectable(true);
-        logView.setMinLines(8);
-        logView.setPadding(dp(12), dp(12), dp(12), dp(12));
-        logView.setBackgroundColor(Color.WHITE);
-        root.addView(logView, marginTop(8));
+        logView.setMinLines(20);
+        logView.setPadding(dp(14), dp(14), dp(14), dp(14));
+        logView.setBackground(theme.panel(dp(14), true));
+        root.addView(logView, marginTop(14));
 
-        Button copyLog = button("Copy Log");
+        Button copyLog = button("คัดลอก Log");
         copyLog.setOnClickListener(v -> copyLogToClipboard());
-        root.addView(copyLog, marginTop(8));
+        root.addView(copyLog, marginTop(10));
 
-        Button downloadLog = button("Download log.txt");
+        Button downloadLog = button("บันทึก log.txt");
         downloadLog.setOnClickListener(v -> exportLog());
         root.addView(downloadLog, marginTop(8));
 
-        Button clearLog = button("Clear Log");
+        Button clearLog = button("ล้าง Log");
+        clearLog.setTextColor(theme.danger);
         clearLog.setOnClickListener(v -> {
             ServerLog.clear(this);
             refreshLogView();
-            Toast.makeText(this, "Log cleared", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "ล้าง Log แล้ว", Toast.LENGTH_SHORT).show();
         });
         root.addView(clearLog, marginTop(8));
 
-        refreshLogView();
+        return scroll(root);
+    }
 
-        ScrollView scroll = new ScrollView(this);
-        scroll.addView(root);
-        return scroll;
+    private View buildSettingsPage() {
+        LinearLayout root = pageContainer();
+
+        TextView eyebrow = text("CONFIG // SERVER", 11, true);
+        eyebrow.setTextColor(theme.accent);
+        eyebrow.setLetterSpacing(0.12f);
+        root.addView(eyebrow);
+
+        TextView title = text("ตั้งค่าเซิร์ฟเวอร์", 25, true);
+        root.addView(title, marginTop(4));
+
+        TextView desc = text(
+                "การตั้งค่าจะถูกบันทึกในเครื่องและใช้เมื่อเปิดเซิร์ฟเวอร์ครั้งถัดไป",
+                12,
+                false
+        );
+        desc.setTextColor(theme.textSecondary);
+        root.addView(desc, marginTop(5));
+
+        LinearLayout serverCard = card(false);
+        TextView serverSection = text("MUMBLE SERVER", 13, true);
+        serverSection.setTextColor(theme.accent);
+        serverCard.addView(serverSection);
+
+        serverName = field("Minecraft Voice", InputType.TYPE_CLASS_TEXT);
+        addLabeledField(serverCard, "ชื่อเซิร์ฟเวอร์", serverName);
+
+        port = field("64738", InputType.TYPE_CLASS_NUMBER);
+        addLabeledField(serverCard, "พอร์ต Mumble", port);
+
+        password = field(
+                "ไม่บังคับ",
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
+        );
+        addLabeledField(serverCard, "รหัสผ่านเซิร์ฟเวอร์", password);
+
+        maxUsers = field("20", InputType.TYPE_CLASS_NUMBER);
+        addLabeledField(serverCard, "จำนวนผู้เล่นสูงสุด", maxUsers);
+        root.addView(serverCard, marginTop(14));
+
+        LinearLayout proximityCard = card(false);
+        TextView proximityTitle = text("MINECRAFT // PROXIMITY VOICE", 13, true);
+        proximityTitle.setTextColor(theme.accent);
+        proximityCard.addView(proximityTitle);
+
+        voiceRange = field("30", InputType.TYPE_CLASS_NUMBER);
+        addLabeledField(proximityCard, "ระยะเสียง (บล็อก)", voiceRange);
+
+        proximityEnabled = new CheckBox(this);
+        proximityEnabled.setText("เปิดใช้งาน Proximity Voice");
+        proximityEnabled.setTextSize(15);
+        proximityEnabled.setTextColor(theme.textPrimary);
+        proximityEnabled.setButtonTintList(android.content.res.ColorStateList.valueOf(theme.accent));
+        proximityEnabled.setOnCheckedChangeListener((buttonView, checked) -> updateBridgeFieldVisibility());
+        proximityCard.addView(proximityEnabled, marginTop(10));
+
+        TextView proximityNote = text(
+                "VC Mumble Endstone จะส่งชื่อผู้ใช้ Mumble, dimension และระยะเสียง "
+                        + "หากชื่อใน Mumble ไม่ตรงกับ Minecraft ให้ใช้คำสั่ง /vcmumble pair <name>",
+                11,
+                false
+        );
+        proximityNote.setTextColor(theme.textSecondary);
+        proximityCard.addView(proximityNote, marginTop(4));
+
+        bridgeHost = field(
+                "เช่น sv5.mcsv.me",
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI
+        );
+        addLabeledField(proximityCard, "โฮสต์ Minecraft Server", bridgeHost);
+
+        bridgePort = field("พอร์ต Bridge", InputType.TYPE_CLASS_NUMBER);
+        addLabeledField(proximityCard, "พอร์ต VC Mumble Bridge", bridgePort);
+
+        bridgeSecret = field(
+                "Bridge Secret",
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
+        );
+        addLabeledField(proximityCard, "Bridge Secret", bridgeSecret);
+
+        TextView secretNote = text(
+                "Bridge Secret จะถูกเข้ารหัสด้วย Android Keystore ก่อนบันทึกลงเครื่อง",
+                11,
+                false
+        );
+        secretNote.setTextColor(theme.textSecondary);
+        proximityCard.addView(secretNote, marginTop(5));
+        root.addView(proximityCard, marginTop(12));
+
+        Button save = primaryButton("บันทึกการตั้งค่า");
+        save.setOnClickListener(v -> saveSettings(true));
+        root.addView(save, marginTop(14));
+
+        TextView systemTheme = text(
+                theme.dark
+                        ? "THEME // ระบบกำลังใช้โหมดมืด • Cyber Navy + Neon Cyan"
+                        : "THEME // ระบบกำลังใช้โหมดสว่าง • Ice Blue + Neon Cyan",
+                11,
+                false
+        );
+        systemTheme.setTextColor(theme.textSecondary);
+        root.addView(systemTheme, marginTop(10));
+
+        return scroll(root);
+    }
+
+    private View buildBottomNavigation() {
+        LinearLayout nav = new LinearLayout(this);
+        nav.setOrientation(LinearLayout.HORIZONTAL);
+        nav.setPadding(dp(10), dp(8), dp(10), dp(10));
+        nav.setBackgroundColor(theme.surface);
+        nav.setGravity(Gravity.CENTER);
+
+        navHome = navButton("⌂  หน้าหลัก");
+        navLog = navButton("▤  Log");
+        navSettings = navButton("⚙  ตั้งค่า");
+
+        navHome.setOnClickListener(v -> showPage(PAGE_HOME));
+        navLog.setOnClickListener(v -> {
+            refreshLogView();
+            showPage(PAGE_LOG);
+        });
+        navSettings.setOnClickListener(v -> showPage(PAGE_SETTINGS));
+
+        LinearLayout.LayoutParams item = new LinearLayout.LayoutParams(
+                0,
+                dp(52),
+                1f
+        );
+        item.setMargins(dp(3), 0, dp(3), 0);
+        nav.addView(navHome, item);
+        nav.addView(navLog, item);
+        nav.addView(navSettings, item);
+        return nav;
+    }
+
+    private void showPage(int page) {
+        homePage.setVisibility(page == PAGE_HOME ? View.VISIBLE : View.GONE);
+        logPage.setVisibility(page == PAGE_LOG ? View.VISIBLE : View.GONE);
+        settingsPage.setVisibility(page == PAGE_SETTINGS ? View.VISIBLE : View.GONE);
+
+        styleNav(navHome, page == PAGE_HOME);
+        styleNav(navLog, page == PAGE_LOG);
+        styleNav(navSettings, page == PAGE_SETTINGS);
+
+        if (headerPageName != null) {
+            headerPageName.setText(
+                    page == PAGE_HOME ? "หน้าหลัก"
+                            : page == PAGE_LOG ? "Log"
+                            : "ตั้งค่า"
+            );
+        }
     }
 
     private void toggleServer() {
         if (running) {
             ServerLog.append(this, "UI", "Stop server button pressed");
-            startService(new Intent(this, MumbleServerService.class).setAction(MumbleServerService.ACTION_STOP));
+            startService(new Intent(this, MumbleServerService.class)
+                    .setAction(MumbleServerService.ACTION_STOP));
             return;
         }
+
         ServerConfig cfg;
         try {
             cfg = readConfig();
             cfg.save(this);
-            // Core builds are launched by QtService, which may enter native main()
-            // during service creation. Write the ini before starting the service
-            // so Mumble always sees a complete configuration on first boot.
             java.io.File ini = MumbleConfigWriter.write(this, cfg);
             ServerLog.append(
                     this,
@@ -253,33 +503,91 @@ public final class MainActivity extends Activity {
                             + ", maxUsers=" + cfg.maxUsers
                             + ", proximity=" + cfg.proximityEnabled
             );
+            refreshHomeSummary(cfg);
             refreshLogView();
-        } catch (IllegalArgumentException | IllegalStateException | java.io.IOException e) {
-            ServerLog.append(this, "ERROR", "Unable to start: " + e.getClass().getSimpleName()
-                    + ": " + String.valueOf(e.getMessage()));
-            Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+        } catch (IllegalArgumentException | IllegalStateException | IOException e) {
+            ServerLog.append(
+                    this,
+                    "ERROR",
+                    "Unable to start: " + e.getClass().getSimpleName()
+                            + ": " + String.valueOf(e.getMessage())
+            );
+            Toast.makeText(
+                    this,
+                    "เริ่มเซิร์ฟเวอร์ไม่ได้: " + e.getMessage(),
+                    Toast.LENGTH_LONG
+            ).show();
             return;
         }
-        Intent i = new Intent(this, MumbleServerService.class).setAction(MumbleServerService.ACTION_START);
-        if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
+
+        Intent intent = new Intent(this, MumbleServerService.class)
+                .setAction(MumbleServerService.ACTION_START);
+        if (Build.VERSION.SDK_INT >= 26) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
+    }
+
+    private void saveSettings(boolean showToast) {
+        try {
+            ServerConfig cfg = readConfig();
+            cfg.save(this);
+            refreshHomeSummary(cfg);
+            ServerLog.append(
+                    this,
+                    "UI",
+                    "Server settings saved; port=" + cfg.port
+                            + ", maxUsers=" + cfg.maxUsers
+                            + ", voiceRange=" + cfg.voiceRange
+                            + ", proximity=" + cfg.proximityEnabled
+            );
+            if (showToast) {
+                Toast.makeText(this, "บันทึกการตั้งค่าแล้ว", Toast.LENGTH_SHORT).show();
+            }
+        } catch (IllegalArgumentException | IllegalStateException error) {
+            if (showToast) {
+                Toast.makeText(
+                        this,
+                        "ตรวจสอบการตั้งค่า: " + error.getMessage(),
+                        Toast.LENGTH_LONG
+                ).show();
+            }
+        }
     }
 
     private ServerConfig readConfig() {
         String name = serverName.getText().toString().trim();
         if (name.isEmpty()) name = "Minecraft Voice";
-        int p = parseInt(port, "Port", 1, 65535);
+
+        int serverPort = parseInt(port, "Port", 1, 65535);
         int users = parseInt(maxUsers, "Max players", 1, 1000);
         int range = parseInt(voiceRange, "Voice range", 1, 1000);
         String bridgeHostValue = bridgeHost.getText().toString().trim();
         int bridgePortValue = parseInt(bridgePort, "Bridge port", 1, 65535);
         String secret = bridgeSecret.getText().toString();
         boolean proximity = proximityEnabled.isChecked();
+
         if (proximity) {
-            if (bridgeHostValue.isEmpty()) throw new IllegalArgumentException("Minecraft bridge host is required");
-            if (secret.isEmpty()) throw new IllegalArgumentException("Bridge secret is required for proximity mode");
+            if (bridgeHostValue.isEmpty()) {
+                throw new IllegalArgumentException("Minecraft bridge host is required");
+            }
+            if (secret.isEmpty()) {
+                throw new IllegalArgumentException("Bridge secret is required for proximity mode");
+            }
         }
-        return new ServerConfig(name, p, password.getText().toString(), users, range,
-                proximity, bridgeHostValue, bridgePortValue, secret);
+
+        return new ServerConfig(
+                name,
+                serverPort,
+                password.getText().toString(),
+                users,
+                range,
+                proximity,
+                bridgeHostValue,
+                bridgePortValue,
+                secret
+        );
     }
 
     private int parseInt(EditText input, String label, int min, int max) {
@@ -287,40 +595,88 @@ public final class MainActivity extends Activity {
             int value = Integer.parseInt(input.getText().toString().trim());
             if (value < min || value > max) throw new NumberFormatException();
             return value;
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException error) {
             throw new IllegalArgumentException(label + " must be " + min + "–" + max);
         }
     }
 
-    private void fillConfig(ServerConfig c) {
-        serverName.setText(c.serverName);
-        port.setText(String.valueOf(c.port));
-        password.setText(c.password);
-        maxUsers.setText(String.valueOf(c.maxUsers));
-        voiceRange.setText(String.valueOf(c.voiceRange));
-        proximityEnabled.setChecked(c.proximityEnabled);
-        bridgeHost.setText(c.bridgeHost);
-        bridgePort.setText(String.valueOf(c.bridgePort));
-        bridgeSecret.setText(c.bridgeSecret);
+    private void fillConfig(ServerConfig config) {
+        serverName.setText(config.serverName);
+        port.setText(String.valueOf(config.port));
+        password.setText(config.password);
+        maxUsers.setText(String.valueOf(config.maxUsers));
+        voiceRange.setText(String.valueOf(config.voiceRange));
+        proximityEnabled.setChecked(config.proximityEnabled);
+        bridgeHost.setText(config.bridgeHost);
+        bridgePort.setText(String.valueOf(config.bridgePort));
+        bridgeSecret.setText(config.bridgeSecret);
         updateBridgeFieldVisibility();
+        refreshHomeSummary(config);
     }
 
-    private void updateState(boolean isRunning, String message, String bridge, int tracked) {
+    private void refreshHomeSummary(ServerConfig config) {
+        if (homeSummary != null) {
+            homeSummary.setText(
+                    "PORT " + config.port
+                            + "   •   MAX " + config.maxUsers
+                            + "   •   RANGE " + config.voiceRange + " BLOCKS"
+            );
+        }
+        if (portWarpTarget != null) {
+            portWarpTarget.setText("เป้าหมาย PortWarp: 127.0.0.1:" + config.port);
+        }
+    }
+
+    private void updateState(
+            boolean isRunning,
+            String message,
+            String bridge,
+            int tracked
+    ) {
         running = isRunning;
         boolean starting = isRunning && message != null && message.startsWith("Starting");
+
         if (starting) {
-            status.setText("● STARTING");
-            status.setTextColor(Color.rgb(180, 120, 20));
+            status.setText("● กำลังเริ่มระบบ");
+            status.setTextColor(theme.warning);
         } else {
-            status.setText(isRunning ? "● ONLINE" : "● OFFLINE");
-            status.setTextColor(isRunning ? Color.rgb(25, 135, 84) : Color.rgb(180, 45, 45));
+            status.setText(isRunning ? "● ออนไลน์" : "● ออฟไลน์");
+            status.setTextColor(isRunning ? theme.success : theme.danger);
         }
-        address.setText(message == null ? "" : message);
-        String bridgeText = bridge == null ? "" : bridge;
-        if (tracked > 0) bridgeText += " • " + tracked + " Minecraft player" + (tracked == 1 ? "" : "s");
+
+        address.setText(localizeStatusMessage(message));
+        String bridgeText = localizeBridgeMessage(bridge);
+        if (tracked > 0) {
+            bridgeText += " • " + tracked + " ผู้เล่น Minecraft";
+        }
         bridgeStatus.setText(bridgeText);
-        startStop.setText(isRunning ? "STOP SERVER" : "START SERVER");
+
+        startStop.setText(isRunning ? "หยุดเซิร์ฟเวอร์" : "เปิดเซิร์ฟเวอร์");
+        startStop.setBackground(
+                isRunning
+                        ? theme.button(dp(14), false)
+                        : theme.button(dp(14), true)
+        );
+        startStop.setTextColor(isRunning ? theme.danger : Color.rgb(0, 28, 38));
+
         setFieldsEnabled(!isRunning);
+    }
+
+    private String localizeStatusMessage(String message) {
+        if (message == null || message.isEmpty() || "Ready".equals(message)) {
+            return "พร้อมใช้งาน";
+        }
+        if (message.startsWith("Starting")) {
+            return "กำลังเริ่ม Mumble Server…";
+        }
+        return message;
+    }
+
+    private String localizeBridgeMessage(String message) {
+        if (message == null || message.isEmpty() || "Bridge idle".equals(message)) {
+            return "Bridge พร้อมใช้งาน";
+        }
+        return message;
     }
 
     private void setFieldsEnabled(boolean enabled) {
@@ -330,26 +686,29 @@ public final class MainActivity extends Activity {
         maxUsers.setEnabled(enabled);
         voiceRange.setEnabled(enabled);
         proximityEnabled.setEnabled(enabled && NativeServer.hasMumbleCore());
-        bridgeHost.setEnabled(enabled && proximityEnabled.isChecked());
-        bridgePort.setEnabled(enabled && proximityEnabled.isChecked());
-        bridgeSecret.setEnabled(enabled && proximityEnabled.isChecked());
+
+        boolean bridgeEnabled = enabled
+                && proximityEnabled.isChecked()
+                && NativeServer.hasMumbleCore();
+        bridgeHost.setEnabled(bridgeEnabled);
+        bridgePort.setEnabled(bridgeEnabled);
+        bridgeSecret.setEnabled(bridgeEnabled);
     }
 
     private void updateBridgeFieldVisibility() {
-        boolean enabled = !running && proximityEnabled.isChecked() && NativeServer.hasMumbleCore();
+        if (bridgeHost == null || bridgePort == null || bridgeSecret == null) return;
+        boolean enabled = !running
+                && proximityEnabled.isChecked()
+                && NativeServer.hasMumbleCore();
         bridgeHost.setEnabled(enabled);
         bridgePort.setEnabled(enabled);
         bridgeSecret.setEnabled(enabled);
     }
 
-    private String currentAddress() {
-        ServerConfig c = ServerConfig.load(this);
-        return NetworkUtil.bestLanIpv4() + ":" + c.port;
-    }
-
     private void refreshServerStateFromTcp() {
         final ServerConfig config = ServerConfig.load(this);
         final int probePort = config.port;
+
         new Thread(() -> {
             boolean open = false;
             try (Socket socket = new Socket()) {
@@ -398,7 +757,11 @@ public final class MainActivity extends Activity {
             ClipboardManager clipboard =
                     (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             clipboard.setPrimaryClip(ClipData.newPlainText(label, url));
-            Toast.makeText(this, "Browser unavailable. Link copied.", Toast.LENGTH_LONG).show();
+            Toast.makeText(
+                    this,
+                    "ไม่พบ Browser จึงคัดลอกลิงก์ไว้ใน Clipboard แล้ว",
+                    Toast.LENGTH_LONG
+            ).show();
         }
     }
 
@@ -411,9 +774,10 @@ public final class MainActivity extends Activity {
 
     private void copyLogToClipboard() {
         String value = ServerLog.readAll(this);
-        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        ClipboardManager clipboard =
+                (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         clipboard.setPrimaryClip(ClipData.newPlainText("VC Mumble Server log", value));
-        Toast.makeText(this, "Log copied", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "คัดลอก Log แล้ว", Toast.LENGTH_SHORT).show();
     }
 
     private void exportLog() {
@@ -427,80 +791,154 @@ public final class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQUEST_EXPORT_LOG || resultCode != RESULT_OK
-                || data == null || data.getData() == null) {
+        if (requestCode != REQUEST_EXPORT_LOG
+                || resultCode != RESULT_OK
+                || data == null
+                || data.getData() == null) {
             return;
         }
 
-        try (OutputStream output = getContentResolver().openOutputStream(data.getData(), "w")) {
-            if (output == null) throw new IOException("Unable to open selected destination");
+        try (OutputStream output =
+                     getContentResolver().openOutputStream(data.getData(), "w")) {
+            if (output == null) {
+                throw new IOException("Unable to open selected destination");
+            }
             output.write(ServerLog.readAllBytes(this));
             output.flush();
-            Toast.makeText(this, "log.txt saved", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "บันทึก log.txt แล้ว", Toast.LENGTH_SHORT).show();
         } catch (IOException error) {
-            ServerLog.append(this, "ERROR", "Log export failed: " + error.getClass().getSimpleName()
-                    + ": " + String.valueOf(error.getMessage()));
+            ServerLog.append(
+                    this,
+                    "ERROR",
+                    "Log export failed: " + error.getClass().getSimpleName()
+                            + ": " + String.valueOf(error.getMessage())
+            );
             refreshLogView();
-            Toast.makeText(this, "Unable to save log.txt: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(
+                    this,
+                    "บันทึก log.txt ไม่สำเร็จ",
+                    Toast.LENGTH_LONG
+            ).show();
         }
     }
 
     private void requestNotificationsIfNeeded() {
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 100);
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    100
+            );
         }
     }
 
-    private TextView text(String value, int sp, boolean bold) {
-        TextView v = new TextView(this);
-        v.setText(value);
-        v.setTextSize(sp);
-        v.setTextColor(Color.rgb(25, 40, 65));
-        if (bold) v.setTypeface(v.getTypeface(), android.graphics.Typeface.BOLD);
-        return v;
+    private LinearLayout pageContainer() {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(16), dp(16), dp(16), dp(28));
+        root.setBackgroundColor(theme.background);
+        return root;
     }
 
-    private TextView section(String value) {
-        TextView v = text(value, 16, true);
-        v.setTextColor(Color.rgb(45, 95, 165));
-        return v;
+    private ScrollView scroll(View child) {
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setBackgroundColor(theme.background);
+        scroll.addView(child);
+        return scroll;
+    }
+
+    private TextView text(String value, int sp, boolean bold) {
+        TextView view = new TextView(this);
+        view.setText(value);
+        view.setTextSize(sp);
+        view.setTextColor(theme.textPrimary);
+        view.setFontFeatureSettings("kern");
+        if (bold) {
+            view.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        } else {
+            view.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+        }
+        return view;
     }
 
     private EditText field(String hint, int type) {
-        EditText e = new EditText(this);
-        e.setHint(hint);
-        e.setSingleLine(true);
-        e.setInputType(type);
-        e.setTextSize(16);
-        e.setPadding(dp(14), dp(12), dp(14), dp(12));
-        e.setBackgroundColor(Color.WHITE);
-        return e;
+        EditText input = new EditText(this);
+        input.setHint(hint);
+        input.setSingleLine(true);
+        input.setInputType(type);
+        input.setTextSize(15);
+        input.setTextColor(theme.textPrimary);
+        input.setHintTextColor(theme.textSecondary);
+        input.setPadding(dp(13), dp(11), dp(13), dp(11));
+        input.setMinHeight(dp(48));
+        input.setBackground(theme.field(dp(12)));
+        return input;
+    }
+
+    private void addLabeledField(LinearLayout parent, String label, EditText input) {
+        TextView labelView = text(label, 12, true);
+        labelView.setTextColor(theme.textSecondary);
+        parent.addView(labelView, marginTop(12));
+        parent.addView(input, marginTop(5));
     }
 
     private Button button(String label) {
-        Button b = new Button(this);
-        b.setText(label);
-        b.setTextSize(15);
-        b.setAllCaps(false);
-        b.setMinHeight(dp(52));
-        return b;
+        Button button = new Button(this);
+        button.setText(label);
+        button.setTextSize(14);
+        button.setAllCaps(false);
+        button.setTextColor(theme.accent);
+        button.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        button.setMinHeight(dp(50));
+        button.setPadding(dp(12), 0, dp(12), 0);
+        button.setBackground(theme.button(dp(14), false));
+        button.setElevation(dp(2));
+        return button;
     }
 
-    private LinearLayout card() {
-        LinearLayout l = new LinearLayout(this);
-        l.setOrientation(LinearLayout.VERTICAL);
-        l.setPadding(dp(18), dp(16), dp(18), dp(16));
-        l.setBackgroundColor(Color.WHITE);
-        return l;
+    private Button primaryButton(String label) {
+        Button button = button(label);
+        button.setTextColor(Color.rgb(0, 28, 38));
+        button.setBackground(theme.button(dp(14), true));
+        button.setElevation(dp(4));
+        return button;
     }
 
-    private LinearLayout.LayoutParams marginTop(int dp) {
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+    private Button navButton(String label) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setTextSize(12);
+        button.setAllCaps(false);
+        button.setGravity(Gravity.CENTER);
+        button.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        button.setPadding(dp(5), 0, dp(5), 0);
+        return button;
+    }
+
+    private void styleNav(Button button, boolean selected) {
+        button.setTextColor(selected ? theme.accent : theme.textSecondary);
+        button.setBackground(theme.navButton(dp(13), selected));
+        button.setElevation(selected ? dp(3) : 0);
+    }
+
+    private LinearLayout card(boolean strong) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(15), dp(16), dp(15));
+        card.setBackground(theme.panel(dp(16), strong));
+        card.setElevation(dp(2));
+        return card;
+    }
+
+    private LinearLayout.LayoutParams marginTop(int marginDp) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        p.topMargin = dp(dp);
-        return p;
+        params.topMargin = dp(marginDp);
+        return params;
     }
 
     private int dp(int value) {
