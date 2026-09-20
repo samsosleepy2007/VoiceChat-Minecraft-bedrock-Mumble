@@ -36,4 +36,4 @@ Default ports:
 
 GitHub Actions builds this release from `main` with pinned Mumble 1.6.870, Qt 6.8.3, OpenSSL 3.6.3, Android NDK 28.2.13676358 and vcpkg 2026.07.29.
 
-The Minecraft addon source bundle is stored at `minecraft-addon/v2.7.4/source.tgz` and packaged into the release asset by the same release workflow.
+The Minecraft addon source is stored as checksum-verified Base64 chunks under `minecraft-addon/v2.7.4/` and reconstructed by the release workflow before packaging.
