@@ -86,6 +86,14 @@ final class CyberTheme {
         return drawable;
     }
 
+    GradientDrawable terminalPanel(float radiusPx) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(terminalBackground);
+        drawable.setCornerRadius(radiusPx);
+        drawable.setStroke(1, dark ? accentSoft : border);
+        return drawable;
+    }
+
     GradientDrawable field(float radiusPx) {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(surface);
