@@ -16,3 +16,4 @@ auth_timeout_seconds = 10
 [voice]
 default_range = 30
 max_range = 150
+default_attenuation_level = 2

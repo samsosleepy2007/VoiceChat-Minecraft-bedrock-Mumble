@@ -8,6 +8,7 @@ from typing import Any
 
 from endstone import Player
 from endstone.command import Command, CommandSender
+from endstone.form import ActionForm, MessageForm, ModalForm, Slider, TextInput
 from endstone.plugin import Plugin
 
 from .bridge import BridgeServer
@@ -15,32 +16,27 @@ from .listener import VCMumbleListener
 from .model import PlayerState
 
 
+ATTENUATION_LEVELS: dict[int, tuple[str, str]] = {
+    0: ("ปิด", "เสียงเต็ม 100% จนถึงขอบระยะ แล้วตัดเสียง"),
+    1: ("เบา", "ลดเสียงแบบนุ่ม เหมาะกับการคุยทั่วไป"),
+    2: ("ปกติ", "สมดุลระหว่างความชัดและความรู้สึกของระยะ"),
+    3: ("แรง", "ผู้เล่นที่อยู่ไกลจะได้ยินเบาลงชัดเจน"),
+    4: ("แรงมาก", "ปลายระยะจะเบามาก เหมาะกับ proximity เข้ม"),
+}
+
+
 class VCMumblePlugin(Plugin):
     prefix = "VCMumble"
-    version = "0.3.0"
+    version = "0.4.0"
     api_version = "0.11"
     description = "Standalone Minecraft position bridge for VC Mumble Server"
     authors = ["SamSoSleepy"]
 
     commands = {
-        "vcmumble": {
-            "description": "VC Mumble pairing, range and bridge status",
-            "usages": [
-                "/vcmumble",
-                "/vcmumble <action: str>",
-                "/vcmumble <action: str> <value: str>",
-            ],
+        "vcb": {
+            "description": "Open the VC Mumble Bridge control panel",
+            "usages": ["/vcb"],
             "permissions": ["vc_mumble.command.user"],
-        },
-        "vcmumbleadmin": {
-            "description": "VC Mumble bridge administration",
-            "usages": [
-                "/vcmumbleadmin",
-                "/vcmumbleadmin <action: str>",
-                "/vcmumbleadmin <action: str> <value: str>",
-                "/vcmumbleadmin <action: str> <target: str> <value: str>",
-            ],
-            "permissions": ["vc_mumble.command.admin"],
         },
     }
 
@@ -67,6 +63,7 @@ class VCMumblePlugin(Plugin):
         self._heartbeat_accumulator = 0
         self._default_range = 30
         self._max_range = 150
+        self._default_attenuation_level = 2
         self._last_client_state: bool | None = None
 
     def on_enable(self) -> None:
@@ -79,10 +76,10 @@ class VCMumblePlugin(Plugin):
             self._bridge.start()
         self.logger.info(
             f"VC Mumble Endstone v{self.version} enabled; tracking={self._interval_ticks} ticks "
-            f"default_range={self._default_range} max_range={self._max_range}"
+            f"default_range={self._default_range} max_range={self._max_range} "
+            f"default_attenuation={self._default_attenuation_level}"
         )
-        self.logger.info("Commands: /vcmumble status | pair <name> | unpair | range <blocks>")
-        self.logger.info("Admin: /vcmumbleadmin status | players | resync | reload | range <player> <blocks>")
+        self.logger.info("Command: /vcb opens the VC Mumble Bridge UI")
 
     def on_disable(self) -> None:
         try:
@@ -106,6 +103,7 @@ class VCMumblePlugin(Plugin):
         self._heartbeat_ticks = heartbeat_seconds * 20
         self._default_range = self._bounded_int(voice.get("default_range", 30), 1, 1000, 30)
         self._max_range = self._bounded_int(voice.get("max_range", 150), self._default_range, 1000, 150)
+        self._default_attenuation_level = self._bounded_int(voice.get("default_attenuation_level", 2), 0, 4, 2)
 
         if not bool(bridge.get("enabled", True)):
             self.logger.warning("BRIDGE disabled in config.toml")
@@ -151,33 +149,305 @@ class VCMumblePlugin(Plugin):
             self.logger.warning(f"Could not save bindings.json: {type(exc).__name__}: {exc}")
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
-        if command.name == "vcmumbleadmin":
-            return self._command_admin(sender, args)
-        if command.name != "vcmumble":
+        if command.name != "vcb":
             return False
-        action = args[0].lower() if args else "status"
-        if action == "status":
+        if not isinstance(sender, Player):
             return self._command_status(sender)
-        if action in ("pair", "unpair", "range"):
-            if not isinstance(sender, Player):
-                sender.send_error_message("This VC Mumble command must be run by a player.")
-                return True
-            if action == "pair":
-                if len(args) < 2:
-                    return False
-                return self._command_pair(sender, args[1])
-            if action == "unpair":
-                return self._command_unpair(sender)
-            if action == "range":
-                if len(args) < 2:
-                    return False
-                try:
-                    value = int(args[1])
-                except ValueError:
-                    sender.send_error_message("Voice range must be a number.")
-                    return True
-                return self._command_range(sender, value)
-        return False
+        self._show_main_menu(sender)
+        return True
+
+    def _attenuation_level_for_key(self, key: str) -> int:
+        binding = self._bindings.get(key, {})
+        return self._bounded_int(binding.get("attenuation_level", self._default_attenuation_level), 0, 4, self._default_attenuation_level)
+
+    def _attenuation_label(self, level: int) -> str:
+        return ATTENUATION_LEVELS.get(level, ATTENUATION_LEVELS[self._default_attenuation_level])[0]
+
+    def _bridge_state_label(self) -> str:
+        bridge = self._bridge
+        if bridge is None:
+            return "offline"
+        if bridge.client_connected:
+            return "connected"
+        if bridge.listening:
+            return "listening"
+        return "offline"
+
+    def _show_main_menu(self, player: Player) -> None:
+        key = self._player_key(player)
+        binding = self._bindings.get(key, {})
+        voice_range = int(binding.get("range") or self._default_range)
+        attenuation_level = self._attenuation_level_for_key(key)
+        mumble_name = str(binding.get("mumble_name") or player.name)
+
+        form = ActionForm(
+            title="VC Mumble Bridge",
+            content=(
+                f"Bridge: {self._bridge_state_label()}\n"
+                f"Voice Range: {voice_range} blocks\n"
+                f"Distance Volume: {self._attenuation_label(attenuation_level)}\n"
+                f"Mumble: {mumble_name}"
+            ),
+        )
+        form.add_button("ระยะเสียง", on_click=self._show_range_form)
+        form.add_button("ระดับเสียงตามระยะ", on_click=self._show_attenuation_menu)
+        form.add_button("จับคู่ชื่อ Mumble", on_click=self._show_pair_form)
+        form.add_button("ยกเลิกการจับคู่", on_click=self._show_unpair_confirm)
+        form.add_button("ซิงก์ข้อมูลของฉัน", on_click=self._sync_player_from_ui)
+        if player.has_permission("vc_mumble.command.admin"):
+            form.add_button("เครื่องมือผู้ดูแล", on_click=self._show_admin_menu)
+        player.send_form(form)
+
+    def _show_range_form(self, player: Player) -> None:
+        key = self._player_key(player)
+        current = int(self._bindings.get(key, {}).get("range") or self._default_range)
+        form = ModalForm(
+            title="VC Mumble • Voice Range",
+            controls=[
+                Slider(
+                    label=f"ระยะเสียง 1-{self._max_range} บล็อก",
+                    min=1,
+                    max=self._max_range,
+                    step=1,
+                    default_value=current,
+                )
+            ],
+            on_submit=self._submit_range_form,
+        )
+        player.send_form(form)
+
+    def _submit_range_form(self, player: Player, data: str) -> None:
+        try:
+            values = json.loads(data)
+            value = int(round(float(values[0])))
+        except (ValueError, TypeError, IndexError, json.JSONDecodeError):
+            player.send_error_message("ไม่สามารถอ่านค่า Voice Range ได้")
+            return
+        self._command_range(player, value)
+        self._show_main_menu(player)
+
+    def _show_attenuation_menu(self, player: Player) -> None:
+        current = self._attenuation_level_for_key(self._player_key(player))
+        form = ActionForm(
+            title="VC Mumble • Distance Volume",
+            content=(
+                "เลือกระดับการลดความดังเมื่อผู้พูดอยู่ไกลขึ้น\n"
+                f"ปัจจุบัน: {self._attenuation_label(current)}"
+            ),
+        )
+        for level, (label, description) in ATTENUATION_LEVELS.items():
+            marker = " ✓" if level == current else ""
+            form.add_button(
+                f"{label}{marker}\n{description}",
+                on_click=lambda selected_player, selected_level=level: self._set_player_attenuation(
+                    selected_player, selected_level, reopen=True
+                ),
+            )
+        player.send_form(form)
+
+    def _set_player_attenuation(self, player: Player, level: int, reopen: bool = False) -> None:
+        level = self._bounded_int(level, 0, 4, self._default_attenuation_level)
+        key = self._player_key(player)
+        binding = dict(self._bindings.get(key, {}))
+        binding["attenuation_level"] = level
+        binding.setdefault("range", self._default_range)
+        self._bindings[key] = binding
+        self._save_bindings()
+        self._broadcast_current_player(player)
+        player.send_message(
+            f"VC Mumble distance volume set to {self._attenuation_label(level)} (level {level})."
+        )
+        if reopen:
+            self._show_main_menu(player)
+
+    def _show_pair_form(self, player: Player) -> None:
+        key = self._player_key(player)
+        current = str(self._bindings.get(key, {}).get("mumble_name") or player.name)
+        form = ModalForm(
+            title="VC Mumble • Pair Mumble",
+            controls=[
+                TextInput(
+                    label="Mumble username",
+                    placeholder="ชื่อที่ใช้ใน Mumble",
+                    default_value=current,
+                )
+            ],
+            on_submit=self._submit_pair_form,
+        )
+        player.send_form(form)
+
+    def _submit_pair_form(self, player: Player, data: str) -> None:
+        try:
+            values = json.loads(data)
+            value = str(values[0]).strip()
+        except (TypeError, IndexError, json.JSONDecodeError):
+            player.send_error_message("ไม่สามารถอ่านชื่อ Mumble ได้")
+            return
+        self._command_pair(player, value)
+        self._show_main_menu(player)
+
+    def _show_unpair_confirm(self, player: Player) -> None:
+        form = MessageForm(
+            title="VC Mumble • Unpair",
+            content="ยกเลิกชื่อ Mumble ที่จับคู่ไว้ และกลับไปใช้ชื่อ Minecraft?",
+            button1="ยืนยัน",
+            button2="ยกเลิก",
+            on_submit=lambda selected_player, selected: (
+                self._unpair_from_ui(selected_player) if selected == 0 else self._show_main_menu(selected_player)
+            ),
+        )
+        player.send_form(form)
+
+    def _unpair_from_ui(self, player: Player) -> None:
+        self._command_unpair(player)
+        self._show_main_menu(player)
+
+    def _sync_player_from_ui(self, player: Player) -> None:
+        self._publish_addon_range_tags(player)
+        self._broadcast_current_player(player)
+        player.send_message("VC Mumble: synced your current voice settings.")
+        self._show_main_menu(player)
+
+    def _show_admin_menu(self, player: Player) -> None:
+        if not player.has_permission("vc_mumble.command.admin"):
+            player.send_error_message("You do not have permission to administer VC Mumble.")
+            return
+        form = ActionForm(
+            title="VC Mumble • Admin",
+            content=(
+                f"Bridge: {self._bridge_state_label()}\n"
+                f"Tracked players: {len(self._states)}\n"
+                f"Default range: {self._default_range} / max {self._max_range}"
+            ),
+        )
+        form.add_button("สถานะระบบ", on_click=self._admin_status_from_ui)
+        form.add_button("จัดการผู้เล่น", on_click=self._show_admin_players)
+        form.add_button("Resync ผู้เล่นทั้งหมด", on_click=self._admin_resync_from_ui)
+        form.add_button("Reload Config / Bridge", on_click=self._admin_reload_from_ui)
+        form.add_button("กลับ", on_click=self._show_main_menu)
+        player.send_form(form)
+
+    def _admin_status_from_ui(self, player: Player) -> None:
+        self._command_admin(player, ["status"])
+        self._show_admin_menu(player)
+
+    def _admin_resync_from_ui(self, player: Player) -> None:
+        self._command_admin(player, ["resync"])
+        self._show_admin_menu(player)
+
+    def _admin_reload_from_ui(self, player: Player) -> None:
+        self._command_admin(player, ["reload"])
+        self._show_admin_menu(player)
+
+    def _show_admin_players(self, player: Player) -> None:
+        if not player.has_permission("vc_mumble.command.admin"):
+            return
+        online = list(self.server.online_players)
+        form = ActionForm(
+            title="VC Mumble • Players",
+            content=f"Online: {len(online)}",
+        )
+        for target in sorted(online, key=lambda item: str(item.name).lower()):
+            key = self._player_key(target)
+            voice_range = int(self._bindings.get(key, {}).get("range") or self._default_range)
+            attenuation = self._attenuation_label(self._attenuation_level_for_key(key))
+            form.add_button(
+                f"{target.name}\n{voice_range} blocks • {attenuation}",
+                on_click=lambda admin, target_name=str(target.name): self._show_admin_player(admin, target_name),
+            )
+        form.add_button("กลับ", on_click=self._show_admin_menu)
+        player.send_form(form)
+
+    def _show_admin_player(self, admin: Player, target_name: str) -> None:
+        target = self._find_online_player(target_name)
+        if target is None:
+            admin.send_error_message(f"Player not found: {target_name}")
+            self._show_admin_players(admin)
+            return
+        key = self._player_key(target)
+        voice_range = int(self._bindings.get(key, {}).get("range") or self._default_range)
+        attenuation = self._attenuation_label(self._attenuation_level_for_key(key))
+        form = ActionForm(
+            title=f"VC Mumble • {target.name}",
+            content=f"Range: {voice_range} blocks\nDistance Volume: {attenuation}",
+        )
+        form.add_button(
+            "ตั้ง Voice Range",
+            on_click=lambda player, name=str(target.name): self._show_admin_range_form(player, name),
+        )
+        form.add_button(
+            "ตั้งระดับเสียงตามระยะ",
+            on_click=lambda player, name=str(target.name): self._show_admin_attenuation_menu(player, name),
+        )
+        form.add_button("กลับ", on_click=self._show_admin_players)
+        admin.send_form(form)
+
+    def _show_admin_range_form(self, admin: Player, target_name: str) -> None:
+        target = self._find_online_player(target_name)
+        if target is None:
+            admin.send_error_message(f"Player not found: {target_name}")
+            return
+        key = self._player_key(target)
+        current = int(self._bindings.get(key, {}).get("range") or self._default_range)
+        form = ModalForm(
+            title=f"Voice Range • {target.name}",
+            controls=[
+                Slider(
+                    label=f"1-{self._max_range} blocks",
+                    min=1,
+                    max=self._max_range,
+                    step=1,
+                    default_value=current,
+                )
+            ],
+            on_submit=lambda player, data, name=str(target.name): self._submit_admin_range(player, name, data),
+        )
+        admin.send_form(form)
+
+    def _submit_admin_range(self, admin: Player, target_name: str, data: str) -> None:
+        try:
+            values = json.loads(data)
+            value = int(round(float(values[0])))
+        except (ValueError, TypeError, IndexError, json.JSONDecodeError):
+            admin.send_error_message("ไม่สามารถอ่านค่า Voice Range ได้")
+            return
+        self._command_admin(admin, ["range", target_name, str(value)])
+        self._show_admin_player(admin, target_name)
+
+    def _show_admin_attenuation_menu(self, admin: Player, target_name: str) -> None:
+        target = self._find_online_player(target_name)
+        if target is None:
+            admin.send_error_message(f"Player not found: {target_name}")
+            return
+        current = self._attenuation_level_for_key(self._player_key(target))
+        form = ActionForm(
+            title=f"Distance Volume • {target.name}",
+            content=f"ปัจจุบัน: {self._attenuation_label(current)}",
+        )
+        for level, (label, description) in ATTENUATION_LEVELS.items():
+            marker = " ✓" if level == current else ""
+            form.add_button(
+                f"{label}{marker}\n{description}",
+                on_click=lambda player, selected_level=level, name=str(target.name): self._set_admin_attenuation(
+                    player, name, selected_level
+                ),
+            )
+        form.add_button(
+            "กลับ",
+            on_click=lambda player, name=str(target.name): self._show_admin_player(player, name),
+        )
+        admin.send_form(form)
+
+    def _set_admin_attenuation(self, admin: Player, target_name: str, level: int) -> None:
+        target = self._find_online_player(target_name)
+        if target is None:
+            admin.send_error_message(f"Player not found: {target_name}")
+            return
+        self._set_player_attenuation(target, level, reopen=False)
+        admin.send_message(
+            f"VC Mumble distance volume for {target.name} set to {self._attenuation_label(level)}."
+        )
+        self._show_admin_player(admin, target_name)
 
     def _command_status(self, sender: CommandSender) -> bool:
         listening = self._bridge.listening if self._bridge is not None else False
@@ -191,7 +461,11 @@ class VCMumblePlugin(Plugin):
             binding = self._bindings.get(key, {})
             mumble_name = str(binding.get("mumble_name") or sender.name)
             voice_range = int(binding.get("range") or self._default_range)
-            sender.send_message(f"Mumble username: {mumble_name} | range: {voice_range} blocks")
+            attenuation_level = self._attenuation_level_for_key(key)
+            sender.send_message(
+                f"Mumble username: {mumble_name} | range: {voice_range} blocks | "
+                f"distance volume: {self._attenuation_label(attenuation_level)}"
+            )
         return True
 
     def _command_pair(self, player: Player, mumble_name: str) -> bool:
@@ -271,7 +545,8 @@ class VCMumblePlugin(Plugin):
                 mumble_name = str(binding.get("mumble_name") or state.name)
                 voice_range = int(binding.get("range") or self._default_range)
                 sender.send_message(
-                    f"- {state.name} -> {mumble_name} | {voice_range} blocks | {state.dimension}"
+                    f"- {state.name} -> {mumble_name} | {voice_range} blocks | "
+                    f"{self._attenuation_label(self._attenuation_level_for_key(key))} | {state.dimension}"
                 )
             return True
 
@@ -433,6 +708,7 @@ class VCMumblePlugin(Plugin):
             "pitch": state.pitch,
             "voiceRange": int(binding.get("range") or self._default_range),
             "voiceEnabled": bool(state.voice_enabled),
+            "attenuationLevel": self._attenuation_level_for_key(key),
         }
 
     def _bridge_send(self, message: dict[str, Any]) -> bool:
