@@ -164,12 +164,25 @@ public final class MumbleServerService extends RestartableQtService {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        String action = intent == null ? ACTION_START : intent.getAction();
+        boolean stickyRestart = intent == null;
+        String action = stickyRestart ? ACTION_START : intent.getAction();
+
         if (ACTION_STOP.equals(action)) {
+            ServerRuntimeState.setShouldRun(this, false);
             stopCoreAndSelf();
             return START_NOT_STICKY;
         }
 
+        if (stickyRestart && !ServerRuntimeState.shouldRun(this)) {
+            ServerLog.append(this, "SERVICE",
+                    "Sticky restart ignored because server_should_run=false");
+            releaseRuntimeProtection();
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
+        ServerRuntimeState.setShouldRun(this, true);
         ServerConfig config = ServerConfig.load(this);
 
         if (!NativeServer.runtimeLoaded()) {
@@ -182,6 +195,7 @@ public final class MumbleServerService extends RestartableQtService {
             bridgeStatus = "Minecraft proximity off";
             publish(false, message);
             updateNotification(message);
+            ServerRuntimeState.setShouldRun(this, false);
             terminateProcessOnDestroy = true;
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
@@ -223,6 +237,7 @@ public final class MumbleServerService extends RestartableQtService {
             bridgeStatus = "Minecraft proximity off";
             publish(false, message);
             updateNotification(message);
+            ServerRuntimeState.setShouldRun(this, false);
             terminateProcessOnDestroy = true;
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
@@ -312,6 +327,7 @@ public final class MumbleServerService extends RestartableQtService {
         updateNotification(message);
         ServerLog.append(this, "SERVICE",
                 "Startup failed; stopping isolated Mumble process so the next Start is clean");
+        ServerRuntimeState.setShouldRun(this, false);
         terminateProcessOnDestroy = true;
         stopRelay();
         requestNativeStop();
@@ -339,6 +355,7 @@ public final class MumbleServerService extends RestartableQtService {
 
     private void stopCoreAndSelf() {
         ServerLog.append(this, "SERVICE", "Stop requested; clean process restart will be required");
+        ServerRuntimeState.setShouldRun(this, false);
         terminateProcessOnDestroy = true;
         handler.removeCallbacks(coreHealthCheck);
         stopRelay();
