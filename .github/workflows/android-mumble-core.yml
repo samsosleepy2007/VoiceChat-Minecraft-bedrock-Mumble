@@ -3,7 +3,7 @@ name: Android Embedded Mumble Core (experimental)
 on:
   workflow_dispatch:
   push:
-    branches: ['test/vc-mumble-github-import', 'main', 'feature/portwarp-embedded-probe']
+    branches: ['test/vc-mumble-github-import', 'main', 'feature/portwarp-embedded-probe', 'feature/cyberpunk-ui-v1']
 
 permissions:
   contents: write
