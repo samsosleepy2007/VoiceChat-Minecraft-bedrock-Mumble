@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - feature/endstone-proximity-v1
+      - feature/minecraft-mic-addon-v1
     paths:
       - "endstone-plugin/**"
       - "tests/test_endstone_plugin_contract.py"
