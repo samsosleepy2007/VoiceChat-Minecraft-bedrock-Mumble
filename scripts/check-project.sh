@@ -53,6 +53,9 @@ grep -Fq 'libvc_playit_helper_exec.so' scripts/build-playit-android-agent.sh
 grep -Fq '.v1_agents_rundata()' native/playit_bridge/src/main.rs
 grep -Fq '.tunnels_create(ReqTunnelsCreate {' native/playit_bridge/src/main.rs
 grep -Fq 'port_type: PortType::Both' native/playit_bridge/src/main.rs
+grep -Fq 'tunnel_description: Some("Mumble voice server".to_string())' native/playit_bridge/src/main.rs
+grep -Fq 'Playit ReqTunnelsCreate compatibility anchor missing' scripts/build-playit-android-agent.sh
+grep -Fq 'TunnelTypeRequiresDescription' scripts/build-playit-android-agent.sh
 grep -Fq 'local_ip: IpAddr::V4(Ipv4Addr::LOCALHOST)' native/playit_bridge/src/main.rs
 grep -Fq 'local_port: Some(local_port)' native/playit_bridge/src/main.rs
 grep -Fq 'android:process=":tunnel"' app/src/main/AndroidManifest.xml
