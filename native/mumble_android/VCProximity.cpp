@@ -19,6 +19,7 @@ struct PlayerState {
     double z = 0.0;
     float rangeBlocks = 30.0F;
     bool voiceEnabled = true;
+    int attenuationLevel = 2;
     qint64 updatedAtMs = 0;
 };
 
@@ -43,20 +44,45 @@ float smoothMix(float from, float to, double t) {
                               + (static_cast<double>(to) - static_cast<double>(from)) * smooth);
 }
 
-float attenuationForNormalizedDistance(double normalizedDistance) {
-    if (normalizedDistance <= 0.20) {
+float attenuationForNormalizedDistance(double normalizedDistance, int level) {
+    const int clampedLevel = std::clamp(level, 0, 4);
+    if (normalizedDistance >= 1.0) {
+        return 0.0F;
+    }
+    if (clampedLevel == 0 || normalizedDistance <= 0.20) {
         return 1.0F;
     }
+
+    float mid = 0.55F;
+    float far = 0.15F;
+    float edge = 0.03F;
+    switch (clampedLevel) {
+        case 1:
+            mid = 0.80F;
+            far = 0.45F;
+            edge = 0.20F;
+            break;
+        case 3:
+            mid = 0.40F;
+            far = 0.08F;
+            edge = 0.015F;
+            break;
+        case 4:
+            mid = 0.25F;
+            far = 0.03F;
+            edge = 0.005F;
+            break;
+        default:
+            break;
+    }
+
     if (normalizedDistance <= 0.60) {
-        return smoothMix(1.0F, 0.55F, (normalizedDistance - 0.20) / 0.40);
+        return smoothMix(1.0F, mid, (normalizedDistance - 0.20) / 0.40);
     }
     if (normalizedDistance <= 0.90) {
-        return smoothMix(0.55F, 0.15F, (normalizedDistance - 0.60) / 0.30);
+        return smoothMix(mid, far, (normalizedDistance - 0.60) / 0.30);
     }
-    if (normalizedDistance < 1.0) {
-        return smoothMix(0.15F, 0.03F, (normalizedDistance - 0.90) / 0.10);
-    }
-    return 0.0F;
+    return smoothMix(far, edge, (normalizedDistance - 0.90) / 0.10);
 }
 } // namespace
 
@@ -78,7 +104,8 @@ void updatePlayer(const QString &mumbleName,
                   double y,
                   double z,
                   float rangeBlocks,
-                  bool voiceEnabled) {
+                  bool voiceEnabled,
+                  int attenuationLevel) {
     const QString key = keyFor(mumbleName);
     if (key.isEmpty()) return;
 
@@ -89,6 +116,7 @@ void updatePlayer(const QString &mumbleName,
     state.z = z;
     state.rangeBlocks = std::max(0.0F, rangeBlocks);
     state.voiceEnabled = voiceEnabled;
+    state.attenuationLevel = std::clamp(attenuationLevel, 0, 4);
     state.updatedAtMs = QDateTime::currentMSecsSinceEpoch();
 
     QWriteLocker locker(&g_lock);
@@ -140,7 +168,7 @@ float attenuationFactor(const QString &speakerName, const QString &listenerName)
     if (distanceSquared >= range * range) return 0.0F;
 
     const double normalizedDistance = std::sqrt(distanceSquared) / range;
-    return attenuationForNormalizedDistance(normalizedDistance);
+    return attenuationForNormalizedDistance(normalizedDistance, speaker.attenuationLevel);
 }
 
 bool shouldRoute(const QString &speakerName, const QString &listenerName) {

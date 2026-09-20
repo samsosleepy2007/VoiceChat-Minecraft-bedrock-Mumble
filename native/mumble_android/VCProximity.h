@@ -14,7 +14,8 @@ void updatePlayer(const QString &mumbleName,
                   double y,
                   double z,
                   float rangeBlocks,
-                  bool voiceEnabled);
+                  bool voiceEnabled,
+                  int attenuationLevel);
 void removePlayer(const QString &mumbleName);
 void clearPlayers();
 int playerCount();

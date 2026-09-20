@@ -28,7 +28,8 @@ public final class NativeServer {
             double y,
             double z,
             float rangeBlocks,
-            boolean voiceEnabled
+            boolean voiceEnabled,
+            int attenuationLevel
     );
     private static native void removePlayerStateNative(String mumbleName);
     private static native void clearPlayerStatesNative();
@@ -93,10 +94,11 @@ public final class NativeServer {
             double y,
             double z,
             float rangeBlocks,
-            boolean voiceEnabled
+            boolean voiceEnabled,
+            int attenuationLevel
     ) {
         if (runtimeLoaded) {
-            updatePlayerStateNative(mumbleName, dimension, x, y, z, rangeBlocks, voiceEnabled);
+            updatePlayerStateNative(mumbleName, dimension, x, y, z, rangeBlocks, voiceEnabled, attenuationLevel);
         }
     }
 

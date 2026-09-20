@@ -159,7 +159,7 @@ Java_com_voicecraft_vcmumbleserver_NativeServer_setProximityStaleTimeoutMs(JNIEn
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_voicecraft_vcmumbleserver_NativeServer_updatePlayerState(
-        JNIEnv*, jclass, jstring, jstring, jdouble, jdouble, jdouble, jfloat, jboolean) {}
+        JNIEnv*, jclass, jstring, jstring, jdouble, jdouble, jdouble, jfloat, jboolean, jint) {}
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_voicecraft_vcmumbleserver_NativeServer_removePlayerState(JNIEnv*, jclass, jstring) {}
