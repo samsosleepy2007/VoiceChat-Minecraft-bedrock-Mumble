@@ -17,7 +17,7 @@ from .model import PlayerState
 
 class VCMumblePlugin(Plugin):
     prefix = "VCMumble"
-    version = "0.2.0"
+    version = "0.3.0"
     api_version = "0.11"
     description = "Standalone Minecraft position bridge for VC Mumble Server"
     authors = ["SamSoSleepy"]
@@ -68,6 +68,19 @@ class VCMumblePlugin(Plugin):
         self._default_range = 30
         self._max_range = 150
         self._last_client_state: bool | None = None
+
+    MIC_ON_TAG = "vcmumble.mic.on"
+    MIC_OFF_TAG = "vcmumble.mic.off"
+    RANGE_VALUE_PREFIX = "vcmumble.vr.value."
+    RANGE_REQUEST_PREFIX = "vcmumble.vr.request."
+    RANGE_MAX_PREFIX = "vcmumble.vr.max."
+    RANGE_ACK_PREFIX = "vcmumble.vr.ack."
+    RANGE_SYNC_PREFIX = "vcmumble.vr.sync."
+    PAIR_VALUE_PREFIX = "vcmumble.pair.value."
+    PAIR_REQUEST_PREFIX = "vcmumble.pair.request."
+    PAIR_UNPAIR_PREFIX = "vcmumble.pair.unpair."
+    PAIR_ACK_PREFIX = "vcmumble.pair.ack."
+    PAIR_SYNC_PREFIX = "vcmumble.pair.sync."
 
     def on_enable(self) -> None:
         self.save_default_config()
@@ -357,6 +370,8 @@ class VCMumblePlugin(Plugin):
         for player in self.server.online_players:
             key = self._player_key(player)
             current_keys.add(key)
+            self._process_addon_requests(player)
+            self._publish_addon_state(player)
             state = self._snapshot_if_valid(player)
             if state is None:
                 continue
@@ -430,6 +445,7 @@ class VCMumblePlugin(Plugin):
             "yaw": state.yaw,
             "pitch": state.pitch,
             "voiceRange": int(binding.get("range") or self._default_range),
+            "micEnabled": bool(state.mic_enabled),
         }
 
     def _bridge_send(self, message: dict[str, Any]) -> bool:
@@ -452,6 +468,7 @@ class VCMumblePlugin(Plugin):
                 dimension=str(player.dimension.name),
                 x=float(loc.x), y=float(loc.y), z=float(loc.z),
                 yaw=float(loc.yaw), pitch=float(loc.pitch),
+                mic_enabled=self._mic_enabled_for(player),
             )
             values = (state.x, state.y, state.z, state.yaw, state.pitch)
             if not all(math.isfinite(v) for v in values):
@@ -463,6 +480,148 @@ class VCMumblePlugin(Plugin):
             return state if state.dimension else None
         except Exception:
             return None
+
+    def _scoreboard_tags(self, player: Player) -> list[str]:
+        try:
+            return list(player.scoreboard_tags)
+        except Exception:
+            return []
+
+    def _remove_tag(self, player: Player, tag: str) -> None:
+        try:
+            player.remove_scoreboard_tag(tag)
+        except Exception:
+            pass
+
+    def _add_tag(self, player: Player, tag: str) -> None:
+        try:
+            player.add_scoreboard_tag(tag)
+        except Exception:
+            pass
+
+    def _clear_tags_with_prefix(self, player: Player, prefix: str) -> None:
+        for tag in self._scoreboard_tags(player):
+            if tag.startswith(prefix):
+                self._remove_tag(player, tag)
+
+    def _set_value_tag(self, player: Player, prefix: str, value: str) -> None:
+        wanted = prefix + value
+        found = False
+        for tag in self._scoreboard_tags(player):
+            if not tag.startswith(prefix):
+                continue
+            if tag == wanted and not found:
+                found = True
+                continue
+            self._remove_tag(player, tag)
+        if not found:
+            self._add_tag(player, wanted)
+
+    def _mic_enabled_for(self, player: Player) -> bool:
+        tags = set(self._scoreboard_tags(player))
+        if self.MIC_OFF_TAG in tags:
+            return False
+        if self.MIC_ON_TAG in tags:
+            return True
+        # Backwards compatibility: players without the Item Mic addon keep
+        # normal Mumble speech routing.
+        return True
+
+    def _publish_addon_state(self, player: Player) -> None:
+        key = self._player_key(player)
+        binding = self._bindings.get(key, {})
+        voice_range = int(binding.get("range") or self._default_range)
+        mumble_name = str(binding.get("mumble_name") or player.name)
+        self._set_value_tag(player, self.RANGE_VALUE_PREFIX, str(voice_range))
+        self._set_value_tag(player, self.RANGE_MAX_PREFIX, str(self._max_range))
+        if self._is_addon_safe_mumble_name(mumble_name):
+            self._set_value_tag(player, self.PAIR_VALUE_PREFIX, mumble_name)
+
+    def _process_addon_requests(self, player: Player) -> None:
+        key = self._player_key(player)
+        tags = self._scoreboard_tags(player)
+
+        for tag in tags:
+            if tag.startswith(self.RANGE_REQUEST_PREFIX):
+                payload = tag[len(self.RANGE_REQUEST_PREFIX):]
+                request_id, dot, raw_value = payload.partition(".")
+                self._remove_tag(player, tag)
+                if not request_id or not dot:
+                    continue
+                try:
+                    requested = int(raw_value)
+                except ValueError:
+                    requested = 0
+                accepted = max(1, min(self._max_range, requested)) if requested >= 1 else 0
+                status = "ok" if accepted == requested and accepted >= 1 else "error"
+                if accepted >= 1:
+                    binding = dict(self._bindings.get(key, {}))
+                    binding["range"] = accepted
+                    self._bindings[key] = binding
+                    self._save_bindings()
+                    self._broadcast_current_player(player)
+                current = int(self._bindings.get(key, {}).get("range") or self._default_range)
+                self._clear_tags_with_prefix(player, self.RANGE_ACK_PREFIX + request_id + ".")
+                self._add_tag(player, f"{self.RANGE_ACK_PREFIX}{request_id}.{status}.{current}")
+
+            elif tag.startswith(self.RANGE_SYNC_PREFIX):
+                request_id = tag[len(self.RANGE_SYNC_PREFIX):]
+                self._remove_tag(player, tag)
+                if request_id:
+                    current = int(self._bindings.get(key, {}).get("range") or self._default_range)
+                    self._clear_tags_with_prefix(player, self.RANGE_ACK_PREFIX + request_id + ".")
+                    self._add_tag(player, f"{self.RANGE_ACK_PREFIX}{request_id}.ok.{current}")
+
+            elif tag.startswith(self.PAIR_REQUEST_PREFIX):
+                payload = tag[len(self.PAIR_REQUEST_PREFIX):]
+                request_id, dot, mumble_name = payload.partition(".")
+                self._remove_tag(player, tag)
+                if not request_id or not dot:
+                    continue
+                status = "error"
+                if self._is_addon_safe_mumble_name(mumble_name):
+                    binding = dict(self._bindings.get(key, {}))
+                    binding["mumble_name"] = mumble_name
+                    binding.setdefault("range", self._default_range)
+                    self._bindings[key] = binding
+                    self._save_bindings()
+                    self._broadcast_current_player(player)
+                    status = "ok"
+                current = self._mumble_name_for(key, str(player.name))
+                self._clear_tags_with_prefix(player, self.PAIR_ACK_PREFIX + request_id + ".")
+                safe_current = current if self._is_addon_safe_mumble_name(current) else str(player.name)
+                self._add_tag(player, f"{self.PAIR_ACK_PREFIX}{request_id}.{status}.{safe_current}")
+
+            elif tag.startswith(self.PAIR_UNPAIR_PREFIX):
+                request_id = tag[len(self.PAIR_UNPAIR_PREFIX):]
+                self._remove_tag(player, tag)
+                if not request_id:
+                    continue
+                old = self._bindings.get(key, {})
+                current_range = int(old.get("range") or self._default_range)
+                if current_range == self._default_range:
+                    self._bindings.pop(key, None)
+                else:
+                    self._bindings[key] = {"range": current_range}
+                self._save_bindings()
+                self._broadcast_current_player(player)
+                self._clear_tags_with_prefix(player, self.PAIR_ACK_PREFIX + request_id + ".")
+                self._add_tag(player, f"{self.PAIR_ACK_PREFIX}{request_id}.ok.{player.name}")
+
+            elif tag.startswith(self.PAIR_SYNC_PREFIX):
+                request_id = tag[len(self.PAIR_SYNC_PREFIX):]
+                self._remove_tag(player, tag)
+                if request_id:
+                    current = self._mumble_name_for(key, str(player.name))
+                    safe_current = current if self._is_addon_safe_mumble_name(current) else str(player.name)
+                    self._clear_tags_with_prefix(player, self.PAIR_ACK_PREFIX + request_id + ".")
+                    self._add_tag(player, f"{self.PAIR_ACK_PREFIX}{request_id}.ok.{safe_current}")
+
+    @staticmethod
+    def _is_addon_safe_mumble_name(value: str) -> bool:
+        if not value or len(value) > 64:
+            return False
+        return all(ch.isascii() and (ch.isalnum() or ch in "_.-") for ch in value)
 
     @staticmethod
     def _bounded_int(value: Any, minimum: int, maximum: int, fallback: int) -> int:
