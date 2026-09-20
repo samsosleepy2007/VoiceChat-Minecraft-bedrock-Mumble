@@ -24,6 +24,7 @@ for expected in [
     'data.optString("mumbleName", minecraftName)',
     'data.optInt("voiceRange", config.voiceRange)',
     'data.optBoolean("voiceEnabled", true)',
+    'data.optInt("attenuationLevel", 2)',
     'NativeServer.updatePlayerState',
     'NativeServer.removePlayerState',
 ]:
@@ -40,6 +41,7 @@ for expected in [
     '"mumbleName"',
     '"voiceRange"',
     '"voiceEnabled"',
+    '"attenuationLevel"',
     '"type": "sync_begin"',
     '"type": "sync_end"',
     '"type": "player_leave"',
@@ -54,8 +56,8 @@ for expected in [
 
 assert 'name = "endstone-vc-mumble"' in pyproject
 # Runtime plugin metadata and Python distribution version stay aligned.
-assert 'version = "0.3.0"' in pyproject
-assert 'version = "0.3.0"' in plugin
+assert 'version = "0.4.0"' in pyproject
+assert 'version = "0.4.0"' in plugin
 assert 'vc-mumble = "endstone_vc_mumble:VCMumblePlugin"' in pyproject
 
 # The real core uses explicit RegisterNatives binding from JNI_OnLoad so ART
@@ -73,14 +75,18 @@ for expected in [
     assert expected in real_jni, expected
 
 # The lightweight smoke target still uses conventional Java_com_* exports.
-assert '(Ljava/lang/String;Ljava/lang/String;DDDFZ)V' in real_jni
+assert '(Ljava/lang/String;Ljava/lang/String;DDDFZI)V' in real_jni
 assert 'voiceEnabled == JNI_TRUE' in real_jni
 assert 'if (!speaker.voiceEnabled) return 0.0F;' in proximity
 assert 'float attenuationFactor' in proximity
 assert 'normalizedDistance <= 0.20' in proximity
-assert 'smoothMix(1.0F, 0.55F' in proximity
-assert 'smoothMix(0.55F, 0.15F' in proximity
-assert 'smoothMix(0.15F, 0.03F' in proximity
+assert 'attenuationForNormalizedDistance(double normalizedDistance, int level)' in proximity
+assert 'case 1:' in proximity
+assert 'case 3:' in proximity
+assert 'case 4:' in proximity
+assert 'mid = 0.80F' in proximity
+assert 'mid = 0.25F' in proximity
+assert 'speaker.attenuationLevel' in proximity
 assert 'return attenuationFactor(speakerName, listenerName) > 0.0F;' in proximity
 assert 'NativeServer_setProximityEnabledNative' in smoke_jni
 for symbol in ['updatePlayerState', 'removePlayerState', 'clearPlayerStates', 'proximityPlayerCount']:
