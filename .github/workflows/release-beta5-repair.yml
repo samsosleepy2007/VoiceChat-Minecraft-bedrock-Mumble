@@ -1,0 +1,114 @@
+name: Repair beta.5 release assets
+
+on:
+  push:
+    branches: ['main']
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  RELEASE_TAG: 'v0.6.0-beta.5'
+  RELEASE_APK: 'VC-Mumble-Server-v0.6.0-beta.5-arm64-v8a.apk'
+  RELEASE_PLUGIN: 'endstone_vc_mumble-0.3.0-py3-none-any.whl'
+  RELEASE_ADDON: 'VC_Mumble_ItemMic_v2.7.4.mcaddon'
+  ANDROID_RUN_ID: '35536059342'
+  ENDSTONE_RUN_ID: '35536059335'
+
+jobs:
+  publish-repaired-release:
+    if: contains(github.event.head_commit.message, '[release-repair]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Verify addon source chunks
+        run: |
+          echo "eb2e115c2d5314c36a8a8718ce1b4f9bde3a737f04ab633ff01a09d1e6bb3993  minecraft-addon/v2.7.4/source.tgz.b64.part0" | sha256sum -c -
+          echo "80f400eb9f0fef141084df7aabe387534e6556131dd8410f5485c49ceb4edad4  minecraft-addon/v2.7.4/source.tgz.b64.part1" | sha256sum -c -
+          echo "c5f8e6165a2649e6a021fe81146c7aec3a532fa14936dd5f2079325f940ad21b  minecraft-addon/v2.7.4/source.tgz.b64.part2.0" | sha256sum -c -
+          echo "99be147b9cacb529d7a10d3d133765faedc4fcfb7ea2a2f847f7107fca1156e6  minecraft-addon/v2.7.4/source.tgz.b64.part2.1" | sha256sum -c -
+          echo "198daeaf814c86079aab2c8e4238aef32e7c3c833ff58467acdc78482242ee84  minecraft-addon/v2.7.4/source.tgz.b64.part2.2" | sha256sum -c -
+          echo "563eb51d684a5387fb05b7fa944150a26b559e190fe583291c91551110303c4a  minecraft-addon/v2.7.4/source.tgz.b64.part2.3" | sha256sum -c -
+          echo "5ed76d14f7abb7c7ef6c9c071a7f11838d561f78b8362c3094fefd388c3ca512  minecraft-addon/v2.7.4/source.tgz.b64.part2.4" | sha256sum -c -
+          echo "11bba00c2d3ee881773c902c08086d17fb5b0fe5499071dfb926ef8ee48672c8  minecraft-addon/v2.7.4/source.tgz.b64.part2.5" | sha256sum -c -
+          echo "f68e9eca3e2d683ff9a37068a7983dfb2b8fb5eec7f2d0e85d0cc714c974dc78  minecraft-addon/v2.7.4/source.tgz.b64.part2.6" | sha256sum -c -
+          echo "ae1d28c0b545ced2e28ff545d4c00a03b34f91fb1dde29f07a5cc3389a1b1f33  minecraft-addon/v2.7.4/source.tgz.b64.part3" | sha256sum -c -
+
+      - name: Download successful beta.5 build artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf .release
+          mkdir -p .release/android .release/plugin
+          gh run download "${ANDROID_RUN_ID}" -n vc-mumble-server-core-debug -D .release/android
+          gh run download "${ENDSTONE_RUN_ID}" -n vc-mumble-endstone-plugin-v0.3.0 -D .release/plugin
+          APK_SRC="$(find .release/android -type f -name 'app-debug.apk' -print -quit)"
+          PLUGIN_SRC="$(find .release/plugin -type f -name 'endstone_vc_mumble-0.3.0-py3-none-any.whl' -print -quit)"
+          test -n "${APK_SRC}" && test -f "${APK_SRC}"
+          test -n "${PLUGIN_SRC}" && test -f "${PLUGIN_SRC}"
+          cp "${APK_SRC}" "${RELEASE_APK}"
+          cp "${PLUGIN_SRC}" "${RELEASE_PLUGIN}"
+
+      - name: Build and validate Minecraft addon
+        run: |
+          mkdir -p .release/addon/src .release/addon/outer
+          cat \
+            minecraft-addon/v2.7.4/source.tgz.b64.part0 \
+            minecraft-addon/v2.7.4/source.tgz.b64.part1 \
+            minecraft-addon/v2.7.4/source.tgz.b64.part2.0 \
+            minecraft-addon/v2.7.4/source.tgz.b64.part2.1 \
+            minecraft-addon/v2.7.4/source.tgz.b64.part2.2 \
+            minecraft-addon/v2.7.4/source.tgz.b64.part2.3 \
+            minecraft-addon/v2.7.4/source.tgz.b64.part2.4 \
+            minecraft-addon/v2.7.4/source.tgz.b64.part2.5 \
+            minecraft-addon/v2.7.4/source.tgz.b64.part2.6 \
+            minecraft-addon/v2.7.4/source.tgz.b64.part3 \
+            | base64 -d > .release/addon/source.tgz
+          echo "f66a7633d4d923e49efd5236f382747e21205e9448454dda9ffa5f074cc33c8f  .release/addon/source.tgz" | sha256sum -c -
+          tar -xzf .release/addon/source.tgz -C .release/addon/src
+
+          cp .release/addon/src/rp/textures/items/icon_mic_on.png .release/addon/src/rp/pack_icon.png
+          cp .release/addon/src/rp/textures/items/icon_mic_on.png .release/addon/src/bp/pack_icon.png
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path('.release/addon/src').rglob('*.json'):
+              json.loads(path.read_text(encoding='utf-8'))
+          print('Addon JSON validation: OK')
+          PY
+
+          node --check .release/addon/src/bp/scripts/main.js
+
+          (cd .release/addon/src/bp && zip -qr "$GITHUB_WORKSPACE/VC_Mumble_ItemMic_BP_v2.7.4.mcpack" .)
+          (cd .release/addon/src/rp && zip -qr "$GITHUB_WORKSPACE/VC_Mumble_ItemMic_RP_v2.7.4.mcpack" .)
+          cp VC_Mumble_ItemMic_BP_v2.7.4.mcpack VC_Mumble_ItemMic_RP_v2.7.4.mcpack .release/addon/outer/
+          (cd .release/addon/outer && zip -qr "$GITHUB_WORKSPACE/${RELEASE_ADDON}" VC_Mumble_ItemMic_BP_v2.7.4.mcpack VC_Mumble_ItemMic_RP_v2.7.4.mcpack)
+          unzip -t "${RELEASE_ADDON}" >/dev/null
+
+      - name: Validate APK and prepare checksums
+        run: |
+          unzip -t "${RELEASE_APK}" >/dev/null
+          if unzip -l "${RELEASE_APK}" | grep -Fq 'libpwrp'; then
+            echo "ERROR: embedded PortWarp runtime must not be packaged" >&2
+            exit 1
+          fi
+          sha256sum "${RELEASE_APK}" > "${RELEASE_APK}.sha256"
+          sha256sum "${RELEASE_PLUGIN}" > "${RELEASE_PLUGIN}.sha256"
+          sha256sum "${RELEASE_ADDON}" > "${RELEASE_ADDON}.sha256"
+          cat "${RELEASE_APK}.sha256"
+          cat "${RELEASE_PLUGIN}.sha256"
+          cat "${RELEASE_ADDON}.sha256"
+
+      - name: Publish GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}"               "${RELEASE_APK}" "${RELEASE_APK}.sha256"               "${RELEASE_PLUGIN}" "${RELEASE_PLUGIN}.sha256"               "${RELEASE_ADDON}" "${RELEASE_ADDON}.sha256"               --clobber
+            gh release edit "${RELEASE_TAG}"               --title "VC Mumble Server ${RELEASE_TAG}"               --notes-file RELEASE_NOTES.md               --prerelease
+          else
+            gh release create "${RELEASE_TAG}"               "${RELEASE_APK}" "${RELEASE_APK}.sha256"               "${RELEASE_PLUGIN}" "${RELEASE_PLUGIN}.sha256"               "${RELEASE_ADDON}" "${RELEASE_ADDON}.sha256"               --target "${GITHUB_SHA}"               --title "VC Mumble Server ${RELEASE_TAG}"               --notes-file RELEASE_NOTES.md               --prerelease
+          fi
