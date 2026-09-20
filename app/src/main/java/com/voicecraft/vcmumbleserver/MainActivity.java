@@ -57,6 +57,7 @@ public final class MainActivity extends Activity {
 
     private Button startStop;
     private TextView logView;
+    private ScrollView logScroll;
 
     private View homePage;
     private View logPage;
@@ -247,9 +248,24 @@ public final class MainActivity extends Activity {
         logView.setTypeface(Typeface.MONOSPACE);
         logView.setTextColor(c(R.color.cyber_log_text));
         logView.setTextIsSelectable(true);
-        logView.setMinLines(20);
-        logView.setPadding(0, dp(12), 0, dp(12));
-        terminal.addView(logView, marginTop(4));
+        logView.setPadding(dp(2), dp(10), dp(8), dp(12));
+
+        logScroll = new ScrollView(this);
+        logScroll.setFillViewport(true);
+        logScroll.setVerticalScrollBarEnabled(true);
+        logScroll.setScrollbarFadingEnabled(false);
+        logScroll.setNestedScrollingEnabled(true);
+        logScroll.addView(logView, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT
+        ));
+
+        LinearLayout.LayoutParams logViewport = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(360)
+        );
+        logViewport.topMargin = dp(8);
+        terminal.addView(logScroll, logViewport);
         root.addView(terminal, marginTop(18));
 
         Button copyLog = secondaryButton("คัดลอก Log");
@@ -647,6 +663,9 @@ public final class MainActivity extends Activity {
         if (logView != null) {
             String value = ServerLog.read(this);
             logView.setText(value.isEmpty() ? "No log entries yet." : value);
+            if (logScroll != null) {
+                logScroll.post(() -> logScroll.fullScroll(View.FOCUS_DOWN));
+            }
         }
     }
 
