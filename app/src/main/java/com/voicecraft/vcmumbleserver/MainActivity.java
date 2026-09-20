@@ -14,6 +14,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -46,6 +47,12 @@ public final class MainActivity extends Activity {
     private Button startStop;
     private Button portWarpProbeButton;
     private TextView portWarpProbeStatus;
+    private TextView portWarpPublicStatus;
+    private TextView portWarpEndpoint;
+    private Button portWarpSetupButton;
+    private Button portWarpStartButton;
+    private Button portWarpStopButton;
+    private String lastPortWarpLoginUrl = "";
     private TextView logView;
     private boolean running;
 
@@ -58,6 +65,25 @@ public final class MainActivity extends Activity {
                     intent.getStringExtra(MumbleServerService.EXTRA_BRIDGE),
                     intent.getIntExtra(MumbleServerService.EXTRA_TRACKED, 0)
             );
+            refreshLogView();
+        }
+    };
+
+    private final BroadcastReceiver portWarpStateReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (!PortWarpTunnelService.ACTION_STATE.equals(intent.getAction())) return;
+            updatePortWarpState(
+                    intent.getBooleanExtra(PortWarpTunnelService.EXTRA_ACTIVE, false),
+                    intent.getBooleanExtra(PortWarpTunnelService.EXTRA_CONFIGURED, false),
+                    intent.getStringExtra(PortWarpTunnelService.EXTRA_STATUS),
+                    intent.getStringExtra(PortWarpTunnelService.EXTRA_ENDPOINT)
+            );
+            String loginUrl = intent.getStringExtra(PortWarpTunnelService.EXTRA_LOGIN_URL);
+            if (loginUrl != null && !loginUrl.isEmpty()
+                    && !loginUrl.equals(lastPortWarpLoginUrl)) {
+                lastPortWarpLoginUrl = loginUrl;
+                openUrl(loginUrl, "PortWarp login URL");
+            }
             refreshLogView();
         }
     };
@@ -77,16 +103,22 @@ public final class MainActivity extends Activity {
         super.onStart();
         refreshLogView();
         IntentFilter filter = new IntentFilter(MumbleServerService.ACTION_STATE);
+        IntentFilter portWarpFilter = new IntentFilter(PortWarpTunnelService.ACTION_STATE);
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(stateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            registerReceiver(portWarpStateReceiver, portWarpFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {
             registerReceiver(stateReceiver, filter);
+            registerReceiver(portWarpStateReceiver, portWarpFilter);
         }
         refreshServerStateFromTcp();
+        startService(new Intent(this, PortWarpTunnelService.class)
+                .setAction(PortWarpTunnelService.ACTION_STATUS));
     }
 
     @Override protected void onStop() {
         unregisterReceiver(stateReceiver);
+        unregisterReceiver(portWarpStateReceiver);
         super.onStop();
     }
 
@@ -174,19 +206,45 @@ public final class MainActivity extends Activity {
         note.setTextColor(Color.GRAY);
         root.addView(note, marginTop(18));
 
-        root.addView(section("Public Access (Experimental)"), marginTop(22));
+        root.addView(section("Public Access (PortWarp Free)"), marginTop(22));
         TextView portWarpNote = text(
-                "Compatibility test only. The APK does not bundle PortWarp. "
-                        + "When pressed, it downloads the official ARM64 CLI from portwarp.com, "
-                        + "verifies its published SHA-256, and runs only 'pwrp version'.",
+                "PortWarp Free supports one TCP+UDP tunnel. First tap SET UP PORTWARP and approve "
+                        + "this device. Then open PortWarp Tunnels and create one tunnel with "
+                        + "Protocol TCP+UDP, Local Host 127.0.0.1, and Local Port matching the "
+                        + "Mumble Port above. After that START PUBLIC ACCESS runs it from this APK.",
                 12,
                 false
         );
         portWarpNote.setTextColor(Color.GRAY);
         root.addView(portWarpNote, marginTop(6));
 
-        portWarpProbeStatus = text("PortWarp CLI: not tested on this device", 13, false);
-        root.addView(portWarpProbeStatus, marginTop(8));
+        portWarpPublicStatus = text("Public access: checking PortWarp status…", 14, true);
+        root.addView(portWarpPublicStatus, marginTop(8));
+
+        portWarpEndpoint = text("Public endpoint: —", 13, false);
+        portWarpEndpoint.setTextIsSelectable(true);
+        root.addView(portWarpEndpoint, marginTop(6));
+
+        portWarpSetupButton = button("SET UP PORTWARP");
+        portWarpSetupButton.setOnClickListener(v -> setupPortWarp());
+        root.addView(portWarpSetupButton, marginTop(8));
+
+        Button portWarpDashboardButton = button("OPEN PORTWARP TUNNELS");
+        portWarpDashboardButton.setOnClickListener(v -> openPortWarpTunnels());
+        root.addView(portWarpDashboardButton, marginTop(8));
+
+        portWarpStartButton = button("START PUBLIC ACCESS");
+        portWarpStartButton.setEnabled(false);
+        portWarpStartButton.setOnClickListener(v -> startPortWarpPublicAccess());
+        root.addView(portWarpStartButton, marginTop(8));
+
+        portWarpStopButton = button("STOP PUBLIC ACCESS");
+        portWarpStopButton.setEnabled(false);
+        portWarpStopButton.setOnClickListener(v -> stopPortWarpPublicAccess());
+        root.addView(portWarpStopButton, marginTop(8));
+
+        portWarpProbeStatus = text("PortWarp CLI: runtime check available", 13, false);
+        root.addView(portWarpProbeStatus, marginTop(10));
 
         portWarpProbeButton = button("TEST PORTWARP CLI");
         portWarpProbeButton.setOnClickListener(v -> runPortWarpProbe());
@@ -365,6 +423,78 @@ public final class MainActivity extends Activity {
                 }
             });
         }, "VCMumble-UI-State-Probe").start();
+    }
+
+    private void setupPortWarp() {
+        lastPortWarpLoginUrl = "";
+        Intent service = new Intent(this, PortWarpTunnelService.class)
+                .setAction(PortWarpTunnelService.ACTION_LOGIN);
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
+        portWarpPublicStatus.setText("Public access: preparing PortWarp login…");
+        portWarpSetupButton.setEnabled(false);
+        portWarpStartButton.setEnabled(false);
+        portWarpStopButton.setEnabled(true);
+    }
+
+    private void openPortWarpTunnels() {
+        int localPort = ServerConfig.load(this).port;
+        openUrl("https://portwarp.com/tunnels", "PortWarp tunnels URL");
+        Toast.makeText(
+                this,
+                "Create one TCP+UDP tunnel → 127.0.0.1:" + localPort,
+                Toast.LENGTH_LONG
+        ).show();
+    }
+
+    private void startPortWarpPublicAccess() {
+        Intent service = new Intent(this, PortWarpTunnelService.class)
+                .setAction(PortWarpTunnelService.ACTION_START);
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
+        portWarpPublicStatus.setText("Public access: starting PortWarp…");
+        portWarpStartButton.setEnabled(false);
+        portWarpStopButton.setEnabled(true);
+    }
+
+    private void stopPortWarpPublicAccess() {
+        startService(new Intent(this, PortWarpTunnelService.class)
+                .setAction(PortWarpTunnelService.ACTION_STOP));
+        portWarpPublicStatus.setText("Public access: stopping PortWarp…");
+        portWarpStopButton.setEnabled(false);
+    }
+
+    private void updatePortWarpState(
+            boolean active,
+            boolean configured,
+            String message,
+            String endpoint
+    ) {
+        String statusText = message == null || message.isEmpty()
+                ? (active ? "PortWarp public access online" : "PortWarp public access stopped")
+                : message;
+        portWarpPublicStatus.setText("Public access: " + statusText);
+        portWarpPublicStatus.setTextColor(
+                active ? Color.rgb(25, 135, 84) : Color.rgb(80, 80, 80)
+        );
+
+        String endpointValue = endpoint == null ? "" : endpoint.trim();
+        portWarpEndpoint.setText(endpointValue.isEmpty()
+                ? "Public endpoint: —"
+                : "Public endpoint: " + endpointValue);
+
+        portWarpSetupButton.setEnabled(!active);
+        portWarpStartButton.setEnabled(configured && !active);
+        portWarpStopButton.setEnabled(active);
+    }
+
+    private void openUrl(String url, String label) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception error) {
+            ClipboardManager clipboard =
+                    (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            clipboard.setPrimaryClip(ClipData.newPlainText(label, url));
+            Toast.makeText(this, "Browser unavailable. Link copied.", Toast.LENGTH_LONG).show();
+        }
     }
 
     private void runPortWarpProbe() {
