@@ -486,14 +486,31 @@ class VCMumblePlugin(Plugin):
     def _command_unpair(self, player: Player) -> bool:
         key = self._player_key(player)
         old = self._bindings.get(key)
-        if old is None:
+        if old is None or not old.get("mumble_name"):
             player.send_message("VC Mumble was already using your Minecraft name automatically.")
             return True
-        current_range = int(old.get("range") or self._default_range)
+
+        binding = dict(old)
+        binding.pop("mumble_name", None)
+
+        current_range = int(binding.get("range") or self._default_range)
         if current_range == self._default_range:
-            self._bindings.pop(key, None)
+            binding.pop("range", None)
+
+        current_attenuation = self._bounded_int(
+            binding.get("attenuation_level", self._default_attenuation_level),
+            0,
+            4,
+            self._default_attenuation_level,
+        )
+        if current_attenuation == self._default_attenuation_level:
+            binding.pop("attenuation_level", None)
+
+        if binding:
+            self._bindings[key] = binding
         else:
-            self._bindings[key] = {"range": current_range}
+            self._bindings.pop(key, None)
+
         self._save_bindings()
         player.send_message(f"VC Mumble unpaired. Mumble username is now {player.name}.")
         self._broadcast_current_player(player)
