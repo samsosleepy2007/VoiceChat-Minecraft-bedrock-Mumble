@@ -31,6 +31,7 @@ for f in \
   scripts/fetch-mumble.sh \
   scripts/build-mumble-android-core.sh \
   scripts/fetch-portwarp-android-runtime.sh \
+  native/portwarp_dns_launcher.c \
   scripts/prepare-mumble-source.py
 do
   test -f "$f" || { echo "Missing: $f" >&2; exit 1; }
@@ -110,6 +111,11 @@ grep -Fq 'new File(info.nativeLibraryDir, "libpwrp_exec.so")' app/src/main/java/
 grep -Fq 'Using APK-packaged PortWarp runtime from nativeLibraryDir' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
 grep -Fq 'sha256sum' scripts/fetch-portwarp-android-runtime.sh
 grep -Fq 'libpwrp_exec.so' scripts/fetch-portwarp-android-runtime.sh
+grep -Fq '/proc/self/fd/10' scripts/fetch-portwarp-android-runtime.sh
+grep -Fq 'libpwrp_dns_launcher_exec.so' scripts/fetch-portwarp-android-runtime.sh
+grep -Fq 'dup2(fd, 10)' native/portwarp_dns_launcher.c
+grep -Fq 'prepareResolverFile(this)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
+grep -Fq 'getDnsServers()' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
 grep -Fq 'Stage checksum-pinned PortWarp runtime into APK' .github/workflows/android-mumble-core.yml
 grep -Fq 'run: bash ./scripts/fetch-portwarp-android-runtime.sh' .github/workflows/android-mumble-core.yml
 grep -Fq 'pwrp connect' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
