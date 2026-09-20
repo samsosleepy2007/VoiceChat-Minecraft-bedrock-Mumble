@@ -22,6 +22,7 @@ for expected in [
     'case "sync_end"',
     'data.optString("mumbleName", minecraftName)',
     'data.optInt("voiceRange", config.voiceRange)',
+    'data.optBoolean("voiceEnabled", true)',
     'NativeServer.updatePlayerState',
     'NativeServer.removePlayerState',
 ]:
@@ -37,6 +38,7 @@ for expected in [
     '"type": "player_state"',
     '"mumbleName"',
     '"voiceRange"',
+    '"voiceEnabled"',
     '"type": "sync_begin"',
     '"type": "sync_end"',
     '"type": "player_leave"',
@@ -70,6 +72,8 @@ for expected in [
     assert expected in real_jni, expected
 
 # The lightweight smoke target still uses conventional Java_com_* exports.
+assert '(Ljava/lang/String;Ljava/lang/String;DDDFZ)V' in real_jni
+assert 'voiceEnabled == JNI_TRUE' in real_jni
 assert 'NativeServer_setProximityEnabledNative' in smoke_jni
 for symbol in ['updatePlayerState', 'removePlayerState', 'clearPlayerStates', 'proximityPlayerCount']:
     assert f'NativeServer_{symbol}' in smoke_jni, symbol
