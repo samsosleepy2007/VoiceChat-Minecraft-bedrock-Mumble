@@ -22,6 +22,7 @@ for f in \
   app/src/main/java/com/voicecraft/vcmumbleserver/SecretStore.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerConfig.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerLog.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/ServerRuntimeState.java \
   endstone-plugin/pyproject.toml \
   endstone-plugin/src/endstone_vc_mumble/plugin.py \
   endstone-plugin/src/endstone_vc_mumble/bridge.py \
@@ -139,6 +140,20 @@ grep -Fq 'private View pageView(int page)' app/src/main/java/com/voicecraft/vcmu
 grep -Fq '.translationX(-direction * dp(18))' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'ObjectAnimator.ofFloat(status, View.ALPHA' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'statusPulse.setRepeatCount(ValueAnimator.INFINITE)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'android.permission.WAKE_LOCK' app/src/main/AndroidManifest.xml
+grep -Fq 'android:stopWithTask="false"' app/src/main/AndroidManifest.xml
+grep -Fq 'PowerManager.PARTIAL_WAKE_LOCK' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'WifiManager.WIFI_MODE_FULL_HIGH_PERF' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'Build.VERSION.SDK_INT <= 33' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'BACKGROUND_HEALTH_INTERVAL_MS = 60_000L' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq '"VCMumble-Background-Health"' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'ServerRuntimeState.shouldRun' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'ServerRuntimeState.setShouldRun(this, true)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'ServerRuntimeState.setShouldRun(this, false)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'MumbleServerService.EXTRA_BACKGROUND' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"BACKGROUND RUNTIME // PROTECTION"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'Settings.ACTION_APPLICATION_DETAILS_SETTINGS' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'isIgnoringBatteryOptimizations' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'buildProximityCard()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"MINECRAFT PROXIMITY // ALWAYS ON"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"● เปิดใช้งานตลอดเวลา"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
