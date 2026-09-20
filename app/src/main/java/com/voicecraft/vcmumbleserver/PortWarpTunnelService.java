@@ -376,6 +376,7 @@ public final class PortWarpTunnelService extends Service {
         builder.environment().put("HOME", home.getAbsolutePath());
         builder.environment().put("TMPDIR", getCacheDir().getAbsolutePath());
         PortWarpExecProbe.configureTlsTrust(this, builder);
+        PortWarpExecProbe.configureTerminalCompatibility(builder);
         return builder;
     }
 
