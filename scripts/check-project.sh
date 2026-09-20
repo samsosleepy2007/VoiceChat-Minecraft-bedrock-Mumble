@@ -10,7 +10,7 @@ for f in \
   app/src/main/res/values-night/colors.xml \
   app/src/main/res/values/styles.xml \
   app/src/main/res/values-night/styles.xml \
-  app/src/main/res/drawable-nodpi/ic_launcher_sleepy.png \
+  app/src/main/res/mipmap-xxxhdpi/ic_launcher_sleepy.png \
   app/src/main/cpp/CMakeLists.txt \
   app/src/main/cpp/transport_smoketest_jni.cpp \
   app/src/main/cpp/mumble_jni.cpp \
@@ -41,6 +41,39 @@ done
 
 python3 tests/test_prepare_mumble_source.py
 python3 tests/test_vc_mumble_bridge_contract.py
+
+python3 - <<'PY'
+from pathlib import Path
+import struct
+import zlib
+
+path = Path("app/src/main/res/mipmap-xxxhdpi/ic_launcher_sleepy.png")
+data = path.read_bytes()
+assert data.startswith(b"\x89PNG\r\n\x1a\n"), "launcher icon is not a PNG"
+
+offset = 8
+saw_iend = False
+while offset < len(data):
+    assert offset + 12 <= len(data), "launcher PNG is truncated"
+    length = struct.unpack(">I", data[offset:offset + 4])[0]
+    chunk_type = data[offset + 4:offset + 8]
+    chunk_data_start = offset + 8
+    chunk_data_end = chunk_data_start + length
+    crc_end = chunk_data_end + 4
+    assert crc_end <= len(data), "launcher PNG chunk is truncated"
+    stored_crc = struct.unpack(">I", data[chunk_data_end:crc_end])[0]
+    actual_crc = zlib.crc32(chunk_type)
+    actual_crc = zlib.crc32(data[chunk_data_start:chunk_data_end], actual_crc) & 0xffffffff
+    assert stored_crc == actual_crc, f"launcher PNG CRC mismatch in {chunk_type!r}"
+    offset = crc_end
+    if chunk_type == b"IEND":
+        saw_iend = True
+        break
+
+assert saw_iend, "launcher PNG has no IEND"
+assert offset == len(data), "launcher PNG has trailing/corrupt bytes"
+print("Launcher PNG integrity: OK")
+PY
 
 bash -n scripts/build-mumble-android-core.sh
 
@@ -148,11 +181,12 @@ grep -Fq 'ObjectAnimator.ofFloat(status, View.ALPHA' app/src/main/java/com/voice
 grep -Fq 'statusPulse.setRepeatCount(ValueAnimator.INFINITE)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'android.permission.WAKE_LOCK' app/src/main/AndroidManifest.xml
 grep -Fq 'android:stopWithTask="false"' app/src/main/AndroidManifest.xml
-grep -Fq 'android:icon="@drawable/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
-grep -Fq 'android:roundIcon="@drawable/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
-grep -Fq 'versionCode = 7' app/build.gradle.kts
-grep -Fq 'versionName = "0.6.0-beta.2"' app/build.gradle.kts
+grep -Fq 'android:icon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
+grep -Fq 'android:roundIcon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
+grep -Fq 'versionCode = 8' app/build.gradle.kts
+grep -Fq 'versionName = "0.6.0-beta.3"' app/build.gradle.kts
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher.png
+test ! -e app/src/main/res/drawable-nodpi/ic_launcher_sleepy.png
 grep -Fq 'PowerManager.PARTIAL_WAKE_LOCK' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'WifiManager.WIFI_MODE_FULL_HIGH_PERF' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'Build.VERSION.SDK_INT <= 33' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
