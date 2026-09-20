@@ -128,6 +128,17 @@ grep -Fq '"LOG // TERMINAL"' app/src/main/java/com/voicecraft/vcmumbleserver/Mai
 grep -Fq '@color/cyber_bg' app/src/main/res/values/styles.xml
 grep -Fq 'Theme.Material.NoActionBar' app/src/main/res/values-night/styles.xml
 grep -Fq '<color name="cyber_neon">#00E5FF</color>' app/src/main/res/values-night/colors.xml
+grep -Fq 'private ScrollView logScroll;' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'dp(360)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'logScroll.fullScroll(View.FOCUS_DOWN)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'requestDisallowInterceptTouchEvent(true)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'MotionEvent.ACTION_DOWN' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '.scaleX(0.965f)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'setShadowLayer(dp(6)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'private View pageView(int page)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '.translationX(-direction * dp(18))' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'ObjectAnimator.ofFloat(status, View.ALPHA' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'statusPulse.setRepeatCount(ValueAnimator.INFINITE)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"PROBE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: TCP probe log tag" >&2; exit 1; }
 grep -Fq '"SERVICE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: service log tag" >&2; exit 1; }
 grep -Fq '"ERROR",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: error log tag" >&2; exit 1; }
