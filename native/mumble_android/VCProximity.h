@@ -19,9 +19,12 @@ void removePlayer(const QString &mumbleName);
 void clearPlayers();
 int playerCount();
 
+// Returns a per-listener volume factor in the range [0, 1]. When proximity is
+// disabled, stock Mumble routing is preserved with factor 1.0.
+float attenuationFactor(const QString &speakerName, const QString &listenerName);
+
 // Returns true when Mumble should retain the receiver in the normal-speech
-// routing path. Proximity is intentionally disabled by default so stock Mumble
-// behaviour remains available for protocol bring-up before Endstone is linked.
+// routing path.
 bool shouldRoute(const QString &speakerName, const QString &listenerName);
 
 } // namespace VCProximity

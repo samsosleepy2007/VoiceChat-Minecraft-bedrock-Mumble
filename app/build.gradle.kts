@@ -13,8 +13,8 @@ android {
         applicationId = "com.voicecraft.vcmumbleserver"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "0.6.0-beta.5"
+        versionCode = 11
+        versionName = "0.6.0-beta.6"
 
         buildConfigField("boolean", "VC_MUMBLE_CORE", vcMumbleCore.toString())
 

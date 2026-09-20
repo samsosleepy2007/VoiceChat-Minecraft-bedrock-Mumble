@@ -102,7 +102,12 @@ grep -Fq 'FindClass("com/voicecraft/vcmumbleserver/NativeServer")' app/src/main/
 grep -Fq '"setProximityStaleTimeoutMsNative"' app/src/main/cpp/mumble_jni.cpp
 grep -Fq '"updatePlayerStateNative"' app/src/main/cpp/mumble_jni.cpp
 grep -Fq '(Ljava/lang/String;Ljava/lang/String;DDDFZ)V' app/src/main/cpp/mumble_jni.cpp
-grep -Fq 'if (!speaker.voiceEnabled) return false;' native/mumble_android/VCProximity.cpp
+grep -Fq 'if (!speaker.voiceEnabled) return 0.0F;' native/mumble_android/VCProximity.cpp
+grep -Fq 'float attenuationFactor' native/mumble_android/VCProximity.cpp
+grep -Fq 'normalizedDistance <= 0.20' native/mumble_android/VCProximity.cpp
+grep -Fq 'smoothMix(0.15F, 0.03F' native/mumble_android/VCProximity.cpp
+grep -Fq 'VC_PROXIMITY_REGULAR_ATTENUATION' scripts/prepare-mumble-source.py
+grep -Fq 'VC_PROXIMITY_LINKED_ATTENUATION' scripts/prepare-mumble-source.py
 grep -Fq 'data.optBoolean("voiceEnabled", true)' app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java
 grep -Fq 'private static native void setProximityStaleTimeoutMsNative(long timeoutMs);' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
 grep -Fq 'private static native void updatePlayerStateNative(' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
@@ -189,8 +194,8 @@ grep -Fq 'android.permission.WAKE_LOCK' app/src/main/AndroidManifest.xml
 grep -Fq 'android:stopWithTask="false"' app/src/main/AndroidManifest.xml
 grep -Fq 'android:icon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
 grep -Fq 'android:roundIcon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
-grep -Fq 'versionCode = 10' app/build.gradle.kts
-grep -Fq 'versionName = "0.6.0-beta.5"' app/build.gradle.kts
+grep -Fq 'versionCode = 11' app/build.gradle.kts
+grep -Fq 'versionName = "0.6.0-beta.6"' app/build.gradle.kts
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher.png
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher_sleepy.png
 grep -Fq 'PowerManager.PARTIAL_WAKE_LOCK' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
