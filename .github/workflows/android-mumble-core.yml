@@ -12,8 +12,9 @@ env:
   QT_VERSION: '6.8.3'
   VCPKG_TAG: '2026.07.29'
   NDK_VERSION: '28.2.13676358'
-  RELEASE_TAG: 'v0.6.0-beta.3'
-  RELEASE_APK: 'VC-Mumble-Server-v0.6.0-beta.3-arm64-v8a.apk'
+  RELEASE_TAG: 'v0.6.0-beta.4'
+  RELEASE_APK: 'VC-Mumble-Server-v0.6.0-beta.4-arm64-v8a.apk'
+  RELEASE_PLUGIN: 'endstone_vc_mumble-0.2.0-py3-none-any.whl'
 
 jobs:
   build-core-apk:
@@ -145,8 +146,15 @@ jobs:
         if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]')
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk "${RELEASE_APK}"
+          python3 -m pip install 'build>=1,<2'
+          rm -rf endstone-plugin/dist endstone-plugin/build endstone-plugin/*.egg-info
+          python3 -m build --wheel endstone-plugin
+          test -f "endstone-plugin/dist/${RELEASE_PLUGIN}"
+          cp "endstone-plugin/dist/${RELEASE_PLUGIN}" "${RELEASE_PLUGIN}"
           sha256sum "${RELEASE_APK}" > "${RELEASE_APK}.sha256"
+          sha256sum "${RELEASE_PLUGIN}" > "${RELEASE_PLUGIN}.sha256"
           cat "${RELEASE_APK}.sha256"
+          cat "${RELEASE_PLUGIN}.sha256"
 
       - name: Publish GitHub prerelease
         if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]')
@@ -155,7 +163,7 @@ jobs:
         run: |
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
             echo "Release ${RELEASE_TAG} already exists; replacing assets"
-            gh release upload "${RELEASE_TAG}" "${RELEASE_APK}" "${RELEASE_APK}.sha256" --clobber
+            gh release upload "${RELEASE_TAG}" "${RELEASE_APK}" "${RELEASE_APK}.sha256" "${RELEASE_PLUGIN}" "${RELEASE_PLUGIN}.sha256" --clobber
           else
-            gh release create "${RELEASE_TAG}"               "${RELEASE_APK}"               "${RELEASE_APK}.sha256"               --target "${GITHUB_SHA}"               --title "VC Mumble Server ${RELEASE_TAG}"               --notes-file RELEASE_NOTES.md               --prerelease
+            gh release create "${RELEASE_TAG}"               "${RELEASE_APK}"               "${RELEASE_APK}.sha256"               "${RELEASE_PLUGIN}"               "${RELEASE_PLUGIN}.sha256"               --target "${GITHUB_SHA}"               --title "VC Mumble Server ${RELEASE_TAG}"               --notes-file RELEASE_NOTES.md               --prerelease
           fi
