@@ -184,8 +184,8 @@ grep -Fq 'android.permission.WAKE_LOCK' app/src/main/AndroidManifest.xml
 grep -Fq 'android:stopWithTask="false"' app/src/main/AndroidManifest.xml
 grep -Fq 'android:icon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
 grep -Fq 'android:roundIcon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
-grep -Fq 'versionCode = 8' app/build.gradle.kts
-grep -Fq 'versionName = "0.6.0-beta.3"' app/build.gradle.kts
+grep -Fq 'versionCode = 9' app/build.gradle.kts
+grep -Fq 'versionName = "0.6.0-beta.4"' app/build.gradle.kts
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher.png
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher_sleepy.png
 grep -Fq 'PowerManager.PARTIAL_WAKE_LOCK' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
