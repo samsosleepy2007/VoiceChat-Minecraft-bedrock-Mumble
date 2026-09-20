@@ -22,6 +22,7 @@ for expected in [
     'case "sync_end"',
     'data.optString("mumbleName", minecraftName)',
     'data.optInt("voiceRange", config.voiceRange)',
+    'data.optBoolean("micEnabled", true)',
     'NativeServer.updatePlayerState',
     'NativeServer.removePlayerState',
 ]:
@@ -37,6 +38,7 @@ for expected in [
     '"type": "player_state"',
     '"mumbleName"',
     '"voiceRange"',
+    '"micEnabled"',
     '"type": "sync_begin"',
     '"type": "sync_end"',
     '"type": "player_leave"',
@@ -51,8 +53,8 @@ for expected in [
 
 assert 'name = "endstone-vc-mumble"' in pyproject
 # Runtime plugin metadata and Python distribution version stay aligned.
-assert 'version = "0.2.0"' in pyproject
-assert 'version = "0.2.0"' in plugin
+assert 'version = "0.3.0"' in pyproject
+assert 'version = "0.3.0"' in plugin
 assert 'vc-mumble = "endstone_vc_mumble:VCMumblePlugin"' in pyproject
 
 # The real core uses explicit RegisterNatives binding from JNI_OnLoad so ART
@@ -63,6 +65,7 @@ for expected in [
     '"setProximityEnabledNative"',
     '"setProximityStaleTimeoutMsNative"',
     '"updatePlayerStateNative"',
+    '"(Ljava/lang/String;Ljava/lang/String;DDDFZ)V"',
     '"removePlayerStateNative"',
     '"clearPlayerStatesNative"',
     '"proximityPlayerCountNative"',

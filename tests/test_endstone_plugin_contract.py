@@ -21,7 +21,7 @@ pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
 
 runtime_version = re.search(r'^\s*version\s*=\s*"([^"]+)"', plugin, re.MULTILINE)
 assert runtime_version, "plugin runtime version missing"
-assert pyproject["project"]["version"] == runtime_version.group(1) == "0.2.0"
+assert pyproject["project"]["version"] == runtime_version.group(1) == "0.3.0"
 
 assert config["tracking"]["interval_ticks"] == 2
 assert config["tracking"]["heartbeat_seconds"] >= 2
@@ -43,6 +43,11 @@ for expected in [
     '"voiceRange"',
     '"dimension"',
     '"mumbleName"',
+    '"vcmumble.pair.request."',
+    '"vcmumble.vr.request."',
+    '"vcmumble.mic.off"',
+    '"vcmumble.mic.on"',
+    '"micEnabled"',
 ]:
     assert expected in plugin, expected
 
