@@ -30,10 +30,7 @@ public final class PortWarpExecProbe {
         void onComplete(boolean success, String message);
     }
 
-    private static final String VERSION = "0.3.6";
-    private static final String ARCHIVE_NAME = "pwrp-" + VERSION + "-linux-arm64.tar.gz";
-    private static final String ARCHIVE_URL =
-            "https://portwarp.com/download/" + ARCHIVE_NAME;
+    private static final String DOWNLOAD_BASE = "https://portwarp.com/download/";
     private static final String CHECKSUMS_URL =
             "https://portwarp.com/download/checksums.txt";
     private static final int CONNECT_TIMEOUT_MS = 10000;
@@ -146,23 +143,25 @@ public final class PortWarpExecProbe {
             return binary;
         }
 
-        File archive = new File(root, ARCHIVE_NAME);
+        String checksums = downloadText(CHECKSUMS_URL, 2L * 1024L * 1024L);
+        ArchiveSpec spec = findLatestArm64Archive(checksums);
+        if (spec == null) {
+            throw new IOException("Official PortWarp checksums contain no Linux ARM64 release");
+        }
+
+        File archive = new File(root, spec.fileName);
         ServerLog.append(context, "PORTWARP",
-                "Downloading official " + ARCHIVE_NAME + " for embedded runtime");
-        downloadToFile(ARCHIVE_URL, archive, MAX_ARCHIVE_BYTES);
+                "Downloading checksum-pinned official " + spec.fileName
+                        + " for embedded runtime");
+        downloadToFile(DOWNLOAD_BASE + spec.fileName, archive, MAX_ARCHIVE_BYTES);
 
         String actualSha = sha256(archive);
-        String checksums = downloadText(CHECKSUMS_URL, 2L * 1024L * 1024L);
-        String expectedSha = findChecksum(checksums, ARCHIVE_NAME);
-        if (expectedSha == null) {
-            throw new IOException("Official checksum entry not found for " + ARCHIVE_NAME);
-        }
-        if (!actualSha.equalsIgnoreCase(expectedSha)) {
-            throw new SecurityException("SHA-256 mismatch: expected=" + expectedSha
+        if (!actualSha.equalsIgnoreCase(spec.sha256)) {
+            throw new SecurityException("SHA-256 mismatch: expected=" + spec.sha256
                     + ", actual=" + actualSha);
         }
         ServerLog.append(context, "PORTWARP",
-                "SHA-256 verified for official archive: " + actualSha);
+                "SHA-256 verified for " + spec.fileName + ": " + actualSha);
 
         extractNamedTarGzEntry(archive, "pwrp", binary);
         if (!binary.setReadable(true, true)) {
@@ -260,16 +259,53 @@ public final class PortWarpExecProbe {
         return value.toString();
     }
 
-    private static String findChecksum(String text, String fileName) {
-        for (String raw : text.split("\n")) {
+    private static ArchiveSpec findLatestArm64Archive(String text) {
+        ArchiveSpec best = null;
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "^([0-9a-fA-F]{64})\\\\s+pwrp-([0-9]+)\\.([0-9]+)\\.([0-9]+)-linux-arm64\\.tar\\.gz$"
+        );
+        for (String raw : text.split("\\n")) {
             String line = raw.trim();
-            if (line.isEmpty() || !line.endsWith(fileName)) continue;
-            String[] parts = line.split("\\s+");
-            if (parts.length >= 2 && parts[0].matches("[0-9a-fA-F]{64}")) {
-                return parts[0].toLowerCase(Locale.US);
-            }
+            java.util.regex.Matcher matcher = pattern.matcher(line);
+            if (!matcher.matches()) continue;
+
+            int major = Integer.parseInt(matcher.group(2));
+            int minor = Integer.parseInt(matcher.group(3));
+            int patch = Integer.parseInt(matcher.group(4));
+            String fileName = "pwrp-" + major + "." + minor + "." + patch
+                    + "-linux-arm64.tar.gz";
+            ArchiveSpec candidate = new ArchiveSpec(
+                    fileName,
+                    matcher.group(1).toLowerCase(Locale.US),
+                    major,
+                    minor,
+                    patch
+            );
+            if (best == null || candidate.isNewerThan(best)) best = candidate;
         }
-        return null;
+        return best;
+    }
+
+    private static final class ArchiveSpec {
+        final String fileName;
+        final String sha256;
+        final int major;
+        final int minor;
+        final int patch;
+
+        ArchiveSpec(String fileName, String sha256, int major, int minor, int patch) {
+            this.fileName = fileName;
+            this.sha256 = sha256;
+            this.major = major;
+            this.minor = minor;
+            this.patch = patch;
+        }
+
+        boolean isNewerThan(ArchiveSpec other) {
+            if (major != other.major) return major > other.major;
+            if (minor != other.minor) return minor > other.minor;
+            return patch > other.patch;
+        }
     }
 
     private static void extractNamedTarGzEntry(File archive, String wanted, File output)
