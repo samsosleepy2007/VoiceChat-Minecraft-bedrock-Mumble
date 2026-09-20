@@ -17,7 +17,7 @@ from .model import PlayerState
 
 class VCMumblePlugin(Plugin):
     prefix = "VCMumble"
-    version = "0.1.1"
+    version = "0.2.0"
     api_version = "0.11"
     description = "Standalone Minecraft position bridge for VC Mumble Server"
     authors = ["SamSoSleepy"]
@@ -32,12 +32,26 @@ class VCMumblePlugin(Plugin):
             ],
             "permissions": ["vc_mumble.command.user"],
         },
+        "vcmumbleadmin": {
+            "description": "VC Mumble bridge administration",
+            "usages": [
+                "/vcmumbleadmin",
+                "/vcmumbleadmin <action: str>",
+                "/vcmumbleadmin <action: str> <value: str>",
+                "/vcmumbleadmin <action: str> <target: str> <value: str>",
+            ],
+            "permissions": ["vc_mumble.command.admin"],
+        },
     }
 
     permissions = {
         "vc_mumble.command.user": {
             "description": "Use VC Mumble user commands.",
             "default": True,
+        },
+        "vc_mumble.command.admin": {
+            "description": "Administer VC Mumble bridge and player ranges.",
+            "default": "op",
         },
     }
 
@@ -68,6 +82,7 @@ class VCMumblePlugin(Plugin):
             f"default_range={self._default_range} max_range={self._max_range}"
         )
         self.logger.info("Commands: /vcmumble status | pair <name> | unpair | range <blocks>")
+        self.logger.info("Admin: /vcmumbleadmin status | players | resync | reload | range <player> <blocks>")
 
     def on_disable(self) -> None:
         try:
@@ -104,7 +119,17 @@ class VCMumblePlugin(Plugin):
             self.save_config()
             self.logger.warning("BRIDGE secret generated. Read plugins/vc_mumble/config.toml and copy it into VC Mumble Server.")
         max_queue = self._bounded_int(bridge.get("max_queue", 4096), 128, 65536, 4096)
-        self._bridge = BridgeServer(self.logger, host, port, secret, max_queue)
+        max_frame_bytes = self._bounded_int(bridge.get("max_frame_bytes", 262144), 4096, 1048576, 262144)
+        auth_timeout_seconds = self._bounded_int(bridge.get("auth_timeout_seconds", 10), 2, 60, 10)
+        self._bridge = BridgeServer(
+            self.logger,
+            host,
+            port,
+            secret,
+            max_queue=max_queue,
+            max_frame_bytes=max_frame_bytes,
+            auth_timeout_seconds=auth_timeout_seconds,
+        )
 
     def _load_bindings(self) -> None:
         path = self.data_folder / "bindings.json"
@@ -126,6 +151,8 @@ class VCMumblePlugin(Plugin):
             self.logger.warning(f"Could not save bindings.json: {type(exc).__name__}: {exc}")
 
     def on_command(self, sender: CommandSender, command: Command, args: list[str]) -> bool:
+        if command.name == "vcmumbleadmin":
+            return self._command_admin(sender, args)
         if command.name != "vcmumble":
             return False
         action = args[0].lower() if args else "status"
@@ -211,6 +238,101 @@ class VCMumblePlugin(Plugin):
         self._broadcast_current_player(player)
         return True
 
+    def _command_admin(self, sender: CommandSender, args: list[str]) -> bool:
+        if not sender.has_permission("vc_mumble.command.admin"):
+            sender.send_error_message("You do not have permission to administer VC Mumble.")
+            return True
+
+        action = args[0].lower() if args else "status"
+        if action == "status":
+            bridge = self._bridge
+            listening = bridge.listening if bridge is not None else False
+            connected = bridge.client_connected if bridge is not None else False
+            peer = bridge.peer if bridge is not None else ""
+            last_error = bridge.last_error if bridge is not None else ""
+            state = "connected" if connected else ("listening" if listening else "offline")
+            sender.send_message(
+                f"VC Mumble admin: bridge={state}, tracked={len(self._states)}, "
+                f"default_range={self._default_range}, max_range={self._max_range}"
+            )
+            if peer:
+                sender.send_message(f"Bridge peer: {peer}")
+            if last_error:
+                sender.send_message(f"Last bridge error: {last_error}")
+            return True
+
+        if action == "players":
+            if not self._states:
+                sender.send_message("VC Mumble: no players are currently tracked.")
+                return True
+            sender.send_message(f"VC Mumble tracked players ({len(self._states)}):")
+            for key, state in sorted(self._states.items(), key=lambda item: item[1].name.lower()):
+                binding = self._bindings.get(key, {})
+                mumble_name = str(binding.get("mumble_name") or state.name)
+                voice_range = int(binding.get("range") or self._default_range)
+                sender.send_message(
+                    f"- {state.name} -> {mumble_name} | {voice_range} blocks | {state.dimension}"
+                )
+            return True
+
+        if action == "resync":
+            self._send_full_snapshot()
+            sender.send_message(f"VC Mumble snapshot queued for {len(self._states)} tracked players.")
+            return True
+
+        if action == "reload":
+            old_bridge = self._bridge
+            self._bridge = None
+            if old_bridge is not None:
+                old_bridge.stop()
+            try:
+                self.reload_config()
+                self._load_settings()
+                if self._bridge is not None:
+                    self._bridge.start()
+                sender.send_message("VC Mumble config reloaded and bridge restarted.")
+            except Exception as exc:
+                sender.send_error_message(f"VC Mumble reload failed: {type(exc).__name__}: {exc}")
+            return True
+
+        if action == "range":
+            if len(args) < 3:
+                sender.send_error_message("Usage: /vcmumbleadmin range <player> <blocks>")
+                return True
+            target = self._find_online_player(args[1])
+            if target is None:
+                sender.send_error_message(f"Player not found: {args[1]}")
+                return True
+            try:
+                value = int(args[2])
+            except ValueError:
+                sender.send_error_message("Voice range must be a number.")
+                return True
+            if value < 1 or value > self._max_range:
+                sender.send_error_message(f"Voice range must be 1-{self._max_range} blocks.")
+                return True
+            key = self._player_key(target)
+            binding = dict(self._bindings.get(key, {}))
+            binding["range"] = value
+            self._bindings[key] = binding
+            self._save_bindings()
+            self._broadcast_current_player(target)
+            sender.send_message(f"VC Mumble range for {target.name} set to {value} blocks.")
+            target.send_message(f"Your VC Mumble voice range is now {value} blocks.")
+            return True
+
+        sender.send_error_message("Actions: status, players, resync, reload, range")
+        return True
+
+    def _find_online_player(self, name: str) -> Player | None:
+        wanted = name.strip().lower()
+        if not wanted:
+            return None
+        for player in self.server.online_players:
+            if str(player.name).lower() == wanted:
+                return player
+        return None
+
     def handle_player_join(self, player: Player) -> None:
         state = self._snapshot_if_valid(player)
         if state is None:
@@ -273,7 +395,7 @@ class VCMumblePlugin(Plugin):
             return
         for message in self._bridge.drain_incoming():
             kind = str(message.get("type", ""))
-            if kind in ("request_snapshot", "client_connected"):
+            if kind == "request_snapshot":
                 self._send_full_snapshot()
 
     def _send_full_snapshot(self) -> None:
