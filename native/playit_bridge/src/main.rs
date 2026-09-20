@@ -68,6 +68,7 @@ async fn ensure_mumble(api: &PlayitApi, local_port: u16) -> Result<(), String> {
         .tunnels_create(ReqTunnelsCreate {
             name: Some(TUNNEL_NAME.to_string()),
             tunnel_type: None,
+            tunnel_description: Some("Mumble voice server".to_string()),
             port_type: PortType::Both,
             port_count: 1,
             origin: TunnelOriginCreate::Agent(AssignedAgentCreate {
