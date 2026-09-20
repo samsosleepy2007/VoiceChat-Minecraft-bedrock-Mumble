@@ -18,6 +18,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -875,7 +876,38 @@ public final class MainActivity extends Activity {
         button.setTypeface(button.getTypeface(), Typeface.BOLD);
         button.setMinHeight(dp(50));
         button.setStateListAnimator(null);
+        button.setElevation(dp(2));
+        attachCyberPressAnimation(button);
         return button;
+    }
+
+    private void attachCyberPressAnimation(Button button) {
+        button.setOnTouchListener((view, event) -> {
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN) {
+                button.animate()
+                        .scaleX(0.965f)
+                        .scaleY(0.965f)
+                        .alpha(0.86f)
+                        .translationY(dp(1))
+                        .setDuration(90)
+                        .start();
+                button.setElevation(dp(8));
+                button.setShadowLayer(dp(6), 0f, 0f, c(R.color.cyber_neon));
+            } else if (action == MotionEvent.ACTION_UP
+                    || action == MotionEvent.ACTION_CANCEL) {
+                button.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setDuration(160)
+                        .start();
+                button.setElevation(dp(2));
+                button.setShadowLayer(dp(2), 0f, 0f, c(R.color.cyber_neon_dim));
+            }
+            return false;
+        });
     }
 
     private void styleNavButton(Button button, boolean selected) {
