@@ -104,6 +104,8 @@ grep -Fq 'Startup failed; stopping isolated Mumble process' app/src/core/java/co
 grep -Fq 'refreshServerStateFromTcp()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'new InetSocketAddress("127.0.0.1", probePort)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'static File ensureInstalled(Context context)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+grep -Fq 'findLatestArm64Archive(checksums)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+grep -Fq 'checksum-pinned official' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
 grep -Fq 'pwrp connect' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
 grep -Fq '"connect", "--all", "--save", "--detach"' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
 grep -Fq '"stop", "--all"' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
