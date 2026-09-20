@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -83,6 +84,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        configureSystemBars();
         requestNotificationsIfNeeded();
         setContentView(buildUi());
         fillConfig(ServerConfig.load(this));
@@ -682,6 +684,23 @@ public final class MainActivity extends Activity {
             refreshLogView();
             Toast.makeText(this, "บันทึก log.txt ไม่สำเร็จ: " + error.getMessage(), Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void configureSystemBars() {
+        boolean darkMode = (getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+
+        getWindow().setStatusBarColor(c(R.color.cyber_bg));
+        getWindow().setNavigationBarColor(c(R.color.cyber_nav));
+
+        int flags = 0;
+        if (!darkMode && Build.VERSION.SDK_INT >= 23) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        }
+        if (!darkMode && Build.VERSION.SDK_INT >= 26) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
+        getWindow().getDecorView().setSystemUiVisibility(flags);
     }
 
     private void requestNotificationsIfNeeded() {
