@@ -112,6 +112,10 @@ grep -Fq 'CyberTheme.from(this)' app/src/main/java/com/voicecraft/vcmumbleserver
 grep -Fq 'Configuration.UI_MODE_NIGHT_MASK' app/src/main/java/com/voicecraft/vcmumbleserver/CyberTheme.java
 grep -Fq 'Color.rgb(3, 9, 20)' app/src/main/java/com/voicecraft/vcmumbleserver/CyberTheme.java
 grep -Fq 'Color.rgb(0, 229, 255)' app/src/main/java/com/voicecraft/vcmumbleserver/CyberTheme.java
+grep -Fq 'GradientDrawable terminalPanel(float radiusPx)' app/src/main/java/com/voicecraft/vcmumbleserver/CyberTheme.java
+grep -Fq 'theme.terminalPanel(dp(14))' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'if (widthDp >= 600f) return dp(48);' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"ตรวจพบ Mumble Server"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'Theme.Material.Light.NoActionBar' app/src/main/res/values/styles.xml
 grep -Fq 'Theme.Material.NoActionBar' app/src/main/res/values-night/styles.xml
 grep -Fq 'embedded PortWarp runtime must not be packaged' .github/workflows/android-mumble-core.yml
