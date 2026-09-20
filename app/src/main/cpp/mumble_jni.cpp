@@ -54,7 +54,7 @@ void setProximityStaleTimeoutMsNative(JNIEnv *, jclass, jlong timeoutMs) {
 
 void updatePlayerStateNative(
         JNIEnv *env, jclass, jstring mumbleNameValue, jstring dimensionValue,
-        jdouble x, jdouble y, jdouble z, jfloat rangeBlocks) {
+        jdouble x, jdouble y, jdouble z, jfloat rangeBlocks, jboolean micEnabled) {
     const std::string mumbleName = fromJString(env, mumbleNameValue);
     const std::string dimension = fromJString(env, dimensionValue);
     VCProximity::updatePlayer(
@@ -63,7 +63,8 @@ void updatePlayerStateNative(
             static_cast<double>(x),
             static_cast<double>(y),
             static_cast<double>(z),
-            static_cast<float>(rangeBlocks));
+            static_cast<float>(rangeBlocks),
+            micEnabled == JNI_TRUE);
 }
 
 void removePlayerStateNative(JNIEnv *env, jclass, jstring mumbleNameValue) {
@@ -101,7 +102,7 @@ JNINativeMethod kNativeMethods[] = {
          const_cast<char *>("(J)V"),
          reinterpret_cast<void *>(setProximityStaleTimeoutMsNative)},
         {const_cast<char *>("updatePlayerStateNative"),
-         const_cast<char *>("(Ljava/lang/String;Ljava/lang/String;DDDF)V"),
+         const_cast<char *>("(Ljava/lang/String;Ljava/lang/String;DDDFZ)V"),
          reinterpret_cast<void *>(updatePlayerStateNative)},
         {const_cast<char *>("removePlayerStateNative"),
          const_cast<char *>("(Ljava/lang/String;)V"),

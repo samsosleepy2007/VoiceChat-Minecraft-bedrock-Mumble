@@ -138,7 +138,8 @@ public final class NativeServer {
             double x,
             double y,
             double z,
-            float rangeBlocks
+            float rangeBlocks,
+            boolean micEnabled
     ) {
         if (mumbleName != null && !mumbleName.trim().isEmpty()) proximityPlayers.add(mumbleName.trim());
     }

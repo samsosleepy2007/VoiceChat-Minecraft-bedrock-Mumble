@@ -13,7 +13,8 @@ void updatePlayer(const QString &mumbleName,
                   double x,
                   double y,
                   double z,
-                  float rangeBlocks);
+                  float rangeBlocks,
+                  bool micEnabled);
 void removePlayer(const QString &mumbleName);
 void clearPlayers();
 int playerCount();

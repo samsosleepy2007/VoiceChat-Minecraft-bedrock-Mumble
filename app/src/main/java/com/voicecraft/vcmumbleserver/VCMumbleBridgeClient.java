@@ -166,12 +166,13 @@ final class VCMumbleBridgeClient {
         double y = data.optDouble("y", Double.NaN);
         double z = data.optDouble("z", Double.NaN);
         int range = data.optInt("voiceRange", config.voiceRange);
+        boolean micEnabled = data.optBoolean("micEnabled", true);
         if (mumbleName.isEmpty() || dimension.isEmpty()) return;
         if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) return;
         if (Math.abs(x) > 30_000_000.0 || Math.abs(z) > 30_000_000.0 || y < -4096.0 || y > 4096.0) return;
         if (range < 1) range = config.voiceRange;
 
-        NativeServer.updatePlayerState(mumbleName, dimension, x, y, z, range);
+        NativeServer.updatePlayerState(mumbleName, dimension, x, y, z, range, micEnabled);
         if (!syncing) notifyStatus("Minecraft bridge connected • proximity active", true);
     }
 
