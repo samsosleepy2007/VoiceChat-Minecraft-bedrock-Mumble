@@ -18,6 +18,8 @@ for f in \
   app/src/main/java/com/voicecraft/vcmumbleserver/SecretStore.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerConfig.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerLog.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java \
   endstone-plugin/pyproject.toml \
   endstone-plugin/src/endstone_vc_mumble/plugin.py \
   endstone-plugin/src/endstone_vc_mumble/bridge.py \
@@ -101,6 +103,14 @@ grep -Fq 'android.os.Process.killProcess(pid)' app/src/core/java/com/voicecraft/
 grep -Fq 'Startup failed; stopping isolated Mumble process' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'refreshServerStateFromTcp()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'new InetSocketAddress("127.0.0.1", probePort)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'static File ensureInstalled(Context context)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+grep -Fq 'pwrp connect' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
+grep -Fq '"connect", "--all", "--save", "--detach"' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
+grep -Fq '"stop", "--all"' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
+grep -Fq 'android:process=":tunnel"' app/src/main/AndroidManifest.xml
+grep -Fq '"SET UP PORTWARP"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"OPEN PORTWARP TUNNELS"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"START PUBLIC ACCESS"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"PROBE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: TCP probe log tag" >&2; exit 1; }
 grep -Fq '"SERVICE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: service log tag" >&2; exit 1; }
 grep -Fq '"ERROR",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: error log tag" >&2; exit 1; }
