@@ -139,6 +139,21 @@ grep -Fq 'private View pageView(int page)' app/src/main/java/com/voicecraft/vcmu
 grep -Fq '.translationX(-direction * dp(18))' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'ObjectAnimator.ofFloat(status, View.ALPHA' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'statusPulse.setRepeatCount(ValueAnimator.INFINITE)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'buildProximityCard()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"MINECRAFT PROXIMITY // ALWAYS ON"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"● เปิดใช้งานตลอดเวลา"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"สุ่ม Secret"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"คัดลอก"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'new SecureRandom().nextBytes(bytes)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'boolean proximity = true;' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'this.proximityEnabled = true;' app/src/main/java/com/voicecraft/vcmumbleserver/ServerConfig.java
+grep -Fq '.putBoolean("proximity_enabled", true)' app/src/main/java/com/voicecraft/vcmumbleserver/ServerConfig.java
+grep -Fq 'boolean proximityActive = true;' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+if grep -Fq 'CheckBox proximityEnabled' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java; then
+  echo "ERROR: proximity enable/disable UI must not return" >&2
+  exit 1
+fi
 grep -Fq '"PROBE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: TCP probe log tag" >&2; exit 1; }
 grep -Fq '"SERVICE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: service log tag" >&2; exit 1; }
 grep -Fq '"ERROR",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: error log tag" >&2; exit 1; }
