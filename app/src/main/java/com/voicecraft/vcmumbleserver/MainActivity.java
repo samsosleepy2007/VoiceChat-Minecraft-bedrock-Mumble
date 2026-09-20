@@ -8,6 +8,7 @@ import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -181,12 +182,7 @@ public final class MainActivity extends Activity {
             password.setText("");
             maxUsers.setText("20");
             voiceRange.setText("30");
-            try {
-                saveSettings(false);
-                if (!running) toggleServer();
-            } catch (Exception error) {
-                Toast.makeText(this, error.getMessage(), Toast.LENGTH_LONG).show();
-            }
+            if (!running) toggleServer();
         });
         root.addView(quick, marginTop(8));
 
@@ -551,9 +547,32 @@ public final class MainActivity extends Activity {
             return;
         }
 
+        String targetAddress = NetworkUtil.bestLanIpv4() + ":" + cfg.port;
         ServerRuntimeState.setShouldRun(this, true);
+        updateState(true, "Starting • " + targetAddress, "Minecraft: กำลังเชื่อมต่อ", 0);
+
         Intent i = new Intent(this, MumbleServerService.class).setAction(MumbleServerService.ACTION_START);
-        if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
+        try {
+            ServerLog.append(this, "UI", "Dispatching Mumble service start; target=" + targetAddress);
+            ComponentName component = Build.VERSION.SDK_INT >= 26
+                    ? startForegroundService(i)
+                    : startService(i);
+            if (component == null) {
+                throw new IllegalStateException("Android did not accept the Mumble service start request");
+            }
+            ServerLog.append(this, "UI", "Mumble service start dispatched; component="
+                    + component.flattenToShortString());
+            refreshLogView();
+        } catch (RuntimeException error) {
+            ServerRuntimeState.setShouldRun(this, false);
+            String message = "เปิด Mumble Service ไม่สำเร็จ: "
+                    + error.getClass().getSimpleName()
+                    + (error.getMessage() == null ? "" : ": " + error.getMessage());
+            ServerLog.append(this, "ERROR", message);
+            updateState(false, message, "Minecraft: ยังไม่ได้เชื่อมต่อ", 0);
+            refreshLogView();
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void saveSettings(boolean showToast) throws IOException {
