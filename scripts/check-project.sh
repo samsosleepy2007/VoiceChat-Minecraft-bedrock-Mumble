@@ -6,6 +6,10 @@ for f in \
   build.gradle.kts \
   app/build.gradle.kts \
   app/src/main/AndroidManifest.xml \
+  app/src/main/res/values/colors.xml \
+  app/src/main/res/values-night/colors.xml \
+  app/src/main/res/values/styles.xml \
+  app/src/main/res/values-night/styles.xml \
   app/src/main/cpp/CMakeLists.txt \
   app/src/main/cpp/transport_smoketest_jni.cpp \
   app/src/main/cpp/mumble_jni.cpp \
@@ -66,13 +70,13 @@ grep -Fq 'host=0.0.0.0' app/src/main/java/com/voicecraft/vcmumbleserver/MumbleCo
 grep -Fq 'new InetSocketAddress("127.0.0.1", port)' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'STARTUP_PROBE_MAX_ATTEMPTS = 30' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'Mumble core loaded but TCP port ' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
-grep -Fq '"● STARTING"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"● กำลังเริ่ม"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'public static final String FILE_NAME = "vc-mumble-server.log";' app/src/main/java/com/voicecraft/vcmumbleserver/ServerLog.java
 grep -Fq 'ServerLog.file(context).getAbsolutePath()' app/src/main/java/com/voicecraft/vcmumbleserver/MumbleConfigWriter.java
 grep -Fq 'VC_ANDROID_FOREGROUND_LOGFILE' scripts/prepare-mumble-source.py
-grep -Fq '"Copy Log"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"Download log.txt"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"Clear Log"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"คัดลอก Log"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"บันทึก log.txt"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"ล้าง Log"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'Intent.ACTION_CREATE_DOCUMENT' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'Intent.EXTRA_TITLE, "log.txt"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'QtServiceLoader.loadQtLibraries' app/src/core/java/org/qtproject/qt/android/RestartableQtService.java
@@ -100,12 +104,12 @@ grep -Fq 'terminateProcessOnDestroy' app/src/core/java/com/voicecraft/vcmumblese
 grep -Fq 'android.os.Process.killProcess(pid)' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'Startup failed; stopping isolated Mumble process' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'refreshServerStateFromTcp()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"GET PORTWARP ON GOOGLE PLAY"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"เปิด PortWarp ใน Google Play"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"com.ribeirosoftware.portwarp"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'embedded PortWarp runtime must not be packaged' .github/workflows/android-mumble-core.yml
 grep -Fq '"market://details?id=" + packageName' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'private void openUrl(String url, String label)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"PortWarp target: 127.0.0.1:" + ServerConfig.load(this).port' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"เป้าหมาย PortWarp: 127.0.0.1:" + ServerConfig.load(this).port' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 if grep -Fq 'PortWarpTunnelService' app/src/main/AndroidManifest.xml; then
   echo "ERROR: embedded PortWarp service must not be registered" >&2
   exit 1
@@ -115,6 +119,15 @@ test ! -e app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
 test ! -e scripts/fetch-portwarp-android-runtime.sh
 test ! -e native/portwarp_dns_launcher.c
 grep -Fq 'new InetSocketAddress("127.0.0.1", probePort)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'PAGE_HOME = 0' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'PAGE_LOG = 1' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'PAGE_SETTINGS = 2' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"หน้าหลัก"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"ตั้งค่า"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"LOG // TERMINAL"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '@color/cyber_bg' app/src/main/res/values/styles.xml
+grep -Fq 'Theme.Material.NoActionBar' app/src/main/res/values-night/styles.xml
+grep -Fq '<color name="cyber_neon">#00E5FF</color>' app/src/main/res/values-night/colors.xml
 grep -Fq '"PROBE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: TCP probe log tag" >&2; exit 1; }
 grep -Fq '"SERVICE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: service log tag" >&2; exit 1; }
 grep -Fq '"ERROR",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: error log tag" >&2; exit 1; }
