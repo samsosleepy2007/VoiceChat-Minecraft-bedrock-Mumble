@@ -18,8 +18,6 @@ for f in \
   app/src/main/java/com/voicecraft/vcmumbleserver/SecretStore.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerConfig.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerLog.java \
-  app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java \
-  app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java \
   endstone-plugin/pyproject.toml \
   endstone-plugin/src/endstone_vc_mumble/plugin.py \
   endstone-plugin/src/endstone_vc_mumble/bridge.py \
@@ -30,8 +28,6 @@ for f in \
   native/mumble_android/android-package/settings.gradle \
   scripts/fetch-mumble.sh \
   scripts/build-mumble-android-core.sh \
-  scripts/fetch-portwarp-android-runtime.sh \
-  native/portwarp_dns_launcher.c \
   scripts/prepare-mumble-source.py
 do
   test -f "$f" || { echo "Missing: $f" >&2; exit 1; }
@@ -41,7 +37,6 @@ python3 tests/test_prepare_mumble_source.py
 python3 tests/test_vc_mumble_bridge_contract.py
 
 bash -n scripts/build-mumble-android-core.sh
-bash -n scripts/fetch-portwarp-android-runtime.sh
 
 grep -Fq 'libvcserver_${ANDROID_ABI}.so' scripts/build-mumble-android-core.sh
 grep -Fq 'CORE_MACHINE=' scripts/build-mumble-android-core.sh
@@ -105,33 +100,19 @@ grep -Fq 'terminateProcessOnDestroy' app/src/core/java/com/voicecraft/vcmumblese
 grep -Fq 'android.os.Process.killProcess(pid)' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'Startup failed; stopping isolated Mumble process' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'refreshServerStateFromTcp()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"GET PORTWARP ON GOOGLE PLAY"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"com.ribeirosoftware.portwarp"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"market://details?id=" + packageName' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"127.0.0.1:" + ServerConfig.load(this).port' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+if grep -Fq 'PortWarpTunnelService' app/src/main/AndroidManifest.xml; then
+  echo "ERROR: embedded PortWarp service must not be registered" >&2
+  exit 1
+fi
+test ! -e app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
+test ! -e app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+test ! -e scripts/fetch-portwarp-android-runtime.sh
+test ! -e native/portwarp_dns_launcher.c
 grep -Fq 'new InetSocketAddress("127.0.0.1", probePort)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq 'static File ensureInstalled(Context context)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
-grep -Fq 'new File(info.nativeLibraryDir, "libpwrp_exec.so")' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
-grep -Fq 'Using APK-packaged PortWarp runtime from nativeLibraryDir' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
-grep -Fq 'sha256sum' scripts/fetch-portwarp-android-runtime.sh
-grep -Fq 'libpwrp_exec.so' scripts/fetch-portwarp-android-runtime.sh
-grep -Fq '/proc/self/fd/10' scripts/fetch-portwarp-android-runtime.sh
-grep -Fq 'libpwrp_dns_launcher_exec.so' scripts/fetch-portwarp-android-runtime.sh
-grep -Fq 'dup2(fd, 10)' native/portwarp_dns_launcher.c
-grep -Fq 'prepareResolverFile(this)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
-grep -Fq 'getDnsServers()' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
-grep -Fq 'SSL_CERT_DIR' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
-grep -Fq '/apex/com.android.conscrypt/cacerts' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
-grep -Fq '/system/etc/security/cacerts' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
-grep -Fq 'configureTlsTrust(this, builder)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
-grep -Fq 'builder.environment().put("COLUMNS", "80")' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
-grep -Fq 'builder.environment().put("TERM", "dumb")' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
-grep -Fq 'configureTerminalCompatibility(builder)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
-grep -Fq 'Stage checksum-pinned PortWarp runtime into APK' .github/workflows/android-mumble-core.yml
-grep -Fq 'run: bash ./scripts/fetch-portwarp-android-runtime.sh' .github/workflows/android-mumble-core.yml
-grep -Fq 'pwrp connect' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
-grep -Fq '"connect", "--all", "--save", "--detach"' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
-grep -Fq '"stop", "--all"' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
-grep -Fq 'android:process=":tunnel"' app/src/main/AndroidManifest.xml
-grep -Fq '"SET UP PORTWARP"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"OPEN PORTWARP TUNNELS"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"START PUBLIC ACCESS"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"PROBE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: TCP probe log tag" >&2; exit 1; }
 grep -Fq '"SERVICE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: service log tag" >&2; exit 1; }
 grep -Fq '"ERROR",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: error log tag" >&2; exit 1; }
