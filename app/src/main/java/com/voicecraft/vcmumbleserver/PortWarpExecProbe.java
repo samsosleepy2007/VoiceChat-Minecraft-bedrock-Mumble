@@ -78,6 +78,7 @@ public final class PortWarpExecProbe {
         builder.directory(root);
         builder.environment().put("HOME", home.getAbsolutePath());
         builder.environment().put("TMPDIR", context.getCacheDir().getAbsolutePath());
+        configureTlsTrust(context, builder);
 
         final Process process;
         try {
@@ -214,6 +215,36 @@ public final class PortWarpExecProbe {
                 "Prepared Android DNS resolver snapshot with " + servers.size()
                         + " server(s); fd-path=/proc/self/fd/10");
         return resolver;
+    }
+
+    static void configureTlsTrust(Context context, ProcessBuilder builder)
+            throws IOException {
+        String[] candidates = new String[] {
+                "/apex/com.android.conscrypt/cacerts",
+                "/system/etc/security/cacerts"
+        };
+
+        StringBuilder dirs = new StringBuilder();
+        int usable = 0;
+        for (String candidate : candidates) {
+            File dir = new File(candidate);
+            File[] entries = dir.listFiles();
+            if (!dir.isDirectory() || entries == null || entries.length == 0) {
+                continue;
+            }
+            if (dirs.length() > 0) dirs.append(File.pathSeparatorChar);
+            dirs.append(dir.getAbsolutePath());
+            usable++;
+        }
+
+        if (usable == 0) {
+            throw new IOException("Android CA trust store is unavailable");
+        }
+
+        builder.environment().put("SSL_CERT_DIR", dirs.toString());
+        builder.environment().remove("SSL_CERT_FILE");
+        ServerLog.append(context, "PORTWARP",
+                "Configured Go TLS trust from Android CA store(s): " + usable);
     }
 
     static File rootDir(Context context) {
