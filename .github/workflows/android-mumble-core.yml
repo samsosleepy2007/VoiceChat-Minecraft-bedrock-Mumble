@@ -52,7 +52,7 @@ jobs:
           gradle-version: '9.6.0'
 
       - name: Stage checksum-pinned PortWarp runtime into APK
-        run: ./scripts/fetch-portwarp-android-runtime.sh
+        run: bash ./scripts/fetch-portwarp-android-runtime.sh
 
       - name: Install host build tools
         run: |
