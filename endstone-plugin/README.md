@@ -1,73 +1,38 @@
 # VC Mumble Endstone Plugin
 
-Endstone side of **VC Mumble Server** proximity voice. The plugin only tracks Minecraft player identity and position; audio stays inside Mumble.
+Endstone side of **VC Mumble Server** proximity voice. Minecraft sends player position and voice settings to the Android Mumble server; audio remains inside Mumble.
 
 ## Current version
 
-`0.2.0`
+`0.4.0`
 
-Target API:
+Target API: **Endstone 0.11**
 
-`Endstone API 0.11`
+## One command: /vcb
 
-## How it works
-
-```text
-Minecraft Bedrock players
-        |
-        | position / dimension / identity
-        v
-VC Mumble Endstone Plugin
-        |
-        | authenticated NDJSON/TCP :27220
-        v
-VC Mumble Server Android
-        |
-        | per-listener proximity routing
-        v
-Mumble Root channel
-```
-
-All Mumble users can stay in **Root**. The plugin does not create or move Mumble channels. The Android Mumble server decides who hears whom from Minecraft positions and each speaker's configured voice range.
-
-## Features
-
-- Tracks player name, XUID, UUID, dimension, XYZ and rotation every 2 ticks by default.
-- Dimension and teleport changes are detected by the normal tracking snapshot.
-- Authenticated TCP/NDJSON bridge with HMAC-SHA256 challenge/response.
-- Full player snapshot after Android reconnect.
-- Stale queued position updates are discarded on a fresh authenticated connection.
-- TCP keepalive, auth timeout and frame-size protection.
-- Automatic Minecraft-name to Mumble-name mapping by default.
-- Optional explicit pairing with `/vcmumble pair <mumble_name>`.
-- Persistent per-player voice range with `/vcmumble range <blocks>`.
-- Operator administration commands for status, resync, reload and player range changes.
-- Bindings are stored in the plugin data folder.
-
-## Player commands
+Players only need:
 
 ```text
-/vcmumble
-/vcmumble status
-/vcmumble pair <mumble_name>
-/vcmumble unpair
-/vcmumble range <blocks>
+/vcb
 ```
 
-If no explicit pairing exists, the Mumble username is assumed to be the Minecraft player name.
+The command opens an **ActionForm** control panel. Normal players can change Voice Range, select distance-volume attenuation level, pair or unpair a Mumble username, and resync their current settings.
 
-## Admin commands
+Operators with `vc_mumble.command.admin` also see **Admin Tools** in the same UI. The admin menu provides bridge status, player management, full resync, config reload, per-player Voice Range and per-player attenuation controls.
 
-Requires `vc_mumble.command.admin`, which defaults to operators.
+Legacy `/vcmumble` and `/vcmumbleadmin` are no longer registered.
 
-```text
-/vcmumbleadmin
-/vcmumbleadmin status
-/vcmumbleadmin players
-/vcmumbleadmin resync
-/vcmumbleadmin reload
-/vcmumbleadmin range <player> <blocks>
-```
+## Distance-volume levels
+
+Each player's outgoing voice has a persistent `attenuation_level`:
+
+- **0 — Off:** full volume inside Voice Range, then cut at the boundary.
+- **1 — Light:** gentle fade.
+- **2 — Normal:** balanced default.
+- **3 — Strong:** distant players become clearly quieter.
+- **4 — Very Strong:** voices near the edge become extremely quiet.
+
+The selected value is sent as `attenuationLevel` in each `player_state`. Android/native Mumble applies the factor independently for every speaker/listener pair.
 
 ## Default configuration
 
@@ -90,28 +55,9 @@ auth_timeout_seconds = 10
 [voice]
 default_range = 30
 max_range = 150
+default_attenuation_level = 2
 ```
 
-On first enable, an empty bridge secret is replaced with a generated secret and saved to:
+On first enable, an empty bridge secret is generated and saved in `plugins/vc_mumble/config.toml`. Copy the same secret into VC Mumble Server on Android.
 
-```text
-plugins/vc_mumble/config.toml
-```
-
-Copy that same secret into **VC Mumble Server** on Android.
-
-## Installing
-
-Build or download the wheel, then place it in the Endstone server's `plugins/` directory and restart Endstone.
-
-Expected wheel name for this branch:
-
-```text
-endstone_vc_mumble-0.2.0-py3-none-any.whl
-```
-
-## Network direction
-
-The Endstone plugin listens on TCP port `27220`. The Android app initiates the connection to the Minecraft server's reachable IP/hostname and authenticates using the shared Bridge Secret.
-
-This bridge is separate from Mumble's normal TCP/UDP port `64738`.
+The bridge listens on TCP **27220**. Mumble voice continues to use TCP+UDP **64738**.
