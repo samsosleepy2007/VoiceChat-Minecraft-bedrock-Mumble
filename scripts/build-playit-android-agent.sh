@@ -38,8 +38,42 @@ cargo build --locked --release --target aarch64-linux-android   --manifest-path 
 
 cargo build --locked --release --target aarch64-linux-android   --manifest-path "$SRC_DIR/Cargo.toml" -p playitd --bin playitd
 
-# Keep upstream binaries on the exact upstream Cargo.lock. Only after they are
-# built do we add the small VC helper package to the cloned workspace.
+# Keep upstream binaries on the exact upstream Cargo.lock. The Playit backend
+# has added custom-tunnel metadata since v1.0.10, so patch only the generated
+# API client used by the VC helper after the official upstream binaries build.
+python3 - "${SRC_DIR}/packages/api_client/src/api.rs" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+
+create_anchor = """pub struct ReqTunnelsCreate {
+	pub name: Option<String>,
+	pub tunnel_type: Option<TunnelType>,
+	pub port_type: PortType,"""
+create_replacement = """pub struct ReqTunnelsCreate {
+	pub name: Option<String>,
+	pub tunnel_type: Option<TunnelType>,
+	pub tunnel_description: Option<String>,
+	pub port_type: PortType,"""
+if create_anchor not in text:
+    raise SystemExit("Playit ReqTunnelsCreate compatibility anchor missing")
+text = text.replace(create_anchor, create_replacement, 1)
+
+error_anchor = """	RequiresPlayitPremium,
+	Other,"""
+error_replacement = """	RequiresPlayitPremium,
+	TunnelTypeBlockedOnRegion,
+	TunnelTypeRequiresDescription,
+	Other,"""
+if error_anchor not in text:
+    raise SystemExit("Playit TunnelCreateError compatibility anchor missing")
+text = text.replace(error_anchor, error_replacement, 1)
+
+path.write_text(text)
+PY
+
 cp -R "${ROOT_DIR}/native/playit_bridge" "${SRC_DIR}/packages/vc_mumble_helper"
 python3 - "${SRC_DIR}/Cargo.toml" <<'PY'
 from pathlib import Path
