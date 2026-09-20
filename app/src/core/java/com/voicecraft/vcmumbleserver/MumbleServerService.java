@@ -57,6 +57,8 @@ public final class MumbleServerService extends RestartableQtService {
     private String runtimeProtectionStatus = "Runtime protection starting";
     private int backgroundHealthFailures;
     private int backgroundHealthChecks;
+    private boolean mumbleReady;
+    private ServerConfig activeConfig;
 
     @Override
     public void onCreate() {
@@ -184,6 +186,8 @@ public final class MumbleServerService extends RestartableQtService {
 
         ServerRuntimeState.setShouldRun(this, true);
         ServerConfig config = ServerConfig.load(this);
+        activeConfig = config;
+        mumbleReady = false;
 
         if (!NativeServer.runtimeLoaded()) {
             String qtError = qtStartupError();
@@ -245,12 +249,14 @@ public final class MumbleServerService extends RestartableQtService {
         }
 
         serverAddress = NetworkUtil.bestLanIpv4() + ":" + config.port;
-        if (config.hasUsableBridgeConfig()) {
-            startRelay(config);
-        } else {
-            bridgeStatus = "Bridge config missing • proximity waiting";
-        }
+        bridgeStatus = config.hasUsableBridgeConfig()
+                ? "Minecraft bridge waiting for Mumble"
+                : "Bridge config missing • proximity waiting";
 
+        // Keep Minecraft bridge startup independent from Mumble startup. The
+        // bridge is connected only after the local Mumble TCP listener is
+        // confirmed ready, so a refused Minecraft bridge cannot affect the
+        // server's STARTING/ONLINE lifecycle.
         // Qt startup is asynchronous relative to Android service callbacks.
         publish(true, "Starting • " + serverAddress);
         updateNotification("Starting • " + serverAddress);
@@ -302,11 +308,18 @@ public final class MumbleServerService extends RestartableQtService {
 
     private void handleProbeResult(int attempt, boolean tcpReady) {
         if (tcpReady) {
+            mumbleReady = true;
             ServerLog.append(this, "SERVICE", "Mumble TCP listener is ready at " + serverAddress
                     + " after " + attempt + " probe attempt(s)");
             backgroundHealthFailures = 0;
             backgroundHealthChecks = 0;
             updateRuntimeProtectionStatus(true);
+
+            ServerConfig config = activeConfig;
+            if (config != null && config.hasUsableBridgeConfig() && bridgeClient == null) {
+                startRelay(config);
+            }
+
             updateNotification(null);
             publish(true, serverAddress);
             scheduleBackgroundHealthCheck();
@@ -322,6 +335,7 @@ public final class MumbleServerService extends RestartableQtService {
             return;
         }
 
+        mumbleReady = false;
         String error = NativeServer.lastError();
         String message = error.isEmpty()
                 ? "Mumble core loaded but TCP port " + serverPort + " did not open"
@@ -360,6 +374,8 @@ public final class MumbleServerService extends RestartableQtService {
     }
 
     private void stopCoreAndSelf() {
+        mumbleReady = false;
+        activeConfig = null;
         ServerLog.append(this, "SERVICE", "Stop requested; clean process restart will be required");
         ServerRuntimeState.setShouldRun(this, false);
         terminateProcessOnDestroy = true;
@@ -399,7 +415,7 @@ public final class MumbleServerService extends RestartableQtService {
             bridgeStatus = status;
             trackedPlayers = tracked;
             updateNotification(null);
-            publish(true, serverAddress);
+            publish(true, mumbleReady ? serverAddress : "Starting • " + serverAddress);
         });
         bridgeClient.start();
     }
