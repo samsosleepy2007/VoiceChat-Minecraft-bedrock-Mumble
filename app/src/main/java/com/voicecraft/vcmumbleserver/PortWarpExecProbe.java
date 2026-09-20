@@ -79,6 +79,7 @@ public final class PortWarpExecProbe {
         builder.environment().put("HOME", home.getAbsolutePath());
         builder.environment().put("TMPDIR", context.getCacheDir().getAbsolutePath());
         configureTlsTrust(context, builder);
+        configureTerminalCompatibility(builder);
 
         final Process process;
         try {
@@ -215,6 +216,18 @@ public final class PortWarpExecProbe {
                 "Prepared Android DNS resolver snapshot with " + servers.size()
                         + " server(s); fd-path=/proc/self/fd/10");
         return resolver;
+    }
+
+    static void configureTerminalCompatibility(ProcessBuilder builder) {
+        // PortWarp's UI first honors COLUMNS. Supplying it avoids its fallback
+        // terminal-width probes (for example mode/con command lookup) which use
+        // faccessat2 on Go 1.22; Android's seccomp policy rejects that syscall
+        // for this process with SIGSYS.
+        builder.environment().put("COLUMNS", "80");
+        builder.environment().put("LINES", "24");
+        builder.environment().put("TERM", "dumb");
+        builder.environment().put("NO_COLOR", "1");
+        builder.environment().put("CLICOLOR", "0");
     }
 
     static void configureTlsTrust(Context context, ProcessBuilder builder)
