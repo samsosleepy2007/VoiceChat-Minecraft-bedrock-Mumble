@@ -40,7 +40,7 @@ public final class MumbleServerService extends RestartableQtService {
     private static final int STARTUP_PROBE_MAX_ATTEMPTS = 30;
     private static final long STARTUP_PROBE_INTERVAL_MS = 500L;
     private static final int STARTUP_PROBE_CONNECT_TIMEOUT_MS = 350;
-    private static final long BACKGROUND_HEALTH_INTERVAL_MS = 30_000L;
+    private static final long BACKGROUND_HEALTH_INTERVAL_MS = 60_000L;
     private static final int BACKGROUND_HEALTH_CONNECT_TIMEOUT_MS = 750;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -418,10 +418,12 @@ public final class MumbleServerService extends RestartableQtService {
 
     private final Runnable backgroundHealthCheck = new Runnable() {
         @Override public void run() {
+            if (!ServerRuntimeState.shouldRun(MumbleServerService.this)) return;
             final int port = serverPort;
             Thread probeThread = new Thread(() -> {
                 boolean healthy = probeBackgroundTcp(port);
                 handler.post(() -> {
+                    if (!ServerRuntimeState.shouldRun(MumbleServerService.this)) return;
                     backgroundHealthChecks++;
                     if (healthy) {
                         if (backgroundHealthFailures > 0) {
@@ -443,7 +445,9 @@ public final class MumbleServerService extends RestartableQtService {
                                         + ") on 127.0.0.1:" + port);
                     }
                     publish(true, serverAddress);
-                    scheduleBackgroundHealthCheck();
+                    if (ServerRuntimeState.shouldRun(MumbleServerService.this)) {
+                        scheduleBackgroundHealthCheck();
+                    }
                 });
             }, "VCMumble-Background-Health");
             probeThread.setDaemon(true);
