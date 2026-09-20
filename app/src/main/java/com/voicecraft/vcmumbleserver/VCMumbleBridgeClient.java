@@ -89,7 +89,7 @@ final class VCMumbleBridgeClient {
         hello.put("role", "vc_mumble_server");
         hello.put("protocol", 1);
         hello.put("app", "VC Mumble Server");
-        hello.put("appVersion", "0.4.0-alpha02");
+        hello.put("appVersion", "0.6.0-beta.5");
         send(writer, hello);
 
         long helloDeadline = System.currentTimeMillis() + 10_000L;
