@@ -123,7 +123,7 @@ public final class MumbleServerService extends RestartableQtService {
         startupProbeAttempt = 0;
         updateNotification("Starting on port " + config.port + "…");
 
-        boolean proximityActive = config.proximityEnabled;
+        boolean proximityActive = true;
         try {
             ServerLog.append(this, "JNI", "setProximityStaleTimeoutMs begin");
             NativeServer.setProximityStaleTimeoutMs(15000L);
@@ -151,14 +151,10 @@ public final class MumbleServerService extends RestartableQtService {
         }
 
         serverAddress = NetworkUtil.bestLanIpv4() + ":" + config.port;
-        if (proximityActive) {
-            if (config.hasUsableBridgeConfig()) {
-                startRelay(config);
-            } else {
-                bridgeStatus = "Bridge config missing • proximity waiting";
-            }
+        if (config.hasUsableBridgeConfig()) {
+            startRelay(config);
         } else {
-            bridgeStatus = "Minecraft proximity off";
+            bridgeStatus = "Bridge config missing • proximity waiting";
         }
 
         // Qt startup is asynchronous relative to Android service callbacks.
