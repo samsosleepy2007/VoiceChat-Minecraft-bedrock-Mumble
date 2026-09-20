@@ -135,6 +135,7 @@ public final class MainActivity extends Activity {
         addScreenHeader(
                 root,
                 "VC MUMBLE // NODE",
+                "หน้าหลัก",
                 "ศูนย์ควบคุมเซิร์ฟเวอร์เสียง Minecraft Bedrock"
         );
 
@@ -224,6 +225,7 @@ public final class MainActivity extends Activity {
         addScreenHeader(
                 root,
                 "LOG // TERMINAL",
+                "ระบบบันทึก",
                 "บันทึกการทำงานของระบบ — เนื้อหา Log คงภาษาอังกฤษ"
         );
 
@@ -272,6 +274,7 @@ public final class MainActivity extends Activity {
         addScreenHeader(
                 root,
                 "CONFIG // SETTINGS",
+                "ตั้งค่า",
                 "ตั้งค่าเซิร์ฟเวอร์และระบบ Minecraft Proximity"
         );
 
@@ -689,16 +692,17 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private void addScreenHeader(LinearLayout root, String code, String subtitle) {
+    private void addScreenHeader(
+            LinearLayout root,
+            String code,
+            String titleText,
+            String subtitle
+    ) {
         TextView codeView = text(code, 12, true);
         codeView.setTextColor(c(R.color.cyber_neon));
         root.addView(codeView);
 
-        TextView title = text(
-                currentPage == PAGE_LOG ? "ระบบบันทึก" : "VC Mumble Server",
-                26,
-                true
-        );
+        TextView title = text(titleText, 26, true);
         root.addView(title, marginTop(4));
 
         TextView sub = text(subtitle, 13, false);
