@@ -6,6 +6,8 @@ CHECKSUMS_URL="https://portwarp.com/download/checksums.txt"
 DOWNLOAD_BASE="https://portwarp.com/download"
 DEST_DIR="${ROOT_DIR}/app/src/main/jniLibs/arm64-v8a"
 DEST_FILE="${DEST_DIR}/libpwrp_exec.so"
+LAUNCHER_SRC="${ROOT_DIR}/native/portwarp_dns_launcher.c"
+LAUNCHER_FILE="${DEST_DIR}/libpwrp_dns_launcher_exec.so"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -59,8 +61,51 @@ fi
 mkdir -p "${DEST_DIR}"
 install -m 0755 "${src}" "${DEST_FILE}"
 
+python3 - "${DEST_FILE}" <<'PY'
+from pathlib import Path
+import hashlib
+import sys
+
+path = Path(sys.argv[1])
+data = path.read_bytes()
+old = b"/etc/resolv.conf"
+new = b"/proc/self/fd/10"
+
+if len(old) != len(new):
+    raise SystemExit("PortWarp DNS compatibility paths must be equal length")
+count = data.count(old)
+if count != 1:
+    raise SystemExit(f"expected exactly one /etc/resolv.conf marker, found {count}")
+
+patched = data.replace(old, new, 1)
+path.write_bytes(patched)
+print("PortWarp Android DNS compatibility patch applied")
+print("patched_sha256=" + hashlib.sha256(patched).hexdigest())
+PY
+chmod 0755 "${DEST_FILE}"
+
+if [[ -z "${ANDROID_NDK_HOME:-}" ]]; then
+  echo "ERROR: ANDROID_NDK_HOME is required to build PortWarp DNS launcher" >&2
+  exit 1
+fi
+
+cc="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang"
+if [[ ! -x "${cc}" ]]; then
+  echo "ERROR: Android ARM64 clang not found: ${cc}" >&2
+  exit 1
+fi
+if [[ ! -f "${LAUNCHER_SRC}" ]]; then
+  echo "ERROR: PortWarp DNS launcher source missing: ${LAUNCHER_SRC}" >&2
+  exit 1
+fi
+
+"${cc}" -O2 -fPIE -pie -Wall -Wextra -Werror   "${LAUNCHER_SRC}" -o "${LAUNCHER_FILE}"
+chmod 0755 "${LAUNCHER_FILE}"
+
 echo "Packaged PortWarp runtime:"
 file "${DEST_FILE}"
+file "${LAUNCHER_FILE}"
 echo "archive=${archive}"
-echo "sha256=${actual}"
-echo "destination=${DEST_FILE}"
+echo "official_sha256=${actual}"
+echo "pwrp_destination=${DEST_FILE}"
+echo "launcher_destination=${LAUNCHER_FILE}"
