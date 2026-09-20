@@ -18,6 +18,7 @@ public final class MumbleServerService extends Service {
     public static final String EXTRA_MESSAGE = "message";
     public static final String EXTRA_BRIDGE = "bridge";
     public static final String EXTRA_TRACKED = "tracked";
+    public static final String EXTRA_BACKGROUND = "background";
     private static final int NOTIFICATION_ID = 4107;
     private static final String CHANNEL_ID = "vc_mumble_server";
 
@@ -137,6 +138,7 @@ public final class MumbleServerService extends Service {
         i.putExtra(EXTRA_MESSAGE, message);
         i.putExtra(EXTRA_BRIDGE, bridgeStatus);
         i.putExtra(EXTRA_TRACKED, trackedPlayers);
+        i.putExtra(EXTRA_BACKGROUND, "Smoke transport runtime");
         sendBroadcast(i);
     }
 
