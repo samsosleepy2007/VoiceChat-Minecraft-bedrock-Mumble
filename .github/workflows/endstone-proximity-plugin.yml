@@ -12,6 +12,7 @@ on:
       - "endstone-plugin/**"
       - "tests/test_endstone_plugin_contract.py"
       - "tests/test_endstone_bridge_integration.py"
+      - "tests/test_endstone_runtime_api.py"
       - "tests/test_vc_mumble_bridge_contract.py"
       - "docs/VC_MUMBLE_ENDSTONE.md"
       - ".github/workflows/endstone-proximity-plugin.yml"
