@@ -54,7 +54,7 @@ public final class ServerConfig {
     }
 
     public void save(Context context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+        boolean saved = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putString("server_name", serverName)
                 .putInt("port", port)
                 .putString("password", password)
@@ -64,6 +64,9 @@ public final class ServerConfig {
                 .putString("bridge_host", bridgeHost)
                 .putInt("bridge_port", bridgePort)
                 .commit();
+        if (!saved) {
+            throw new IllegalStateException("Could not persist server settings");
+        }
         SecretStore.save(context, bridgeSecret);
     }
 
