@@ -12,10 +12,11 @@ env:
   QT_VERSION: '6.8.3'
   VCPKG_TAG: '2026.07.29'
   NDK_VERSION: '28.2.13676358'
-  RELEASE_TAG: 'v0.6.0-beta.5'
-  RELEASE_APK: 'VC-Mumble-Server-v0.6.0-beta.5-arm64-v8a.apk'
+  RELEASE_TAG: 'v0.6.0-beta.6'
+  RELEASE_APK: 'VC-Mumble-Server-v0.6.0-beta.6-arm64-v8a.apk'
   RELEASE_PLUGIN: 'endstone_vc_mumble-0.3.0-py3-none-any.whl'
   RELEASE_ADDON: 'VC_Mumble_ItemMic_v2.7.4.mcaddon'
+  RELEASE_CHECKSUMS: 'SHA256SUMS.txt'
 
 jobs:
   build-core-apk:
@@ -187,12 +188,8 @@ jobs:
           (cd .build/minecraft-addon-release/outer && zip -qr "$GITHUB_WORKSPACE/${RELEASE_ADDON}" VC_Mumble_ItemMic_BP_v2.7.4.mcpack VC_Mumble_ItemMic_RP_v2.7.4.mcpack)
           unzip -t "${RELEASE_ADDON}" >/dev/null
 
-          sha256sum "${RELEASE_APK}" > "${RELEASE_APK}.sha256"
-          sha256sum "${RELEASE_PLUGIN}" > "${RELEASE_PLUGIN}.sha256"
-          sha256sum "${RELEASE_ADDON}" > "${RELEASE_ADDON}.sha256"
-          cat "${RELEASE_APK}.sha256"
-          cat "${RELEASE_PLUGIN}.sha256"
-          cat "${RELEASE_ADDON}.sha256"
+          sha256sum "${RELEASE_APK}" "${RELEASE_PLUGIN}" "${RELEASE_ADDON}" > "${RELEASE_CHECKSUMS}"
+          cat "${RELEASE_CHECKSUMS}"
 
       - name: Publish GitHub prerelease
         if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]')
@@ -201,7 +198,7 @@ jobs:
         run: |
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
             echo "Release ${RELEASE_TAG} already exists; replacing assets"
-            gh release upload "${RELEASE_TAG}" "${RELEASE_APK}" "${RELEASE_APK}.sha256" "${RELEASE_PLUGIN}" "${RELEASE_PLUGIN}.sha256" "${RELEASE_ADDON}" "${RELEASE_ADDON}.sha256" --clobber
+            gh release upload "${RELEASE_TAG}" "${RELEASE_APK}" "${RELEASE_PLUGIN}" "${RELEASE_ADDON}" "${RELEASE_CHECKSUMS}" --clobber
           else
-            gh release create "${RELEASE_TAG}"               "${RELEASE_APK}"               "${RELEASE_APK}.sha256"               "${RELEASE_PLUGIN}"               "${RELEASE_PLUGIN}.sha256"               "${RELEASE_ADDON}"               "${RELEASE_ADDON}.sha256"               --target "${GITHUB_SHA}"               --title "VC Mumble Server ${RELEASE_TAG}"               --notes-file RELEASE_NOTES.md               --prerelease
+            gh release create "${RELEASE_TAG}"               "${RELEASE_APK}"               "${RELEASE_PLUGIN}"               "${RELEASE_ADDON}"               "${RELEASE_CHECKSUMS}"               --target "${GITHUB_SHA}"               --title "VC Mumble Server ${RELEASE_TAG}"               --notes-file RELEASE_NOTES.md               --prerelease
           fi
