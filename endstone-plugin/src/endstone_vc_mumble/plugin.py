@@ -17,7 +17,7 @@ from .model import PlayerState
 
 class VCMumblePlugin(Plugin):
     prefix = "VCMumble"
-    version = "0.1.1"
+    version = "0.2.0"
     api_version = "0.11"
     description = "Standalone Minecraft position bridge for VC Mumble Server"
     authors = ["SamSoSleepy"]
