@@ -321,8 +321,19 @@ public final class PlayitTunnelService extends Service {
                         true
                 );
                 if (result.exitCode != 0) {
+                    String helperOutput = compact(result.output);
+                    if (helperOutput.contains("RequiresVerifiedAccount")) {
+                        ServerLog.append(this, "PLAYIT",
+                                "Playit account is not verified; tunnel creation requires a verified account");
+                        publish(false,
+                                "Playit account verification required • open your Playit account, verify it, then press START PUBLIC ACCESS",
+                                "",
+                                "");
+                        throw new NonRetryableProvisionException(
+                                "Playit account verification required");
+                    }
                     throw new IOException("tunnel helper exited " + result.exitCode
-                            + ": " + compact(result.output));
+                            + ": " + helperOutput);
                 }
 
                 JSONObject payload = new JSONObject(lastJsonLine(result.output));
@@ -352,6 +363,9 @@ public final class PlayitTunnelService extends Service {
                         "Tunnel provisioning attempt " + attempt + " failed: "
                                 + error.getClass().getSimpleName() + ": "
                                 + String.valueOf(error.getMessage()));
+                if (error instanceof NonRetryableProvisionException) {
+                    throw error;
+                }
             }
 
             Thread.sleep(2000L);
@@ -697,6 +711,12 @@ public final class PlayitTunnelService extends Service {
         StringBuilder value = new StringBuilder(10);
         for (byte b : bytes) value.append(String.format(Locale.US, "%02x", b & 0xff));
         return value.toString();
+    }
+
+    private static final class NonRetryableProvisionException extends IOException {
+        NonRetryableProvisionException(String message) {
+            super(message);
+        }
     }
 
     private static final class CommandResult {
