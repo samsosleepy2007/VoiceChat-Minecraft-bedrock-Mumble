@@ -64,7 +64,11 @@ grep -Fq 'PLAYIT_SECRET_KEY' app/src/main/java/com/voicecraft/vcmumbleserver/Pla
 grep -Fq 'ACTION_CLAIM' app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java
 grep -Fq 'ACTION_START' app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java
 grep -Fq 'ACTION_STOP' app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java
+grep -Fq 'RequiresVerifiedAccount' app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java
+grep -Fq 'NonRetryableProvisionException' app/src/main/java/com/voicecraft/vcmumbleserver/PlayitTunnelService.java
 grep -Fq '"SET UP PLAYIT"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"OPEN PLAYIT ACCOUNT"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'do not use Guest' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"START PUBLIC ACCESS"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq -- '--retry-all-errors' scripts/fetch-mumble.sh
 grep -Fq 'for attempt in 1 2 3 4 5' scripts/fetch-mumble.sh
