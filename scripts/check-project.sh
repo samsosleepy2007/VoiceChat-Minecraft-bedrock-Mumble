@@ -111,6 +111,7 @@ grep -Fq 'Using APK-packaged PortWarp runtime from nativeLibraryDir' app/src/mai
 grep -Fq 'sha256sum' scripts/fetch-portwarp-android-runtime.sh
 grep -Fq 'libpwrp_exec.so' scripts/fetch-portwarp-android-runtime.sh
 grep -Fq 'Stage checksum-pinned PortWarp runtime into APK' .github/workflows/android-mumble-core.yml
+grep -Fq 'run: bash ./scripts/fetch-portwarp-android-runtime.sh' .github/workflows/android-mumble-core.yml
 grep -Fq 'pwrp connect' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
 grep -Fq '"connect", "--all", "--save", "--detach"' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
 grep -Fq '"stop", "--all"' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
