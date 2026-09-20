@@ -1,105 +1,39 @@
-# VC Mumble Server v0.6.0-beta.4
+# VC Mumble Server v0.6.0-beta.5
 
-This beta completes the first tested Android + Endstone proximity bridge milestone and fixes a server-start race discovered while editing Minecraft bridge settings.
+This beta adds the tested Minecraft Mic addon integration and microphone-aware proximity routing.
 
 ## Highlights
 
-- Android app version 0.6.0-beta.4 (versionCode 9)
-- Endstone plugin version 0.2.0 included as a release asset
-- Tested Android Mumble startup after editing Minecraft Server / Bridge settings
-- Mumble startup no longer depends on the Minecraft bridge being reachable
-- Minecraft bridge starts only after the local Mumble TCP listener is confirmed ready
-- Synchronous persistence for server settings and encrypted Bridge Secret before launching the isolated Mumble process
-- Clear service-dispatch logging when Android accepts or rejects a start request
-- Authenticated Endstone TCP/NDJSON bridge with HMAC-SHA256 challenge/response
-- Player identity, dimension, position and per-player voice range synchronization
-- Automatic reconnect and fresh snapshot synchronization
-- Duplicate initial snapshot synchronization removed
-- Endstone operator commands for status, player inspection, resync, reload and range changes
-- All Mumble users can remain in the Root channel; proximity is controlled by the server routing layer
-
-## Android server
-
-The embedded server remains:
-
-- Mumble 1.6.870
-- Qt 6.8.3
-- OpenSSL 3.6.3
-- Android ARM64-v8a
-- Default Mumble TCP+UDP port 64738
-
-The app performs a localhost TCP readiness probe before reporting ONLINE. A failed Endstone bridge connection does not block Mumble from starting.
-
-## Minecraft proximity bridge
-
-The Endstone plugin listens on TCP port 27220 by default. The Android app connects to it after Mumble is ready and authenticates with the shared Bridge Secret.
-
-The bridge synchronizes:
-
-- Minecraft player name
-- XUID / UUID
-- Mumble username mapping
-- Dimension
-- XYZ position
-- Yaw / pitch
-- Per-player voice range
-
-Player commands:
-
-```text
-/vcmumble
-/vcmumble status
-/vcmumble pair <mumble_name>
-/vcmumble unpair
-/vcmumble range <blocks>
-```
-
-Operator commands:
-
-```text
-/vcmumbleadmin
-/vcmumbleadmin status
-/vcmumbleadmin players
-/vcmumbleadmin resync
-/vcmumbleadmin reload
-/vcmumbleadmin range <player> <blocks>
-```
-
-The current native proximity routing uses distance/dimension state and the speaker's configured range. Smooth distance-based volume attenuation is not part of this release yet.
-
-## Public access
-
-VC Mumble Server does not embed PortWarp. For public Mumble access, use the PortWarp Android app and tunnel TCP+UDP to:
-
-```text
-127.0.0.1:64738
-```
-
-or the Mumble port configured in the app.
-
-The Endstone bridge port must also be reachable from the Android device when the Minecraft server is hosted remotely.
-
-## Background operation
-
-The app uses a foreground service, partial CPU wake lock, persisted desired runtime state and periodic TCP health checks. Android 14+ uses the platform-managed Wi-Fi power mode instead of the legacy high-performance Wi-Fi lock.
+- Android app version 0.6.0-beta.5 (versionCode 10)
+- Endstone plugin version 0.3.0
+- Minecraft Item Mic addon version 2.7.4
+- Mic ON/OFF state synchronizes through `vcmumble.mic.on` / `vcmumble.mic.off`
+- Android/native routing consumes `voiceEnabled` and blocks regular proximity speech from a speaker whose mic is OFF
+- Voice-range requests use `vcmumble.vr.request.*` with ACK plus server-value synchronization
+- Default voice range is 30 blocks and follows the Endstone maximum
+- Addon UI spacing was adjusted so the settings text is easier to read
+- Legacy VoiceCraft item identifiers remain compatible so existing world items are preserved
 
 ## Release assets
 
-The GitHub release publishes:
-
-- `VC-Mumble-Server-v0.6.0-beta.4-arm64-v8a.apk`
+- `VC-Mumble-Server-v0.6.0-beta.5-arm64-v8a.apk`
 - APK SHA-256 checksum
-- `endstone_vc_mumble-0.2.0-py3-none-any.whl`
-- Plugin SHA-256 checksum
+- `endstone_vc_mumble-0.3.0-py3-none-any.whl`
+- Endstone plugin SHA-256 checksum
+- `VC_Mumble_ItemMic_v2.7.4.mcaddon`
+- Minecraft addon SHA-256 checksum
+
+## Minecraft proximity bridge
+
+The Endstone plugin tracks identity, dimension, position, rotation, voice range and mic-enabled state. VC Mumble Server applies that state to per-listener proximity routing. Mumble users can remain in the Root channel.
+
+Default ports:
+
+- Mumble TCP+UDP: 64738
+- Endstone bridge TCP: 27220
 
 ## Build provenance
 
-The release is built by GitHub Actions from `main` using pinned:
+GitHub Actions builds this release from `main` with pinned Mumble 1.6.870, Qt 6.8.3, OpenSSL 3.6.3, Android NDK 28.2.13676358 and vcpkg 2026.07.29.
 
-- Mumble 1.6.870
-- Qt 6.8.3
-- OpenSSL 3.6.3
-- Android NDK 28.2.13676358
-- vcpkg 2026.07.29
-
-The release workflow rejects APKs containing an embedded `libpwrp` runtime.
+The Minecraft addon source bundle is stored at `minecraft-addon/v2.7.4/source.tgz` and packaged into the release asset by the same release workflow.
