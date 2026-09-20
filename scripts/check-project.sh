@@ -10,6 +10,7 @@ for f in \
   app/src/main/res/values-night/colors.xml \
   app/src/main/res/values/styles.xml \
   app/src/main/res/values-night/styles.xml \
+  app/src/main/res/drawable-nodpi/ic_launcher.png \
   app/src/main/cpp/CMakeLists.txt \
   app/src/main/cpp/transport_smoketest_jni.cpp \
   app/src/main/cpp/mumble_jni.cpp \
@@ -147,6 +148,8 @@ grep -Fq 'ObjectAnimator.ofFloat(status, View.ALPHA' app/src/main/java/com/voice
 grep -Fq 'statusPulse.setRepeatCount(ValueAnimator.INFINITE)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'android.permission.WAKE_LOCK' app/src/main/AndroidManifest.xml
 grep -Fq 'android:stopWithTask="false"' app/src/main/AndroidManifest.xml
+grep -Fq 'android:icon="@drawable/ic_launcher"' app/src/main/AndroidManifest.xml
+grep -Fq 'android:roundIcon="@drawable/ic_launcher"' app/src/main/AndroidManifest.xml
 grep -Fq 'PowerManager.PARTIAL_WAKE_LOCK' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'WifiManager.WIFI_MODE_FULL_HIGH_PERF' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'Build.VERSION.SDK_INT <= 33' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
