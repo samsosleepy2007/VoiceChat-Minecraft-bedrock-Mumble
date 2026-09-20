@@ -14,10 +14,12 @@ class PlayerState:
     z: float
     yaw: float
     pitch: float
+    voice_enabled: bool = True
 
     def changed_from(self, other: "PlayerState", position_epsilon: float, rotation_epsilon: float) -> bool:
         return (
             self.name != other.name
+            or self.voice_enabled != other.voice_enabled
             or self.dimension != other.dimension
             or abs(self.x - other.x) >= position_epsilon
             or abs(self.y - other.y) >= position_epsilon
