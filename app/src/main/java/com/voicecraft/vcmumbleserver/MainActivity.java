@@ -260,6 +260,15 @@ public final class MainActivity extends Activity {
         logScroll.setVerticalScrollBarEnabled(true);
         logScroll.setScrollbarFadingEnabled(false);
         logScroll.setNestedScrollingEnabled(true);
+        logScroll.setOnTouchListener((view, event) -> {
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
+                view.getParent().requestDisallowInterceptTouchEvent(true);
+            } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                view.getParent().requestDisallowInterceptTouchEvent(false);
+            }
+            return false;
+        });
         logScroll.addView(logView, new ScrollView.LayoutParams(
                 ScrollView.LayoutParams.MATCH_PARENT,
                 ScrollView.LayoutParams.WRAP_CONTENT
