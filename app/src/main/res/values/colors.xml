@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="cyber_bg">#EAF4FA</color>
-    <color name="cyber_surface">#F6FBFF</color>
-    <color name="cyber_surface_alt">#DCECF5</color>
-    <color name="cyber_panel">#EEF8FD</color>
-    <color name="cyber_text">#071A2B</color>
-    <color name="cyber_text_secondary">#496577</color>
-    <color name="cyber_neon">#00A8C6</color>
-    <color name="cyber_neon_soft">#3ACBE3</color>
-    <color name="cyber_neon_dim">#9DE7F2</color>
-    <color name="cyber_border">#50BDD0</color>
-    <color name="cyber_success">#00A878</color>
-    <color name="cyber_warning">#C88300</color>
-    <color name="cyber_danger">#D24663</color>
-    <color name="cyber_log_bg">#06131F</color>
-    <color name="cyber_log_text">#B7F7FF</color>
-    <color name="cyber_nav">#DFEFF7</color>
-    <color name="cyber_nav_selected">#BCEBF3</color>
+    <color name="cyber_bg">#F6F7F9</color>
+    <color name="cyber_surface">#FFFFFF</color>
+    <color name="cyber_surface_alt">#F1F5F9</color>
+    <color name="cyber_panel">#F8FAFC</color>
+    <color name="cyber_text">#0F172A</color>
+    <color name="cyber_text_secondary">#64748B</color>
+    <color name="cyber_neon">#2563EB</color>
+    <color name="cyber_neon_soft">#3B82F6</color>
+    <color name="cyber_neon_dim">#CBD5E1</color>
+    <color name="cyber_border">#E2E8F0</color>
+    <color name="cyber_success">#16A34A</color>
+    <color name="cyber_warning">#D97706</color>
+    <color name="cyber_danger">#DC2626</color>
+    <color name="cyber_log_bg">#111827</color>
+    <color name="cyber_log_text">#E5E7EB</color>
+    <color name="cyber_nav">#FFFFFF</color>
+    <color name="cyber_nav_selected">#DBEAFE</color>
 </resources>
