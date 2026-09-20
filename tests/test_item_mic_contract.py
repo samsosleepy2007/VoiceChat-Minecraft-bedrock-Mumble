@@ -1,4 +1,4 @@
-from pathlib import Path
+# Android beta.5 checkpoint: Item Mic mute state must reach native routing.\nfrom pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 plugin = (root / "endstone-plugin/src/endstone_vc_mumble/plugin.py").read_text(encoding="utf-8")
