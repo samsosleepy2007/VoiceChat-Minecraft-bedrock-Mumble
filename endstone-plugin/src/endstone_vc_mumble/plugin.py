@@ -430,6 +430,7 @@ class VCMumblePlugin(Plugin):
             "yaw": state.yaw,
             "pitch": state.pitch,
             "voiceRange": int(binding.get("range") or self._default_range),
+            "voiceEnabled": bool(state.voice_enabled),
         }
 
     def _bridge_send(self, message: dict[str, Any]) -> bool:
@@ -452,6 +453,7 @@ class VCMumblePlugin(Plugin):
                 dimension=str(player.dimension.name),
                 x=float(loc.x), y=float(loc.y), z=float(loc.z),
                 yaw=float(loc.yaw), pitch=float(loc.pitch),
+                voice_enabled=self._voice_enabled_for(player),
             )
             values = (state.x, state.y, state.z, state.yaw, state.pitch)
             if not all(math.isfinite(v) for v in values):
@@ -463,6 +465,18 @@ class VCMumblePlugin(Plugin):
             return state if state.dimension else None
         except Exception:
             return None
+
+    @staticmethod
+    def _voice_enabled_for(player: Player) -> bool:
+        try:
+            tags = set(player.scoreboard_tags)
+            if "vcmumble.mic.off" in tags:
+                return False
+            if "vcmumble.mic.on" in tags:
+                return True
+        except Exception:
+            pass
+        return True
 
     @staticmethod
     def _bounded_int(value: Any, minimum: int, maximum: int, fallback: int) -> int:
