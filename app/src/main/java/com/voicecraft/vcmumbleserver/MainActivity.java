@@ -723,8 +723,12 @@ public final class MainActivity extends Activity {
 
         startStop.setText(isRunning ? "ปิดเซิร์ฟเวอร์" : "เปิดเซิร์ฟเวอร์");
         setFieldsEnabled(!isRunning);
-        if (backgroundRuntime != null && !isRunning) {
-            backgroundRuntime.setText("Runtime: protection จะเริ่มเมื่อเปิดเซิร์ฟเวอร์");
+        if (backgroundRuntime != null) {
+            if (!isRunning) {
+                backgroundRuntime.setText("Runtime: protection จะเริ่มเมื่อเปิดเซิร์ฟเวอร์");
+            } else if (!backgroundRuntime.getText().toString().contains("CPU protected")) {
+                backgroundRuntime.setText("Runtime: Background service active • รอ health status");
+            }
         }
         updateStatusPulse(starting, isRunning);
     }
