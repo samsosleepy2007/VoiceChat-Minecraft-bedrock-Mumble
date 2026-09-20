@@ -1,6 +1,8 @@
 package com.voicecraft.vcmumbleserver;
 
 import android.Manifest;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
@@ -68,7 +70,8 @@ public final class MainActivity extends Activity {
     private Button navSettings;
 
     private boolean running;
-    private int currentPage = PAGE_HOME;
+    private int currentPage = -1;
+    private ObjectAnimator statusPulse;
 
     private final BroadcastReceiver stateReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
@@ -108,6 +111,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onStop() {
         unregisterReceiver(stateReceiver);
+        stopStatusPulse();
         super.onStop();
     }
 
@@ -411,19 +415,76 @@ public final class MainActivity extends Activity {
     }
 
     private void showPage(int page) {
-        currentPage = page;
-        homePage.setVisibility(page == PAGE_HOME ? View.VISIBLE : View.GONE);
-        logPage.setVisibility(page == PAGE_LOG ? View.VISIBLE : View.GONE);
-        settingsPage.setVisibility(page == PAGE_SETTINGS ? View.VISIBLE : View.GONE);
+        View next = pageView(page);
+        if (next == null) return;
+
+        int previousPage = currentPage;
+        View previous = pageView(previousPage);
 
         styleNavButton(navHome, page == PAGE_HOME);
         styleNavButton(navLog, page == PAGE_LOG);
         styleNavButton(navSettings, page == PAGE_SETTINGS);
 
+        if (previousPage == page && next.getVisibility() == View.VISIBLE) {
+            if (page == PAGE_LOG) refreshLogView();
+            if (page == PAGE_HOME) {
+                refreshServerStateFromTcp();
+                updatePortWarpTarget();
+            }
+            return;
+        }
+
+        currentPage = page;
+        int direction = previousPage < 0 || page > previousPage ? 1 : -1;
+
+        hideUnusedPage(homePage, previous, next);
+        hideUnusedPage(logPage, previous, next);
+        hideUnusedPage(settingsPage, previous, next);
+
+        if (previous != null && previous != next && previous.getVisibility() == View.VISIBLE) {
+            previous.animate().cancel();
+            previous.animate()
+                    .alpha(0f)
+                    .translationX(-direction * dp(18))
+                    .setDuration(130)
+                    .withEndAction(() -> {
+                        previous.setVisibility(View.GONE);
+                        previous.setAlpha(1f);
+                        previous.setTranslationX(0f);
+                    })
+                    .start();
+        }
+
+        next.animate().cancel();
+        next.setVisibility(View.VISIBLE);
+        next.setAlpha(0f);
+        next.setTranslationX(direction * dp(18));
+        next.animate()
+                .alpha(1f)
+                .translationX(0f)
+                .setDuration(190)
+                .start();
+
         if (page == PAGE_LOG) refreshLogView();
         if (page == PAGE_HOME) {
             refreshServerStateFromTcp();
             updatePortWarpTarget();
+        }
+    }
+
+    private View pageView(int page) {
+        if (page == PAGE_HOME) return homePage;
+        if (page == PAGE_LOG) return logPage;
+        if (page == PAGE_SETTINGS) return settingsPage;
+        return null;
+    }
+
+    private void hideUnusedPage(View candidate, View previous, View next) {
+        if (candidate != previous && candidate != next) {
+            candidate.animate().cancel();
+            candidate.setVisibility(View.GONE);
+            candidate.setAlpha(1f);
+            candidate.setTranslationX(0f);
         }
     }
 
@@ -576,6 +637,26 @@ public final class MainActivity extends Activity {
 
         startStop.setText(isRunning ? "ปิดเซิร์ฟเวอร์" : "เปิดเซิร์ฟเวอร์");
         setFieldsEnabled(!isRunning);
+        updateStatusPulse(starting, isRunning);
+    }
+
+    private void updateStatusPulse(boolean starting, boolean isRunning) {
+        stopStatusPulse();
+        if (!starting && !isRunning) return;
+
+        statusPulse = ObjectAnimator.ofFloat(status, View.ALPHA, 1f, 0.58f, 1f);
+        statusPulse.setDuration(starting ? 900 : 1500);
+        statusPulse.setRepeatCount(ValueAnimator.INFINITE);
+        statusPulse.setRepeatMode(ValueAnimator.RESTART);
+        statusPulse.start();
+    }
+
+    private void stopStatusPulse() {
+        if (statusPulse != null) {
+            statusPulse.cancel();
+            statusPulse = null;
+        }
+        if (status != null) status.setAlpha(1f);
     }
 
     private void setFieldsEnabled(boolean enabled) {
@@ -781,6 +862,7 @@ public final class MainActivity extends Activity {
                 16,
                 1
         ));
+        layout.setElevation(dp(3));
         return layout;
     }
 
