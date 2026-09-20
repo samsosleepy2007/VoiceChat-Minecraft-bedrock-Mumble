@@ -18,6 +18,8 @@ import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -48,6 +50,8 @@ public final class MainActivity extends Activity {
     private TextView bridgeStatus;
     private LinearLayout statusCard;
     private TextView portWarpTarget;
+    private TextView backgroundRuntime;
+    private TextView batteryStatus;
 
     private EditText serverName;
     private EditText port;
@@ -82,6 +86,10 @@ public final class MainActivity extends Activity {
                     intent.getStringExtra(MumbleServerService.EXTRA_BRIDGE),
                     intent.getIntExtra(MumbleServerService.EXTRA_TRACKED, 0)
             );
+            String background = intent.getStringExtra(MumbleServerService.EXTRA_BACKGROUND);
+            if (background != null && backgroundRuntime != null) {
+                backgroundRuntime.setText("Runtime: " + background);
+            }
             refreshLogView();
         }
     };
@@ -107,6 +115,12 @@ public final class MainActivity extends Activity {
             registerReceiver(stateReceiver, filter);
         }
         refreshServerStateFromTcp();
+        refreshBatteryProtectionUi();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        refreshBatteryProtectionUi();
     }
 
     @Override protected void onStop() {
@@ -183,6 +197,8 @@ public final class MainActivity extends Activity {
             }
         });
         root.addView(quick, marginTop(8));
+
+        root.addView(buildBackgroundCard(), marginTop(14));
 
         LinearLayout runtimeCard = card();
         runtimeCard.addView(eyebrow("ระบบ Mumble"));
@@ -307,6 +323,39 @@ public final class MainActivity extends Activity {
         proximityCard.addView(saveProximity, marginTop(10));
 
         return proximityCard;
+    }
+
+    private View buildBackgroundCard() {
+        LinearLayout backgroundCard = card();
+        backgroundCard.addView(eyebrow("BACKGROUND RUNTIME // PROTECTION"));
+
+        backgroundRuntime = text(
+                "Runtime: จะเปิด CPU protection เมื่อ Mumble Server ทำงาน",
+                13,
+                true
+        );
+        backgroundRuntime.setTextColor(c(R.color.cyber_neon));
+        backgroundCard.addView(backgroundRuntime, marginTop(8));
+
+        batteryStatus = text("", 12, false);
+        batteryStatus.setTextColor(c(R.color.cyber_text_secondary));
+        backgroundCard.addView(batteryStatus, marginTop(6));
+
+        TextView backgroundNote = text(
+                "หากเซิร์ฟเวอร์ช้าหรือเข้าไม่ได้เมื่อออกจากแอป ให้ตั้ง Battery usage ของ VC Mumble Server "
+                        + "เป็น Unrestricted / ไม่จำกัด หรือ No restrictions ตามชื่อที่มือถือใช้",
+                11,
+                false
+        );
+        backgroundNote.setTextColor(c(R.color.cyber_text_secondary));
+        backgroundCard.addView(backgroundNote, marginTop(6));
+
+        Button batterySettings = secondaryButton("เปิดการตั้งค่าแอป / แบตเตอรี่");
+        batterySettings.setOnClickListener(v -> openBackgroundSettings());
+        backgroundCard.addView(batterySettings, marginTop(10));
+
+        refreshBatteryProtectionUi();
+        return backgroundCard;
     }
 
     private View buildLogPage() {
@@ -474,6 +523,7 @@ public final class MainActivity extends Activity {
             if (page == PAGE_HOME) {
                 refreshServerStateFromTcp();
                 updatePortWarpTarget();
+                refreshBatteryProtectionUi();
             }
             return;
         }
@@ -513,6 +563,7 @@ public final class MainActivity extends Activity {
         if (page == PAGE_HOME) {
             refreshServerStateFromTcp();
             updatePortWarpTarget();
+            refreshBatteryProtectionUi();
         }
     }
 
@@ -534,6 +585,7 @@ public final class MainActivity extends Activity {
 
     private void toggleServer() {
         if (running) {
+            ServerRuntimeState.setShouldRun(this, false);
             ServerLog.append(this, "UI", "Stop server button pressed");
             startService(new Intent(this, MumbleServerService.class).setAction(MumbleServerService.ACTION_STOP));
             return;
@@ -561,6 +613,7 @@ public final class MainActivity extends Activity {
             return;
         }
 
+        ServerRuntimeState.setShouldRun(this, true);
         Intent i = new Intent(this, MumbleServerService.class).setAction(MumbleServerService.ACTION_START);
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
     }
@@ -670,6 +723,9 @@ public final class MainActivity extends Activity {
 
         startStop.setText(isRunning ? "ปิดเซิร์ฟเวอร์" : "เปิดเซิร์ฟเวอร์");
         setFieldsEnabled(!isRunning);
+        if (backgroundRuntime != null && !isRunning) {
+            backgroundRuntime.setText("Runtime: protection จะเริ่มเมื่อเปิดเซิร์ฟเวอร์");
+        }
         updateStatusPulse(starting, isRunning);
     }
 
@@ -760,6 +816,46 @@ public final class MainActivity extends Activity {
                 (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         clipboard.setPrimaryClip(ClipData.newPlainText("VC Mumble Bridge Secret", secret));
         Toast.makeText(this, "คัดลอก Bridge Secret แล้ว", Toast.LENGTH_SHORT).show();
+    }
+
+    private void refreshBatteryProtectionUi() {
+        if (batteryStatus == null) return;
+        PowerManager powerManager = getSystemService(PowerManager.class);
+        boolean exempt = powerManager != null
+                && powerManager.isIgnoringBatteryOptimizations(getPackageName());
+        boolean powerSave = powerManager != null && powerManager.isPowerSaveMode();
+
+        String statusText = exempt
+                ? "Battery optimization: ยกเว้นแล้ว"
+                : "Battery optimization: ยังอยู่ภายใต้การจัดการของระบบ";
+        if (powerSave) statusText += " • Power Saver เปิดอยู่";
+        batteryStatus.setText(statusText);
+        batteryStatus.setTextColor(
+                exempt && !powerSave
+                        ? c(R.color.cyber_success)
+                        : c(R.color.cyber_warning)
+        );
+    }
+
+    private void openBackgroundSettings() {
+        try {
+            Intent appDetails = new Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + getPackageName())
+            );
+            startActivity(appDetails);
+            Toast.makeText(
+                    this,
+                    "ตั้ง Battery usage เป็น Unrestricted / ไม่จำกัด หากมือถือมีตัวเลือกนี้",
+                    Toast.LENGTH_LONG
+            ).show();
+        } catch (Exception ignored) {
+            try {
+                startActivity(new Intent(Settings.ACTION_SETTINGS));
+            } catch (Exception error) {
+                Toast.makeText(this, "ไม่สามารถเปิดการตั้งค่าระบบได้", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     private void openPortWarpPlayStore() {
