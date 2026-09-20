@@ -120,6 +120,9 @@ grep -Fq 'SSL_CERT_DIR' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarp
 grep -Fq '/apex/com.android.conscrypt/cacerts' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
 grep -Fq '/system/etc/security/cacerts' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
 grep -Fq 'configureTlsTrust(this, builder)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
+grep -Fq 'builder.environment().put("COLUMNS", "80")' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+grep -Fq 'builder.environment().put("TERM", "dumb")' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+grep -Fq 'configureTerminalCompatibility(builder)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
 grep -Fq 'Stage checksum-pinned PortWarp runtime into APK' .github/workflows/android-mumble-core.yml
 grep -Fq 'run: bash ./scripts/fetch-portwarp-android-runtime.sh' .github/workflows/android-mumble-core.yml
 grep -Fq 'pwrp connect' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
