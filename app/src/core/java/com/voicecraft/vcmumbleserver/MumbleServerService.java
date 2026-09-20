@@ -6,9 +6,11 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 
 import org.qtproject.qt.android.RestartableQtService;
 
@@ -31,12 +33,15 @@ public final class MumbleServerService extends RestartableQtService {
     public static final String EXTRA_MESSAGE = "message";
     public static final String EXTRA_BRIDGE = "bridge";
     public static final String EXTRA_TRACKED = "tracked";
+    public static final String EXTRA_BACKGROUND = "background";
 
     private static final int NOTIFICATION_ID = 4107;
     private static final String CHANNEL_ID = "vc_mumble_server";
     private static final int STARTUP_PROBE_MAX_ATTEMPTS = 30;
     private static final long STARTUP_PROBE_INTERVAL_MS = 500L;
     private static final int STARTUP_PROBE_CONNECT_TIMEOUT_MS = 350;
+    private static final long BACKGROUND_HEALTH_INTERVAL_MS = 30_000L;
+    private static final int BACKGROUND_HEALTH_CONNECT_TIMEOUT_MS = 750;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private VCMumbleBridgeClient bridgeClient;
@@ -47,6 +52,11 @@ public final class MumbleServerService extends RestartableQtService {
     private int startupProbeAttempt;
     private boolean terminateProcessOnDestroy;
     private boolean nativeStopRequested;
+    private PowerManager.WakeLock cpuWakeLock;
+    private WifiManager.WifiLock wifiLock;
+    private String runtimeProtectionStatus = "Runtime protection starting";
+    private int backgroundHealthFailures;
+    private int backgroundHealthChecks;
 
     @Override
     public void onCreate() {
@@ -63,6 +73,7 @@ public final class MumbleServerService extends RestartableQtService {
         } else {
             startForeground(NOTIFICATION_ID, bootNotification);
         }
+        acquireRuntimeProtection();
 
         // The inherited Qt loader starts the AAR-packaged Qt runtime and
         // libvcserver on Qt's native application thread.
@@ -81,6 +92,74 @@ public final class MumbleServerService extends RestartableQtService {
                             : "Qt runtime startup failed: " + qtError
             );
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void acquireRuntimeProtection() {
+        try {
+            PowerManager powerManager = getSystemService(PowerManager.class);
+            if (powerManager != null) {
+                cpuWakeLock = powerManager.newWakeLock(
+                        PowerManager.PARTIAL_WAKE_LOCK,
+                        getPackageName() + ":MumbleServer"
+                );
+                cpuWakeLock.setReferenceCounted(false);
+                cpuWakeLock.acquire();
+                ServerLog.append(this, "POWER", "CPU partial wake lock acquired");
+            }
+
+            if (Build.VERSION.SDK_INT <= 33) {
+                WifiManager wifiManager =
+                        (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+                if (wifiManager != null) {
+                    wifiLock = wifiManager.createWifiLock(
+                            WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                            getPackageName() + ":MumbleServerWifi"
+                    );
+                    wifiLock.setReferenceCounted(false);
+                    wifiLock.acquire();
+                    ServerLog.append(this, "POWER", "Legacy high-performance Wi-Fi lock acquired");
+                }
+            } else {
+                ServerLog.append(this, "POWER",
+                        "Android 14+ uses platform-managed Wi-Fi power mode; legacy lock skipped");
+            }
+        } catch (Throwable error) {
+            ServerLog.append(this, "POWER",
+                    "Runtime protection warning: " + error.getClass().getSimpleName()
+                            + ": " + String.valueOf(error.getMessage()));
+        }
+        updateRuntimeProtectionStatus(false);
+    }
+
+    private void releaseRuntimeProtection() {
+        if (wifiLock != null) {
+            try {
+                if (wifiLock.isHeld()) wifiLock.release();
+            } catch (Throwable ignored) {
+            }
+            wifiLock = null;
+        }
+        if (cpuWakeLock != null) {
+            try {
+                if (cpuWakeLock.isHeld()) cpuWakeLock.release();
+            } catch (Throwable ignored) {
+            }
+            cpuWakeLock = null;
+        }
+        runtimeProtectionStatus = "Runtime protection released";
+    }
+
+    private void updateRuntimeProtectionStatus(boolean healthy) {
+        boolean cpuHeld = cpuWakeLock != null && cpuWakeLock.isHeld();
+        boolean wifiHeld = wifiLock != null && wifiLock.isHeld();
+        String wifiState = Build.VERSION.SDK_INT <= 33
+                ? (wifiHeld ? "Wi-Fi protected" : "Wi-Fi lock unavailable")
+                : "Wi-Fi managed by Android";
+        runtimeProtectionStatus =
+                (cpuHeld ? "CPU protected" : "CPU lock unavailable")
+                        + " • " + wifiState
+                        + (healthy ? " • Health OK" : "");
     }
 
     @Override
