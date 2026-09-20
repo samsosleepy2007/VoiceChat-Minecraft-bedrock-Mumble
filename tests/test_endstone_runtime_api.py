@@ -11,7 +11,7 @@ from endstone_vc_mumble import VCMumblePlugin
 
 assert issubclass(VCMumblePlugin, Plugin)
 assert VCMumblePlugin.api_version == "0.11"
-assert VCMumblePlugin.version == "0.2.0"
+assert VCMumblePlugin.version == "0.3.0"
 
 assert hasattr(CommandSender, "has_permission")
 assert callable(getattr(Plugin, "reload_config"))

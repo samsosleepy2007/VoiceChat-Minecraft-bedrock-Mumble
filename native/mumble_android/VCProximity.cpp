@@ -17,6 +17,7 @@ struct PlayerState {
     double y = 0.0;
     double z = 0.0;
     float rangeBlocks = 30.0F;
+    bool voiceEnabled = true;
     qint64 updatedAtMs = 0;
 };
 
@@ -52,7 +53,8 @@ void updatePlayer(const QString &mumbleName,
                   double x,
                   double y,
                   double z,
-                  float rangeBlocks) {
+                  float rangeBlocks,
+                  bool voiceEnabled) {
     const QString key = keyFor(mumbleName);
     if (key.isEmpty()) return;
 
@@ -62,6 +64,7 @@ void updatePlayer(const QString &mumbleName,
     state.y = y;
     state.z = z;
     state.rangeBlocks = std::max(0.0F, rangeBlocks);
+    state.voiceEnabled = voiceEnabled;
     state.updatedAtMs = QDateTime::currentMSecsSinceEpoch();
 
     QWriteLocker locker(&g_lock);
@@ -89,7 +92,6 @@ bool shouldRoute(const QString &speakerName, const QString &listenerName) {
     const QString speakerKey = keyFor(speakerName);
     const QString listenerKey = keyFor(listenerName);
     if (speakerKey.isEmpty() || listenerKey.isEmpty()) return false;
-    if (speakerKey == listenerKey) return true;
 
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     QReadLocker locker(&g_lock);
@@ -100,6 +102,8 @@ bool shouldRoute(const QString &speakerName, const QString &listenerName) {
     const PlayerState &speaker = speakerIt.value();
     const PlayerState &listener = listenerIt.value();
     if (!isFresh(speaker, now) || !isFresh(listener, now)) return false;
+    if (!speaker.voiceEnabled) return false;
+    if (speakerKey == listenerKey) return true;
     if (speaker.dimension.isEmpty() || speaker.dimension != listener.dimension) return false;
 
     const double dx = speaker.x - listener.x;

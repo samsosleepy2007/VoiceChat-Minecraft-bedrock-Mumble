@@ -9,6 +9,7 @@ bridge = (root / 'endstone-plugin/src/endstone_vc_mumble/bridge.py').read_text()
 pyproject = (root / 'endstone-plugin/pyproject.toml').read_text()
 real_jni = (root / 'app/src/main/cpp/mumble_jni.cpp').read_text()
 smoke_jni = (root / 'app/src/main/cpp/transport_smoketest_jni.cpp').read_text()
+proximity = (root / 'native/mumble_android/VCProximity.cpp').read_text()
 
 for expected in [
     'hello.put("role", "vc_mumble_server")',
@@ -22,6 +23,7 @@ for expected in [
     'case "sync_end"',
     'data.optString("mumbleName", minecraftName)',
     'data.optInt("voiceRange", config.voiceRange)',
+    'data.optBoolean("voiceEnabled", true)',
     'NativeServer.updatePlayerState',
     'NativeServer.removePlayerState',
 ]:
@@ -37,6 +39,7 @@ for expected in [
     '"type": "player_state"',
     '"mumbleName"',
     '"voiceRange"',
+    '"voiceEnabled"',
     '"type": "sync_begin"',
     '"type": "sync_end"',
     '"type": "player_leave"',
@@ -51,8 +54,8 @@ for expected in [
 
 assert 'name = "endstone-vc-mumble"' in pyproject
 # Runtime plugin metadata and Python distribution version stay aligned.
-assert 'version = "0.2.0"' in pyproject
-assert 'version = "0.2.0"' in plugin
+assert 'version = "0.3.0"' in pyproject
+assert 'version = "0.3.0"' in plugin
 assert 'vc-mumble = "endstone_vc_mumble:VCMumblePlugin"' in pyproject
 
 # The real core uses explicit RegisterNatives binding from JNI_OnLoad so ART
@@ -70,6 +73,9 @@ for expected in [
     assert expected in real_jni, expected
 
 # The lightweight smoke target still uses conventional Java_com_* exports.
+assert '(Ljava/lang/String;Ljava/lang/String;DDDFZ)V' in real_jni
+assert 'voiceEnabled == JNI_TRUE' in real_jni
+assert 'if (!speaker.voiceEnabled) return false;' in proximity
 assert 'NativeServer_setProximityEnabledNative' in smoke_jni
 for symbol in ['updatePlayerState', 'removePlayerState', 'clearPlayerStates', 'proximityPlayerCount']:
     assert f'NativeServer_{symbol}' in smoke_jni, symbol

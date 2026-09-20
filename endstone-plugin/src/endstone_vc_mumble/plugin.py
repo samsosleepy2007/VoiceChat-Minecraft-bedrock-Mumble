@@ -17,7 +17,7 @@ from .model import PlayerState
 
 class VCMumblePlugin(Plugin):
     prefix = "VCMumble"
-    version = "0.2.0"
+    version = "0.3.0"
     api_version = "0.11"
     description = "Standalone Minecraft position bridge for VC Mumble Server"
     authors = ["SamSoSleepy"]
@@ -334,6 +334,7 @@ class VCMumblePlugin(Plugin):
         return None
 
     def handle_player_join(self, player: Player) -> None:
+        self._publish_addon_range_tags(player)
         state = self._snapshot_if_valid(player)
         if state is None:
             return
@@ -357,11 +358,12 @@ class VCMumblePlugin(Plugin):
         for player in self.server.online_players:
             key = self._player_key(player)
             current_keys.add(key)
+            addon_changed = self._process_addon_controls(player)
             state = self._snapshot_if_valid(player)
             if state is None:
                 continue
             previous = self._states.get(key)
-            if previous is None or state.changed_from(previous, self._position_epsilon, self._rotation_epsilon):
+            if addon_changed or previous is None or state.changed_from(previous, self._position_epsilon, self._rotation_epsilon):
                 self._states[key] = state
                 self._send_state(state)
 
@@ -430,6 +432,7 @@ class VCMumblePlugin(Plugin):
             "yaw": state.yaw,
             "pitch": state.pitch,
             "voiceRange": int(binding.get("range") or self._default_range),
+            "voiceEnabled": bool(state.voice_enabled),
         }
 
     def _bridge_send(self, message: dict[str, Any]) -> bool:
@@ -452,6 +455,7 @@ class VCMumblePlugin(Plugin):
                 dimension=str(player.dimension.name),
                 x=float(loc.x), y=float(loc.y), z=float(loc.z),
                 yaw=float(loc.yaw), pitch=float(loc.pitch),
+                voice_enabled=self._voice_enabled_for(player),
             )
             values = (state.x, state.y, state.z, state.yaw, state.pitch)
             if not all(math.isfinite(v) for v in values):
@@ -463,6 +467,113 @@ class VCMumblePlugin(Plugin):
             return state if state.dimension else None
         except Exception:
             return None
+
+    def _process_addon_controls(self, player: Player) -> bool:
+        try:
+            tags = list(player.scoreboard_tags)
+        except Exception:
+            return False
+
+        key = self._player_key(player)
+        binding = dict(self._bindings.get(key, {}))
+        current_range = int(binding.get("range") or self._default_range)
+        maximum = 1000 if self._is_operator(player) else self._max_range
+        changed = False
+
+        for tag in tags:
+            if tag.startswith("vcmumble.vr.sync."):
+                request_id = tag[len("vcmumble.vr.sync."):]
+                self._remove_player_tag(player, tag)
+                self._publish_addon_range_tags(player, current_range, maximum)
+                if request_id:
+                    self._add_player_tag(player, f"vcmumble.vr.ack.{request_id}.ok.{current_range}")
+                continue
+
+            if not tag.startswith("vcmumble.vr.request."):
+                continue
+
+            payload = tag[len("vcmumble.vr.request."):]
+            request_id, separator, raw_value = payload.rpartition(".")
+            self._remove_player_tag(player, tag)
+            status = "error"
+            accepted = current_range
+            try:
+                requested = int(raw_value) if separator else 0
+            except ValueError:
+                requested = 0
+
+            if request_id and 1 <= requested <= maximum:
+                accepted = requested
+                status = "ok"
+                if accepted != current_range:
+                    binding["range"] = accepted
+                    self._bindings[key] = binding
+                    self._save_bindings()
+                    current_range = accepted
+                    changed = True
+
+            self._publish_addon_range_tags(player, current_range, maximum)
+            if request_id:
+                self._add_player_tag(player, f"vcmumble.vr.ack.{request_id}.{status}.{current_range}")
+
+        return changed
+
+    def _publish_addon_range_tags(
+        self,
+        player: Player,
+        current_range: int | None = None,
+        maximum: int | None = None,
+    ) -> None:
+        key = self._player_key(player)
+        binding = self._bindings.get(key, {})
+        value = int(current_range or binding.get("range") or self._default_range)
+        max_value = int(maximum or (1000 if self._is_operator(player) else self._max_range))
+        self._replace_player_tag_prefix(player, "vcmumble.vr.value.", f"vcmumble.vr.value.{value}")
+        self._replace_player_tag_prefix(player, "vcmumble.vr.max.", f"vcmumble.vr.max.{max_value}")
+
+    @staticmethod
+    def _replace_player_tag_prefix(player: Player, prefix: str, replacement: str) -> None:
+        try:
+            for tag in list(player.scoreboard_tags):
+                if tag.startswith(prefix) and tag != replacement:
+                    player.remove_scoreboard_tag(tag)
+            if replacement not in set(player.scoreboard_tags):
+                player.add_scoreboard_tag(replacement)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _add_player_tag(player: Player, tag: str) -> None:
+        try:
+            player.add_scoreboard_tag(tag)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _remove_player_tag(player: Player, tag: str) -> None:
+        try:
+            player.remove_scoreboard_tag(tag)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _is_operator(player: Player) -> bool:
+        try:
+            return bool(player.is_op)
+        except Exception:
+            return False
+
+    @staticmethod
+    def _voice_enabled_for(player: Player) -> bool:
+        try:
+            tags = set(player.scoreboard_tags)
+            if "vcmumble.mic.off" in tags:
+                return False
+            if "vcmumble.mic.on" in tags:
+                return True
+        except Exception:
+            pass
+        return True
 
     @staticmethod
     def _bounded_int(value: Any, minimum: int, maximum: int, fallback: int) -> int:
