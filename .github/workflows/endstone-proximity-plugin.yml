@@ -9,7 +9,8 @@ on:
       - feature/mumble-item-mic-addon
     paths:
       - "endstone-plugin/**"
-      - "tests/test_endstone_plugin_contract.py"\n      - "tests/test_item_mic_contract.py"
+      - "tests/test_endstone_plugin_contract.py"
+      - "tests/test_item_mic_contract.py"
       - "tests/test_endstone_bridge_integration.py"
       - "tests/test_vc_mumble_bridge_contract.py"
       - "docs/VC_MUMBLE_ENDSTONE.md"
@@ -35,7 +36,8 @@ jobs:
 
       - name: Run Endstone protocol contracts
         run: |
-          python tests/test_endstone_plugin_contract.py\n          python tests/test_item_mic_contract.py
+          python tests/test_endstone_plugin_contract.py
+          python tests/test_item_mic_contract.py
           python tests/test_endstone_bridge_integration.py
           python tests/test_vc_mumble_bridge_contract.py
 
