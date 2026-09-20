@@ -63,7 +63,7 @@ public final class ServerConfig {
                 .putBoolean("proximity_enabled", true)
                 .putString("bridge_host", bridgeHost)
                 .putInt("bridge_port", bridgePort)
-                .apply();
+                .commit();
         SecretStore.save(context, bridgeSecret);
     }
 

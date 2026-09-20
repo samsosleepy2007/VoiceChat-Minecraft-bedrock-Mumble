@@ -48,7 +48,9 @@ final class SecretStore {
     static void save(Context context, String secret) {
         SharedPreferences prefs = context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE);
         if (secret == null || secret.isEmpty()) {
-            prefs.edit().remove(PREF_KEY).apply();
+            if (!prefs.edit().remove(PREF_KEY).commit()) {
+                throw new IllegalStateException("Could not persist bridge secret removal");
+            }
             return;
         }
         try {
@@ -61,7 +63,9 @@ final class SecretStore {
             packed.putInt(iv.length);
             packed.put(iv);
             packed.put(ciphertext);
-            prefs.edit().putString(PREF_KEY, Base64.encodeToString(packed.array(), Base64.NO_WRAP)).apply();
+            if (!prefs.edit().putString(PREF_KEY, Base64.encodeToString(packed.array(), Base64.NO_WRAP)).commit()) {
+                throw new IllegalStateException("Could not persist bridge secret");
+            }
         } catch (Exception error) {
             throw new IllegalStateException("Could not protect bridge secret", error);
         }
