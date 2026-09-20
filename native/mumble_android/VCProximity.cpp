@@ -92,7 +92,6 @@ bool shouldRoute(const QString &speakerName, const QString &listenerName) {
     const QString speakerKey = keyFor(speakerName);
     const QString listenerKey = keyFor(listenerName);
     if (speakerKey.isEmpty() || listenerKey.isEmpty()) return false;
-    if (speakerKey == listenerKey) return true;
 
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     QReadLocker locker(&g_lock);
@@ -104,6 +103,7 @@ bool shouldRoute(const QString &speakerName, const QString &listenerName) {
     const PlayerState &listener = listenerIt.value();
     if (!isFresh(speaker, now) || !isFresh(listener, now)) return false;
     if (!speaker.micEnabled) return false;
+    if (speakerKey == listenerKey) return true;
     if (speaker.dimension.isEmpty() || speaker.dimension != listener.dimension) return false;
 
     const double dx = speaker.x - listener.x;
