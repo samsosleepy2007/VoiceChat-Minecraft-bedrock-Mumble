@@ -9,6 +9,7 @@ bridge = (root / 'endstone-plugin/src/endstone_vc_mumble/bridge.py').read_text()
 pyproject = (root / 'endstone-plugin/pyproject.toml').read_text()
 real_jni = (root / 'app/src/main/cpp/mumble_jni.cpp').read_text()
 smoke_jni = (root / 'app/src/main/cpp/transport_smoketest_jni.cpp').read_text()
+proximity = (root / 'native/mumble_android/VCProximity.cpp').read_text()
 
 for expected in [
     'hello.put("role", "vc_mumble_server")',
@@ -74,6 +75,7 @@ for expected in [
 # The lightweight smoke target still uses conventional Java_com_* exports.
 assert '(Ljava/lang/String;Ljava/lang/String;DDDFZ)V' in real_jni
 assert 'voiceEnabled == JNI_TRUE' in real_jni
+assert 'if (!speaker.voiceEnabled) return false;' in proximity
 assert 'NativeServer_setProximityEnabledNative' in smoke_jni
 for symbol in ['updatePlayerState', 'removePlayerState', 'clearPlayerStates', 'proximityPlayerCount']:
     assert f'NativeServer_{symbol}' in smoke_jni, symbol
