@@ -126,6 +126,10 @@ jobs:
           test -f .build/android-stage/vc-mumble-runtime.aar
           cat .build/android-stage/vc-mumble-runtime.contents.txt
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -E 'lib/arm64-v8a/|classes' || true
+          if unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -Fq 'libpwrp'; then
+            echo "ERROR: embedded PortWarp runtime must not be packaged" >&2
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v7
         with:
