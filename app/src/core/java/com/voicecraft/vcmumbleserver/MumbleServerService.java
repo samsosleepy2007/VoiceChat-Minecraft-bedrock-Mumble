@@ -304,8 +304,12 @@ public final class MumbleServerService extends RestartableQtService {
         if (tcpReady) {
             ServerLog.append(this, "SERVICE", "Mumble TCP listener is ready at " + serverAddress
                     + " after " + attempt + " probe attempt(s)");
+            backgroundHealthFailures = 0;
+            backgroundHealthChecks = 0;
+            updateRuntimeProtectionStatus(true);
             updateNotification(null);
             publish(true, serverAddress);
+            scheduleBackgroundHealthCheck();
             return;
         }
 
@@ -340,9 +344,11 @@ public final class MumbleServerService extends RestartableQtService {
         ServerLog.append(this, "SERVICE", "onDestroy; runtimeLoaded=" + NativeServer.runtimeLoaded()
                 + ", terminateProcess=" + terminateProcessOnDestroy);
         handler.removeCallbacks(coreHealthCheck);
+        handler.removeCallbacks(backgroundHealthCheck);
         stopRelay();
         requestNativeStop();
         NativeServer.markRuntimeUnloaded();
+        releaseRuntimeProtection();
         super.onDestroy();
 
         if (terminateProcessOnDestroy) {
@@ -358,6 +364,7 @@ public final class MumbleServerService extends RestartableQtService {
         ServerRuntimeState.setShouldRun(this, false);
         terminateProcessOnDestroy = true;
         handler.removeCallbacks(coreHealthCheck);
+        handler.removeCallbacks(backgroundHealthCheck);
         stopRelay();
         requestNativeStop();
         publish(false, "Stopped");
@@ -404,12 +411,65 @@ public final class MumbleServerService extends RestartableQtService {
         trackedPlayers = 0;
     }
 
+    private void scheduleBackgroundHealthCheck() {
+        handler.removeCallbacks(backgroundHealthCheck);
+        handler.postDelayed(backgroundHealthCheck, BACKGROUND_HEALTH_INTERVAL_MS);
+    }
+
+    private final Runnable backgroundHealthCheck = new Runnable() {
+        @Override public void run() {
+            final int port = serverPort;
+            Thread probeThread = new Thread(() -> {
+                boolean healthy = probeBackgroundTcp(port);
+                handler.post(() -> {
+                    backgroundHealthChecks++;
+                    if (healthy) {
+                        if (backgroundHealthFailures > 0) {
+                            ServerLog.append(MumbleServerService.this, "HEALTH",
+                                    "Background TCP health recovered on 127.0.0.1:" + port);
+                        }
+                        backgroundHealthFailures = 0;
+                        updateRuntimeProtectionStatus(true);
+                        if (backgroundHealthChecks % 10 == 0) {
+                            ServerLog.append(MumbleServerService.this, "HEALTH",
+                                    "Background runtime healthy; TCP listener responsive");
+                        }
+                    } else {
+                        backgroundHealthFailures++;
+                        updateRuntimeProtectionStatus(false);
+                        runtimeProtectionStatus += " • Health warning x" + backgroundHealthFailures;
+                        ServerLog.append(MumbleServerService.this, "HEALTH",
+                                "Background TCP health check failed (" + backgroundHealthFailures
+                                        + ") on 127.0.0.1:" + port);
+                    }
+                    publish(true, serverAddress);
+                    scheduleBackgroundHealthCheck();
+                });
+            }, "VCMumble-Background-Health");
+            probeThread.setDaemon(true);
+            probeThread.start();
+        }
+    };
+
+    private boolean probeBackgroundTcp(int port) {
+        try (Socket socket = new Socket()) {
+            socket.connect(
+                    new InetSocketAddress("127.0.0.1", port),
+                    BACKGROUND_HEALTH_CONNECT_TIMEOUT_MS
+            );
+            return socket.isConnected();
+        } catch (IOException ignored) {
+            return false;
+        }
+    }
+
     private void publish(boolean running, String message) {
         Intent i = new Intent(ACTION_STATE).setPackage(getPackageName());
         i.putExtra(EXTRA_RUNNING, running);
         i.putExtra(EXTRA_MESSAGE, message);
         i.putExtra(EXTRA_BRIDGE, bridgeStatus);
         i.putExtra(EXTRA_TRACKED, trackedPlayers);
+        i.putExtra(EXTRA_BACKGROUND, runtimeProtectionStatus);
         sendBroadcast(i);
     }
 
