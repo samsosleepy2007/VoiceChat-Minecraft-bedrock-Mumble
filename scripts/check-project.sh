@@ -104,6 +104,7 @@ grep -Fq '"GET PORTWARP ON GOOGLE PLAY"' app/src/main/java/com/voicecraft/vcmumb
 grep -Fq '"com.ribeirosoftware.portwarp"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'embedded PortWarp runtime must not be packaged' .github/workflows/android-mumble-core.yml
 grep -Fq '"market://details?id=" + packageName' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'private void openUrl(String url, String label)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"PortWarp target: 127.0.0.1:" + ServerConfig.load(this).port' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 if grep -Fq 'PortWarpTunnelService' app/src/main/AndroidManifest.xml; then
   echo "ERROR: embedded PortWarp service must not be registered" >&2
