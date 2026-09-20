@@ -36,7 +36,7 @@ The plugin enforces an authentication timeout and rejects oversized frames.
 
 ## Initial synchronization
 
-After successful authentication the plugin discards stale queued updates from any previous connection and requests a fresh game-thread snapshot.
+After successful authentication the plugin discards stale queued updates from any previous connection. The Android app then sends one explicit `request_snapshot`, so initial synchronization is not duplicated by both sides.
 
 The stream is:
 

@@ -107,9 +107,14 @@ bridge.start()
 wait_listening(bridge)
 
 sock, stream = authenticate(port, secret)
-events = wait_incoming_types(bridge, {"client_connected", "request_snapshot"})
+events = wait_incoming_types(bridge, {"client_connected"})
 assert bridge.client_connected
 assert bridge.peer.startswith("127.0.0.1:")
+assert all(str(item.get("type", "")) != "request_snapshot" for item in events)
+
+# Android explicitly requests exactly one initial snapshot after hello_ok.
+send_line(sock, {"type": "request_snapshot"})
+wait_incoming_types(bridge, {"request_snapshot"})
 
 fresh_state = {
     "type": "player_state",
@@ -138,7 +143,7 @@ assert second["voiceRange"] == 30
 assert second["dimension"] == "Overworld"
 assert first.get("type") != "stale_before_connect"
 
-# Android can ask for a resnapshot at any time.
+# Android can ask for another resnapshot at any time after the initial one.
 send_line(sock, {"type": "request_snapshot"})
 wait_incoming_types(bridge, {"request_snapshot"})
 
@@ -150,7 +155,10 @@ while time.monotonic() < deadline and bridge.client_connected:
 
 # A second Android session must authenticate independently and reconnect cleanly.
 sock2, stream2 = authenticate(port, secret)
-wait_incoming_types(bridge, {"client_connected", "request_snapshot"})
+second_events = wait_incoming_types(bridge, {"client_connected"})
+assert all(str(item.get("type", "")) != "request_snapshot" for item in second_events)
+send_line(sock2, {"type": "request_snapshot"})
+wait_incoming_types(bridge, {"request_snapshot"})
 assert bridge.client_connected
 stream2.close()
 sock2.close()
