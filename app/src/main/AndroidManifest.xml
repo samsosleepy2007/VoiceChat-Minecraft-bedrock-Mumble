@@ -22,16 +22,6 @@
         </activity>
 
         <service
-            android:name=".PortWarpTunnelService"
-            android:process=":tunnel"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Runs a user-started PortWarp TCP/UDP tunnel for the embedded Mumble server." />
-        </service>
-
-        <service
             android:name=".MumbleServerService"
             android:process=":mumble"
             android:exported="false"
