@@ -102,7 +102,12 @@ grep -Fq 'FindClass("com/voicecraft/vcmumbleserver/NativeServer")' app/src/main/
 grep -Fq '"setProximityStaleTimeoutMsNative"' app/src/main/cpp/mumble_jni.cpp
 grep -Fq '"updatePlayerStateNative"' app/src/main/cpp/mumble_jni.cpp
 grep -Fq '(Ljava/lang/String;Ljava/lang/String;DDDFZ)V' app/src/main/cpp/mumble_jni.cpp
-grep -Fq 'if (!speaker.voiceEnabled) return false;' native/mumble_android/VCProximity.cpp
+grep -Fq 'if (!speaker.voiceEnabled) return 0.0F;' native/mumble_android/VCProximity.cpp
+grep -Fq 'float attenuationFactor' native/mumble_android/VCProximity.cpp
+grep -Fq 'normalizedDistance <= 0.20' native/mumble_android/VCProximity.cpp
+grep -Fq 'smoothMix(0.15F, 0.03F' native/mumble_android/VCProximity.cpp
+grep -Fq 'VC_PROXIMITY_REGULAR_ATTENUATION' scripts/prepare-mumble-source.py
+grep -Fq 'VC_PROXIMITY_LINKED_ATTENUATION' scripts/prepare-mumble-source.py
 grep -Fq 'data.optBoolean("voiceEnabled", true)' app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java
 grep -Fq 'private static native void setProximityStaleTimeoutMsNative(long timeoutMs);' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
 grep -Fq 'private static native void updatePlayerStateNative(' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java

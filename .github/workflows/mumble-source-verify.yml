@@ -38,6 +38,9 @@ jobs:
           grep -F 'OUTPUT_NAME "vcserver"' .build/mumble-1.6.870/src/murmur/CMakeLists.txt
           grep -F 'VC_PROXIMITY_REGULAR_CHANNEL' .build/mumble-1.6.870/src/murmur/Server.cpp
           grep -F 'VC_PROXIMITY_LINKED_CHANNEL' .build/mumble-1.6.870/src/murmur/Server.cpp
+          grep -F 'VC_PROXIMITY_REGULAR_ATTENUATION' .build/mumble-1.6.870/src/murmur/Server.cpp
+          grep -F 'VC_PROXIMITY_LINKED_ATTENUATION' .build/mumble-1.6.870/src/murmur/Server.cpp
+          grep -F 'VCProximity::attenuationFactor' .build/mumble-1.6.870/src/murmur/Server.cpp
       - name: Package prepared source for the Android core build job
         run: tar -C .build -czf mumble-1.6.870-vc-android-prepared.tar.gz mumble-1.6.870
       - uses: actions/upload-artifact@v7

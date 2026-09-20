@@ -9,6 +9,7 @@ The patch stays intentionally narrow and reproducible:
 - make event-loop shutdown return to Android instead of exit()ing;
 - compile JNI control and proximity state into the same native library;
 - gate regular-speech receiver additions through the VC proximity policy;
+- apply a per-listener distance attenuation factor through Mumble's native VolumeAdjustment path;
 - preserve stock Mumble routing when proximity is disabled (the default).
 """
 
@@ -409,6 +410,22 @@ def patch_server_routing(murmur: pathlib.Path) -> None:
     pieces.append(segment[cursor:])
     segment = "".join(pieces)
 
+    listener_adjustment_pattern = re.compile(
+        r"m_channelListenerManager\.getListenerVolumeAdjustment\("
+        r"(?P<session>pDst->uiSession),\s*(?P<channel>[cl]->iId)\)"
+    )
+    listener_adjustments = list(listener_adjustment_pattern.finditer(segment))
+    if len(listener_adjustments) != 2:
+        raise RuntimeError(
+            f"expected 2 channel-listener volume adjustments in processMsg; found {len(listener_adjustments)}"
+        )
+    segment = listener_adjustment_pattern.sub(
+        r"VolumeAdjustment::fromFactor("
+        r"m_channelListenerManager.getListenerVolumeAdjustment(\g<session>, \g<channel>).factor * "
+        r"VCProximity::attenuationFactor(u->qsName, pDst->qsName))",
+        segment,
+    )
+
     normal_pattern = re.compile(
         r"(?P<indent>^[ \t]*)buffer\.addReceiver\(\*u,[ \t]*\*pDst,[ \t]*"
         r"Mumble::Protocol::AudioContext::NORMAL,[ \t]*"
@@ -422,9 +439,13 @@ def patch_server_routing(murmur: pathlib.Path) -> None:
     match = normals[0]
     indent = match.group("indent")
     original = match.group(0).lstrip(" \t")
+    attenuated_original = original[:-2] + (
+        ", VolumeAdjustment::fromFactor("
+        "VCProximity::attenuationFactor(u->qsName, pDst->qsName)));"
+    )
     wrapped = (
         f"{indent}if (VCProximity::shouldRoute(u->qsName, pDst->qsName)) {{ // VC_PROXIMITY_REGULAR_CHANNEL\n"
-        f"{indent}\t{original}\n"
+        f"{indent}\t{attenuated_original} // VC_PROXIMITY_REGULAR_ATTENUATION\n"
         f"{indent}}}"
     )
     segment = segment[:match.start()] + wrapped + segment[match.end():]
@@ -443,9 +464,14 @@ def patch_server_routing(murmur: pathlib.Path) -> None:
     indent = match.group("indent")
     original_lines = match.group(0).lstrip(" \t").splitlines()
     indented_original = ("\n" + indent + "\t").join(original_lines)
+    linked_attenuated = indented_original[:-2] + (
+        ",\n"
+        + indent + "\t\t\t\t\t\t   VolumeAdjustment::fromFactor("
+        "VCProximity::attenuationFactor(u->qsName, pDst->qsName)));"
+    )
     wrapped = (
         f"{indent}if (VCProximity::shouldRoute(u->qsName, pDst->qsName)) {{ // VC_PROXIMITY_LINKED_CHANNEL\n"
-        f"{indent}\t{indented_original}\n"
+        f"{indent}\t{linked_attenuated} // VC_PROXIMITY_LINKED_ATTENUATION\n"
         f"{indent}}}"
     )
     segment = segment[:match.start()] + wrapped + segment[match.end():]
@@ -607,6 +633,9 @@ def prepare(
         "proximity include": PROXIMITY_INCLUDE in final_server,
         "regular routing hook": "VC_PROXIMITY_REGULAR_CHANNEL" in final_server,
         "linked routing hook": "VC_PROXIMITY_LINKED_CHANNEL" in final_server,
+        "regular attenuation hook": "VC_PROXIMITY_REGULAR_ATTENUATION" in final_server,
+        "linked attenuation hook": "VC_PROXIMITY_LINKED_ATTENUATION" in final_server,
+        "distance attenuation factor": "VCProximity::attenuationFactor" in final_server,
     }
     missing = [label for label, ok in checks.items() if not ok]
     if missing:

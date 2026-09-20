@@ -75,7 +75,13 @@ for expected in [
 # The lightweight smoke target still uses conventional Java_com_* exports.
 assert '(Ljava/lang/String;Ljava/lang/String;DDDFZ)V' in real_jni
 assert 'voiceEnabled == JNI_TRUE' in real_jni
-assert 'if (!speaker.voiceEnabled) return false;' in proximity
+assert 'if (!speaker.voiceEnabled) return 0.0F;' in proximity
+assert 'float attenuationFactor' in proximity
+assert 'normalizedDistance <= 0.20' in proximity
+assert 'smoothMix(1.0F, 0.55F' in proximity
+assert 'smoothMix(0.55F, 0.15F' in proximity
+assert 'smoothMix(0.15F, 0.03F' in proximity
+assert 'return attenuationFactor(speakerName, listenerName) > 0.0F;' in proximity
 assert 'NativeServer_setProximityEnabledNative' in smoke_jni
 for symbol in ['updatePlayerState', 'removePlayerState', 'clearPlayerStates', 'proximityPlayerCount']:
     assert f'NativeServer_{symbol}' in smoke_jni, symbol

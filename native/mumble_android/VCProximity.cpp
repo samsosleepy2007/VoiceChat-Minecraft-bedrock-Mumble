@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 
 namespace VCProximity {
 namespace {
@@ -33,6 +34,29 @@ QString keyFor(const QString &name) {
 bool isFresh(const PlayerState &state, qint64 nowMs) {
     const qint64 timeout = g_staleTimeoutMs.load(std::memory_order_relaxed);
     return timeout <= 0 || (nowMs - state.updatedAtMs) <= timeout;
+}
+
+float smoothMix(float from, float to, double t) {
+    const double clamped = std::clamp(t, 0.0, 1.0);
+    const double smooth = clamped * clamped * (3.0 - 2.0 * clamped);
+    return static_cast<float>(static_cast<double>(from)
+                              + (static_cast<double>(to) - static_cast<double>(from)) * smooth);
+}
+
+float attenuationForNormalizedDistance(double normalizedDistance) {
+    if (normalizedDistance <= 0.20) {
+        return 1.0F;
+    }
+    if (normalizedDistance <= 0.60) {
+        return smoothMix(1.0F, 0.55F, (normalizedDistance - 0.20) / 0.40);
+    }
+    if (normalizedDistance <= 0.90) {
+        return smoothMix(0.55F, 0.15F, (normalizedDistance - 0.60) / 0.30);
+    }
+    if (normalizedDistance < 1.0) {
+        return smoothMix(0.15F, 0.03F, (normalizedDistance - 0.90) / 0.10);
+    }
+    return 0.0F;
 }
 } // namespace
 
@@ -86,32 +110,41 @@ int playerCount() {
     return g_players.size();
 }
 
-bool shouldRoute(const QString &speakerName, const QString &listenerName) {
-    if (!isEnabled()) return true;
+float attenuationFactor(const QString &speakerName, const QString &listenerName) {
+    if (!isEnabled()) return 1.0F;
 
     const QString speakerKey = keyFor(speakerName);
     const QString listenerKey = keyFor(listenerName);
-    if (speakerKey.isEmpty() || listenerKey.isEmpty()) return false;
+    if (speakerKey.isEmpty() || listenerKey.isEmpty()) return 0.0F;
 
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     QReadLocker locker(&g_lock);
     const auto speakerIt = g_players.constFind(speakerKey);
     const auto listenerIt = g_players.constFind(listenerKey);
-    if (speakerIt == g_players.constEnd() || listenerIt == g_players.constEnd()) return false;
+    if (speakerIt == g_players.constEnd() || listenerIt == g_players.constEnd()) return 0.0F;
 
     const PlayerState &speaker = speakerIt.value();
     const PlayerState &listener = listenerIt.value();
-    if (!isFresh(speaker, now) || !isFresh(listener, now)) return false;
-    if (!speaker.voiceEnabled) return false;
-    if (speakerKey == listenerKey) return true;
-    if (speaker.dimension.isEmpty() || speaker.dimension != listener.dimension) return false;
+    if (!isFresh(speaker, now) || !isFresh(listener, now)) return 0.0F;
+    if (!speaker.voiceEnabled) return 0.0F;
+    if (speakerKey == listenerKey) return 1.0F;
+    if (speaker.dimension.isEmpty() || speaker.dimension != listener.dimension) return 0.0F;
+
+    const double range = static_cast<double>(speaker.rangeBlocks);
+    if (range <= 0.0) return 0.0F;
 
     const double dx = speaker.x - listener.x;
     const double dy = speaker.y - listener.y;
     const double dz = speaker.z - listener.z;
     const double distanceSquared = dx * dx + dy * dy + dz * dz;
-    const double range = static_cast<double>(speaker.rangeBlocks);
-    return distanceSquared <= range * range;
+    if (distanceSquared >= range * range) return 0.0F;
+
+    const double normalizedDistance = std::sqrt(distanceSquared) / range;
+    return attenuationForNormalizedDistance(normalizedDistance);
+}
+
+bool shouldRoute(const QString &speakerName, const QString &listenerName) {
+    return attenuationFactor(speakerName, listenerName) > 0.0F;
 }
 
 } // namespace VCProximity

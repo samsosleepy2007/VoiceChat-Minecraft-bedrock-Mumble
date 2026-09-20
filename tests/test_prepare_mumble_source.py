@@ -173,6 +173,10 @@ def main() -> int:
         assert "VC_PROXIMITY_REGULAR_CHANNEL" in server_cpp
         assert "VC_PROXIMITY_LINKED_LISTENER" in server_cpp
         assert "VC_PROXIMITY_LINKED_CHANNEL" in server_cpp
+        assert "VC_PROXIMITY_REGULAR_ATTENUATION" in server_cpp
+        assert "VC_PROXIMITY_LINKED_ATTENUATION" in server_cpp
+        assert server_cpp.count("VCProximity::attenuationFactor") >= 4
+        assert server_cpp.count("VolumeAdjustment::fromFactor") >= 4
         assert (murmur / "AndroidEmbed.cpp").is_file()
         assert (murmur / "AndroidJni.cpp").is_file()
         assert "RegisterNatives" in android_jni
