@@ -41,7 +41,7 @@ public final class MumbleServerService extends RestartableQtService {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private VCMumbleBridgeClient bridgeClient;
     private String serverAddress = "";
-    private String bridgeStatus = "Bridge disabled";
+    private String bridgeStatus = "Bridge waiting for config";
     private int trackedPlayers;
     private int serverPort = 64738;
     private int startupProbeAttempt;
