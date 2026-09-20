@@ -395,7 +395,7 @@ class VCMumblePlugin(Plugin):
             return
         for message in self._bridge.drain_incoming():
             kind = str(message.get("type", ""))
-            if kind in ("request_snapshot", "client_connected"):
+            if kind == "request_snapshot":
                 self._send_full_snapshot()
 
     def _send_full_snapshot(self) -> None:

@@ -222,7 +222,6 @@ class BridgeServer:
                                 "ts": int(time.time() * 1000),
                             })
                             self._put_incoming({"type": "client_connected"})
-                            self._put_incoming({"type": "request_snapshot"})
                             self._logger.info(f"BRIDGE mobile authenticated peer={peer}")
                         else:
                             self._put_incoming(data)
