@@ -23,18 +23,19 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.util.Base64;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.security.SecureRandom;
 
 public final class MainActivity extends Activity {
     private static final int REQUEST_EXPORT_LOG = 4201;
@@ -53,7 +54,6 @@ public final class MainActivity extends Activity {
     private EditText password;
     private EditText maxUsers;
     private EditText voiceRange;
-    private CheckBox proximityEnabled;
     private EditText bridgeHost;
     private EditText bridgePort;
     private EditText bridgeSecret;
@@ -175,7 +175,6 @@ public final class MainActivity extends Activity {
             password.setText("");
             maxUsers.setText("20");
             voiceRange.setText("30");
-            proximityEnabled.setChecked(false);
             try {
                 saveSettings(false);
                 if (!running) toggleServer();
@@ -194,6 +193,8 @@ public final class MainActivity extends Activity {
         runtime.setTextColor(c(R.color.cyber_text_secondary));
         runtimeCard.addView(runtime, marginTop(8));
         root.addView(runtimeCard, marginTop(14));
+
+        root.addView(buildProximityCard(), marginTop(14));
 
         LinearLayout publicCard = card();
         publicCard.addView(eyebrow("PUBLIC ACCESS // PORTWARP"));
@@ -226,6 +227,86 @@ public final class MainActivity extends Activity {
         root.addView(footer, marginTop(20));
 
         return wrapScroll(root);
+    }
+
+    private View buildProximityCard() {
+        LinearLayout proximityCard = card();
+        proximityCard.addView(eyebrow("MINECRAFT PROXIMITY // ALWAYS ON"));
+
+        TextView alwaysOn = text("● เปิดใช้งานตลอดเวลา", 14, true);
+        alwaysOn.setTextColor(c(R.color.cyber_success));
+        proximityCard.addView(alwaysOn, marginTop(8));
+
+        TextView proximityNote = text(
+                "ระบบจะรับตำแหน่งผู้เล่นจาก VC Mumble Endstone แล้วกำหนดว่าใครควรได้ยินใครตามระยะ "
+                        + "หากชื่อ Minecraft กับ Mumble ไม่ตรงกันให้ใช้ /vcmumble pair <name>",
+                12,
+                false
+        );
+        proximityNote.setTextColor(c(R.color.cyber_text_secondary));
+        proximityCard.addView(proximityNote, marginTop(6));
+
+        voiceRange = field("ระยะเสียง (บล็อก)", InputType.TYPE_CLASS_NUMBER);
+        addLabeledField(proximityCard, "ระยะเสียง", voiceRange);
+
+        bridgeHost = field(
+                "Host ของ Minecraft Server เช่น sv5.mcsv.me",
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI
+        );
+        bridgePort = field("VC Mumble Bridge Port", InputType.TYPE_CLASS_NUMBER);
+        bridgeSecret = field(
+                "Bridge Secret",
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
+        );
+
+        addLabeledField(proximityCard, "Minecraft Server Host", bridgeHost);
+        addLabeledField(proximityCard, "Bridge Port", bridgePort);
+        addLabeledField(proximityCard, "Bridge Secret", bridgeSecret);
+
+        LinearLayout secretActions = new LinearLayout(this);
+        secretActions.setOrientation(LinearLayout.HORIZONTAL);
+
+        Button generateSecret = secondaryButton("สุ่ม Secret");
+        generateSecret.setOnClickListener(v -> generateBridgeSecret());
+        Button copySecret = secondaryButton("คัดลอก");
+        copySecret.setOnClickListener(v -> copyBridgeSecret());
+
+        LinearLayout.LayoutParams secretButton = new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+        );
+        secretButton.setMarginEnd(dp(4));
+        secretActions.addView(generateSecret, secretButton);
+
+        LinearLayout.LayoutParams copyButton = new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+        );
+        copyButton.setMarginStart(dp(4));
+        secretActions.addView(copySecret, copyButton);
+        proximityCard.addView(secretActions, marginTop(8));
+
+        TextView secretNote = text(
+                "Secret ที่สุ่มจากแอปใช้ SecureRandom และจะถูกเข้ารหัสด้วย Android Keystore ก่อนบันทึกลงเครื่อง",
+                11,
+                false
+        );
+        secretNote.setTextColor(c(R.color.cyber_text_secondary));
+        proximityCard.addView(secretNote, marginTop(6));
+
+        Button saveProximity = primaryButton("บันทึก Proximity");
+        saveProximity.setOnClickListener(v -> {
+            try {
+                saveSettings(true);
+            } catch (Exception error) {
+                Toast.makeText(this, error.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
+        proximityCard.addView(saveProximity, marginTop(10));
+
+        return proximityCard;
     }
 
     private View buildLogPage() {
@@ -307,7 +388,7 @@ public final class MainActivity extends Activity {
                 root,
                 "CONFIG // SETTINGS",
                 "ตั้งค่า",
-                "ตั้งค่าเซิร์ฟเวอร์และระบบ Minecraft Proximity"
+                "ตั้งค่าพื้นฐานของ Mumble Server"
         );
 
         LinearLayout serverCard = card();
@@ -326,52 +407,6 @@ public final class MainActivity extends Activity {
         addLabeledField(serverCard, "รหัสผ่าน", password);
         addLabeledField(serverCard, "ผู้เล่นสูงสุด", maxUsers);
         root.addView(serverCard, marginTop(18));
-
-        LinearLayout proximityCard = card();
-        proximityCard.addView(eyebrow("Minecraft Proximity"));
-
-        voiceRange = field("ระยะเสียง (บล็อก)", InputType.TYPE_CLASS_NUMBER);
-        addLabeledField(proximityCard, "ระยะเสียง", voiceRange);
-
-        proximityEnabled = new CheckBox(this);
-        proximityEnabled.setText("เปิดใช้งาน Minecraft Proximity Routing");
-        proximityEnabled.setTextSize(14);
-        proximityEnabled.setTextColor(c(R.color.cyber_text));
-        proximityEnabled.setButtonTintList(android.content.res.ColorStateList.valueOf(c(R.color.cyber_neon)));
-        proximityEnabled.setOnCheckedChangeListener((buttonView, checked) -> updateBridgeFieldVisibility());
-        proximityCard.addView(proximityEnabled, marginTop(10));
-
-        TextView proximityNote = text(
-                "VC Mumble Endstone จะส่งชื่อผู้ใช้ Mumble, Dimension และระยะเสียงเข้ามา "
-                        + "หากชื่อ Minecraft กับ Mumble ไม่ตรงกันให้ใช้ /vcmumble pair <name>",
-                12,
-                false
-        );
-        proximityNote.setTextColor(c(R.color.cyber_text_secondary));
-        proximityCard.addView(proximityNote, marginTop(6));
-
-        bridgeHost = field(
-                "Host ของ Minecraft Server เช่น sv5.mcsv.me",
-                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI
-        );
-        bridgePort = field("VC Mumble Bridge Port", InputType.TYPE_CLASS_NUMBER);
-        bridgeSecret = field(
-                "Bridge Secret",
-                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
-        );
-
-        addLabeledField(proximityCard, "Minecraft Server Host", bridgeHost);
-        addLabeledField(proximityCard, "Bridge Port", bridgePort);
-        addLabeledField(proximityCard, "Bridge Secret", bridgeSecret);
-
-        TextView secretNote = text(
-                "Bridge Secret จะถูกเข้ารหัสด้วย Android Keystore ก่อนบันทึกลงเครื่อง",
-                11,
-                false
-        );
-        secretNote.setTextColor(c(R.color.cyber_text_secondary));
-        proximityCard.addView(secretNote, marginTop(6));
-        root.addView(proximityCard, marginTop(14));
 
         Button save = primaryButton("บันทึกการตั้งค่า");
         save.setOnClickListener(v -> {
@@ -552,16 +587,7 @@ public final class MainActivity extends Activity {
         String bridgeHostValue = bridgeHost.getText().toString().trim();
         int bridgePortValue = parseInt(bridgePort, "Bridge Port", 1, 65535);
         String secret = bridgeSecret.getText().toString();
-        boolean proximity = proximityEnabled.isChecked();
-
-        if (proximity) {
-            if (bridgeHostValue.isEmpty()) {
-                throw new IllegalArgumentException("กรุณาระบุ Minecraft Bridge Host");
-            }
-            if (secret.isEmpty()) {
-                throw new IllegalArgumentException("กรุณาระบุ Bridge Secret เมื่อเปิด Proximity");
-            }
-        }
+        boolean proximity = true;
 
         return new ServerConfig(
                 name,
@@ -592,11 +618,9 @@ public final class MainActivity extends Activity {
         password.setText(config.password);
         maxUsers.setText(String.valueOf(config.maxUsers));
         voiceRange.setText(String.valueOf(config.voiceRange));
-        proximityEnabled.setChecked(config.proximityEnabled);
         bridgeHost.setText(config.bridgeHost);
         bridgePort.setText(String.valueOf(config.bridgePort));
         bridgeSecret.setText(config.bridgeSecret);
-        updateBridgeFieldVisibility();
         updatePortWarpTarget();
     }
 
@@ -674,17 +698,9 @@ public final class MainActivity extends Activity {
         password.setEnabled(enabled);
         maxUsers.setEnabled(enabled);
         voiceRange.setEnabled(enabled);
-        proximityEnabled.setEnabled(enabled && NativeServer.hasMumbleCore());
-        bridgeHost.setEnabled(enabled && proximityEnabled.isChecked());
-        bridgePort.setEnabled(enabled && proximityEnabled.isChecked());
-        bridgeSecret.setEnabled(enabled && proximityEnabled.isChecked());
-    }
-
-    private void updateBridgeFieldVisibility() {
-        boolean enabled = !running && proximityEnabled.isChecked() && NativeServer.hasMumbleCore();
-        bridgeHost.setEnabled(enabled);
-        bridgePort.setEnabled(enabled);
-        bridgeSecret.setEnabled(enabled);
+        bridgeHost.setEnabled(enabled && NativeServer.hasMumbleCore());
+        bridgePort.setEnabled(enabled && NativeServer.hasMumbleCore());
+        bridgeSecret.setEnabled(enabled && NativeServer.hasMumbleCore());
     }
 
     private void refreshServerStateFromTcp() {
@@ -720,6 +736,30 @@ public final class MainActivity extends Activity {
                     "เป้าหมาย PortWarp: 127.0.0.1:" + ServerConfig.load(this).port
             );
         }
+    }
+
+    private void generateBridgeSecret() {
+        byte[] bytes = new byte[32];
+        new SecureRandom().nextBytes(bytes);
+        String secret = Base64.encodeToString(
+                bytes,
+                Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING
+        );
+        bridgeSecret.setText(secret);
+        bridgeSecret.setSelection(secret.length());
+        Toast.makeText(this, "สุ่ม Bridge Secret ใหม่แล้ว", Toast.LENGTH_SHORT).show();
+    }
+
+    private void copyBridgeSecret() {
+        String secret = bridgeSecret.getText().toString();
+        if (secret.isEmpty()) {
+            generateBridgeSecret();
+            secret = bridgeSecret.getText().toString();
+        }
+        ClipboardManager clipboard =
+                (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        clipboard.setPrimaryClip(ClipData.newPlainText("VC Mumble Bridge Secret", secret));
+        Toast.makeText(this, "คัดลอก Bridge Secret แล้ว", Toast.LENGTH_SHORT).show();
     }
 
     private void openPortWarpPlayStore() {
