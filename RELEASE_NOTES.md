@@ -1,10 +1,10 @@
-# VC Mumble Server v0.5.0-beta.1
+# VC Mumble Server v0.6.0-beta.1
 
-First public beta milestone with a real embedded Mumble server running directly on Android ARM64.
+This beta keeps the embedded Android Mumble server stable while simplifying public access: PortWarp now runs as its official Android companion app instead of being embedded inside VC Mumble Server.
 
 ## What works
 
-- Embedded Mumble 1.6.870 server
+- Embedded Mumble 1.6.870 server on Android ARM64
 - Qt 6.8.3 Android runtime
 - OpenSSL 3.6.3 TLS backend
 - TCP + UDP listener on the configured Mumble port
@@ -12,28 +12,40 @@ First public beta milestone with a real embedded Mumble server running directly 
 - Persistent in-app diagnostics and exported log.txt
 - Clean Stop -> Start lifecycle using a dedicated Android :mumble process
 - Normal stock Mumble/Mumla protocol path
+- PortWarp companion-app guidance for public TCP+UDP access
+- Direct Google Play button for the official PortWarp Android app
 
-## Important architecture fix
+## Public access change
 
-Qt/Murmur native state cannot be reliably restarted inside the same already-used Android process.
+The experimental embedded PortWarp CLI/tunnel runtime has been removed from the APK.
 
-This release runs Mumble in:
+VC Mumble Server now runs only the Mumble server. For public access, install the official PortWarp Android app and configure a TCP+UDP tunnel to:
+
+```text
+127.0.0.1:<your Mumble port>
+```
+
+The default Mumble port is:
+
+```text
+64738
+```
+
+Keep VC Mumble Server and PortWarp running while the public tunnel is in use.
+
+## Why this changed
+
+Embedding the Linux PortWarp CLI on Android required compatibility work around Android executable, DNS, TLS trust, and seccomp behavior. The official Android PortWarp app already handles the Android networking/runtime environment, so using it as a companion app is simpler and more reliable.
+
+## Mumble process architecture
+
+Mumble runs in the isolated Android process:
 
 ```text
 com.voicecraft.vcmumbleserver:mumble
 ```
 
-Stopping the server shuts down Qt/Mumble and terminates only that isolated process. The next Start receives a completely fresh native runtime while the main app remains open.
-
-## TLS
-
-The APK packages:
-
-- Qt OpenSSL TLS backend
-- libcrypto_3.so
-- libssl_3.so
-
-with `ANDROID_OPENSSL_SUFFIX=_3`.
+Stopping the server shuts down Qt/Mumble and terminates only that process. The next Start gets a fresh native runtime while the main app remains open.
 
 ## Quick test
 
@@ -41,13 +53,14 @@ with `ANDROID_OPENSSL_SUFFIX=_3`.
 2. Open VC Mumble Server.
 3. Press QUICK START.
 4. Wait for ONLINE.
-5. Connect Mumla/Mumble to the displayed LAN IP on port 64738.
-6. Stop the server.
-7. Start it again and verify it returns ONLINE.
+5. Connect Mumla/Mumble over LAN to the displayed IP on port 64738.
+6. For public access, install PortWarp from the in-app Google Play button.
+7. Create a TCP+UDP tunnel in PortWarp to 127.0.0.1:64738.
+8. Verify an external Mumble client can connect through the PortWarp public endpoint.
 
 ## Minecraft proximity
 
-The Endstone bridge/proximity code is present in the repository, but the release gate for v0.5.0-beta.1 focuses on the standalone Android Mumble server. Full Minecraft proximity integration remains the next phase.
+The Endstone bridge/proximity code remains in the repository. Full Minecraft proximity integration is still a later phase after the standalone mobile server and public tunnel workflow are stable.
 
 ## Build provenance
 
@@ -59,7 +72,8 @@ The release APK is built by GitHub Actions from the main branch using pinned:
 - Android NDK 28.2.13676358
 - vcpkg 2026.07.29
 
-A SHA-256 checksum file is published beside the APK.
+The release workflow also rejects APKs that still contain an embedded `libpwrp` runtime.
 
+A SHA-256 checksum file is published beside the APK.
 
 Release channel: GitHub Actions main build.
