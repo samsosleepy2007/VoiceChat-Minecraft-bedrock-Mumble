@@ -5,7 +5,7 @@ import importlib.metadata
 from endstone.command import CommandSender
 from endstone.event import PlayerJoinEvent, PlayerQuitEvent
 from endstone.plugin import Plugin
-from endstone.form import ActionForm, ModalForm
+from endstone.form import ActionForm, MessageForm, ModalForm, Slider, TextInput
 
 from endstone_vc_mumble import VCMumblePlugin
 
@@ -17,6 +17,15 @@ assert VCMumblePlugin.version == "0.4.0"
 assert hasattr(CommandSender, "has_permission")
 assert ActionForm is not None
 assert ModalForm is not None
+ActionForm(title="VCB", content="test").add_button("Open")
+ModalForm(
+    title="VCB Settings",
+    controls=[
+        Slider(label="Range", min=1, max=150, step=1, default_value=30),
+        TextInput(label="Mumble", placeholder="Name", default_value="Player"),
+    ],
+)
+MessageForm(title="Confirm", content="test", button1="Yes", button2="No")
 assert callable(getattr(Plugin, "reload_config"))
 assert PlayerJoinEvent is not None
 assert PlayerQuitEvent is not None
