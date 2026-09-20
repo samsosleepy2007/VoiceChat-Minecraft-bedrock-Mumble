@@ -116,6 +116,10 @@ grep -Fq 'libpwrp_dns_launcher_exec.so' scripts/fetch-portwarp-android-runtime.s
 grep -Fq 'dup2(fd, 10)' native/portwarp_dns_launcher.c
 grep -Fq 'prepareResolverFile(this)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
 grep -Fq 'getDnsServers()' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+grep -Fq 'SSL_CERT_DIR' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+grep -Fq '/apex/com.android.conscrypt/cacerts' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+grep -Fq '/system/etc/security/cacerts' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+grep -Fq 'configureTlsTrust(this, builder)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
 grep -Fq 'Stage checksum-pinned PortWarp runtime into APK' .github/workflows/android-mumble-core.yml
 grep -Fq 'run: bash ./scripts/fetch-portwarp-android-runtime.sh' .github/workflows/android-mumble-core.yml
 grep -Fq 'pwrp connect' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
