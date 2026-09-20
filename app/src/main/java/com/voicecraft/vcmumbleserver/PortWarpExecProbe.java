@@ -1,6 +1,7 @@
 package com.voicecraft.vcmumbleserver;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
@@ -30,9 +31,6 @@ public final class PortWarpExecProbe {
         void onComplete(boolean success, String message);
     }
 
-    private static final String DOWNLOAD_BASE = "https://portwarp.com/download/";
-    private static final String CHECKSUMS_URL =
-            "https://portwarp.com/download/checksums.txt";
     private static final int CONNECT_TIMEOUT_MS = 10000;
     private static final int READ_TIMEOUT_MS = 30000;
     private static final long MAX_ARCHIVE_BYTES = 32L * 1024L * 1024L;
@@ -129,47 +127,29 @@ public final class PortWarpExecProbe {
             throw new IllegalStateException("PortWarp requires an ARM64 Android device");
         }
 
+        ApplicationInfo info = context.getApplicationInfo();
+        File binary = new File(info.nativeLibraryDir, "libpwrp_exec.so");
+        if (!binary.isFile()) {
+            throw new IOException("Packaged PortWarp runtime is missing: "
+                    + binary.getAbsolutePath());
+        }
+        if (!binary.canExecute()) {
+            throw new IOException("Packaged PortWarp runtime is not executable: "
+                    + binary.getAbsolutePath());
+        }
+
         File root = rootDir(context);
         if (!root.isDirectory() && !root.mkdirs()) {
             throw new IOException("Unable to create PortWarp runtime directory");
         }
-        File binary = new File(root, "pwrp");
         File home = homeDir(context);
         if (!home.isDirectory() && !home.mkdirs()) {
             throw new IOException("Unable to create PortWarp HOME directory");
         }
 
-        if (binary.isFile() && binary.length() > 0 && binary.canExecute()) {
-            return binary;
-        }
-
-        String checksums = downloadText(CHECKSUMS_URL, 2L * 1024L * 1024L);
-        ArchiveSpec spec = findLatestArm64Archive(checksums);
-        if (spec == null) {
-            throw new IOException("Official PortWarp checksums contain no Linux ARM64 release");
-        }
-
-        File archive = new File(root, spec.fileName);
         ServerLog.append(context, "PORTWARP",
-                "Downloading checksum-pinned official " + spec.fileName
-                        + " for embedded runtime");
-        downloadToFile(DOWNLOAD_BASE + spec.fileName, archive, MAX_ARCHIVE_BYTES);
-
-        String actualSha = sha256(archive);
-        if (!actualSha.equalsIgnoreCase(spec.sha256)) {
-            throw new SecurityException("SHA-256 mismatch: expected=" + spec.sha256
-                    + ", actual=" + actualSha);
-        }
-        ServerLog.append(context, "PORTWARP",
-                "SHA-256 verified for " + spec.fileName + ": " + actualSha);
-
-        extractNamedTarGzEntry(archive, "pwrp", binary);
-        if (!binary.setReadable(true, true)) {
-            throw new IOException("Unable to mark pwrp readable");
-        }
-        if (!binary.setExecutable(true, true)) {
-            throw new IOException("Unable to mark pwrp executable");
-        }
+                "Using APK-packaged PortWarp runtime from nativeLibraryDir: "
+                        + binary.getAbsolutePath());
         return binary;
     }
 
