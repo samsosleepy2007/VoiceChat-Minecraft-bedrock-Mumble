@@ -2,7 +2,7 @@
 
 Android-hosted Mumble server for Minecraft Bedrock voice chat.
 
-> Release line: **v0.5.0-beta.1**  
+> Release line: **v0.6.0-beta.4**  
 > Embedded server: **Mumble 1.6.870**  
 > Qt: **6.8.3**  
 > OpenSSL: **3.6.3**  
@@ -23,7 +23,7 @@ The Android Mumble core has passed the physical-device startup gate:
 - Stop -> Start works repeatedly by restarting the isolated Mumble process cleanly
 - stock Mumble/Mumla clients can use the normal Mumble protocol path
 
-The Minecraft/Endstone proximity layer is still the next integration phase. The bridge/plugin code exists in this repository, but this release is primarily the first working standalone Android Mumble-server milestone.
+The Minecraft/Endstone proximity bridge has now passed the first end-to-end connection milestone. Endstone plugin v0.2.0 authenticates to the Android app, synchronizes player state, reconnects cleanly, and feeds the native proximity routing layer.
 
 ## How the system works
 
@@ -225,7 +225,7 @@ clients              |                           |
 | Max users | 20 |
 | Proximity range | 30 blocks |
 | Endstone bridge port | 27220 TCP |
-| Proximity routing | Off by default |
+| Proximity routing | Always enabled on the mobile side |
 
 ## Quick start
 
@@ -288,7 +288,7 @@ Commands:
 /vcmumble range <blocks>
 ```
 
-The bridge tracks Minecraft identity, dimension and XYZ position and maps those players to Mumble usernames. Proximity mode is intentionally disabled by default until configured.
+The bridge tracks Minecraft identity, dimension and XYZ position and maps those players to Mumble usernames. All Mumble users may stay in the Root channel; proximity routing is handled by the server. The current release uses range/dimension routing; smooth distance-based attenuation is planned separately.
 
 ## Building the Android Mumble core
 
