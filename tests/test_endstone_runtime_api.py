@@ -5,21 +5,25 @@ import importlib.metadata
 from endstone.command import CommandSender
 from endstone.event import PlayerJoinEvent, PlayerQuitEvent
 from endstone.plugin import Plugin
+from endstone.form import ActionForm, ModalForm
 
 from endstone_vc_mumble import VCMumblePlugin
 
 
 assert issubclass(VCMumblePlugin, Plugin)
 assert VCMumblePlugin.api_version == "0.11"
-assert VCMumblePlugin.version == "0.3.0"
+assert VCMumblePlugin.version == "0.4.0"
 
 assert hasattr(CommandSender, "has_permission")
+assert ActionForm is not None
+assert ModalForm is not None
 assert callable(getattr(Plugin, "reload_config"))
 assert PlayerJoinEvent is not None
 assert PlayerQuitEvent is not None
 
-assert "vcmumble" in VCMumblePlugin.commands
-assert "vcmumbleadmin" in VCMumblePlugin.commands
+assert "vcb" in VCMumblePlugin.commands
+assert "vcmumble" not in VCMumblePlugin.commands
+assert "vcmumbleadmin" not in VCMumblePlugin.commands
 assert VCMumblePlugin.permissions["vc_mumble.command.user"]["default"] is True
 assert VCMumblePlugin.permissions["vc_mumble.command.admin"]["default"] == "op"
 
