@@ -566,7 +566,7 @@ public final class MainActivity extends Activity {
         updatePortWarpTarget();
         ServerLog.append(this, "UI", "Server settings saved; port=" + cfg.port
                 + ", maxUsers=" + cfg.maxUsers + ", proximity=" + cfg.proximityEnabled);
-        if (showToast) Toast.makeText(this, "บันทึกการตั้งค่าแล้ว", Toast.LENGTH_SHORT).show();
+        if (showToast) Toast.makeText(this, "บันทึกแล้ว", Toast.LENGTH_SHORT).show();
     }
 
     private ServerConfig readConfig() {
@@ -723,7 +723,7 @@ public final class MainActivity extends Activity {
                             0
                     );
                 } else if (!running) {
-                    updateState(false, "พร้อมเริ่มเซิร์ฟเวอร์", "ระบบเชื่อมต่อ Minecraft พร้อมใช้งาน", 0);
+                    updateState(false, "พร้อมเริ่มเซิร์ฟเวอร์", "Minecraft: ยังไม่ได้เชื่อมต่อ", 0);
                 }
             });
         }, "VCMumble-UI-State-Probe").start();
@@ -746,7 +746,7 @@ public final class MainActivity extends Activity {
         );
         bridgeSecret.setText(secret);
         bridgeSecret.setSelection(secret.length());
-        Toast.makeText(this, "สุ่ม Bridge Secret ใหม่แล้ว", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "สุ่ม Secret แล้ว", Toast.LENGTH_SHORT).show();
     }
 
     private void copyBridgeSecret() {
@@ -758,7 +758,7 @@ public final class MainActivity extends Activity {
         ClipboardManager clipboard =
                 (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         clipboard.setPrimaryClip(ClipData.newPlainText("VC Mumble Bridge Secret", secret));
-        Toast.makeText(this, "คัดลอก Bridge Secret แล้ว", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "คัดลอกแล้ว", Toast.LENGTH_SHORT).show();
     }
 
     private void showBatteryAccessPromptIfNeeded() {
@@ -825,7 +825,7 @@ public final class MainActivity extends Activity {
     private void refreshLogView() {
         if (logView != null) {
             String value = ServerLog.read(this);
-            logView.setText(value.isEmpty() ? "No log entries yet." : value);
+            logView.setText(value.isEmpty() ? "ยังไม่มี Log" : value);
             if (logScroll != null) {
                 logScroll.post(() -> logScroll.fullScroll(View.FOCUS_DOWN));
             }
