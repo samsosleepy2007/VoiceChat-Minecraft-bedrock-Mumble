@@ -2,12 +2,19 @@ package com.voicecraft.vcmumbleserver;
 
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
+import android.net.ConnectivityManager;
+import android.net.LinkProperties;
+import android.net.Network;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -20,11 +27,6 @@ public final class PortWarpExecProbe {
     public interface Callback {
         void onComplete(boolean success, String message);
     }
-
-    private static final int CONNECT_TIMEOUT_MS = 10000;
-    private static final int READ_TIMEOUT_MS = 30000;
-    private static final long MAX_ARCHIVE_BYTES = 32L * 1024L * 1024L;
-    private static final long MAX_BINARY_BYTES = 32L * 1024L * 1024L;
 
     private PortWarpExecProbe() {}
 
@@ -63,7 +65,15 @@ public final class PortWarpExecProbe {
                         + ", bytes=" + binary.length()
                         + ", canExecute=" + binary.canExecute());
 
-        ProcessBuilder builder = new ProcessBuilder(binary.getAbsolutePath(), "version");
+        File launcher = launcherFile(context);
+        File resolver = prepareResolverFile(context);
+
+        ProcessBuilder builder = new ProcessBuilder(
+                launcher.getAbsolutePath(),
+                resolver.getAbsolutePath(),
+                binary.getAbsolutePath(),
+                "version"
+        );
         builder.redirectErrorStream(true);
         builder.directory(root);
         builder.environment().put("HOME", home.getAbsolutePath());
@@ -137,10 +147,73 @@ public final class PortWarpExecProbe {
             throw new IOException("Unable to create PortWarp HOME directory");
         }
 
+        File launcher = launcherFile(context);
+        if (!launcher.isFile() || !launcher.canExecute()) {
+            throw new IOException("Packaged PortWarp DNS launcher is unavailable: "
+                    + launcher.getAbsolutePath());
+        }
+
         ServerLog.append(context, "PORTWARP",
                 "Using APK-packaged PortWarp runtime from nativeLibraryDir: "
                         + binary.getAbsolutePath());
         return binary;
+    }
+
+    static File launcherFile(Context context) {
+        return new File(context.getApplicationInfo().nativeLibraryDir,
+                "libpwrp_dns_launcher_exec.so");
+    }
+
+    static File prepareResolverFile(Context context) throws IOException {
+        File resolver = new File(rootDir(context), "resolv.conf");
+        Set<String> servers = new LinkedHashSet<>();
+
+        ConnectivityManager connectivity =
+                (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivity != null) {
+            Network active = connectivity.getActiveNetwork();
+            LinkProperties properties =
+                    active == null ? null : connectivity.getLinkProperties(active);
+            if (properties != null) {
+                for (InetAddress address : properties.getDnsServers()) {
+                    if (address == null || address.isAnyLocalAddress()
+                            || address.isLoopbackAddress()) {
+                        continue;
+                    }
+                    String value = address.getHostAddress();
+                    if (value != null && !value.trim().isEmpty()) {
+                        servers.add(value.trim());
+                    }
+                }
+            }
+        }
+
+        if (servers.isEmpty()) {
+            // Fallback only when Android exposes no active DNS servers.
+            servers.add("1.1.1.1");
+            servers.add("8.8.8.8");
+            servers.add("2606:4700:4700::1111");
+            servers.add("2001:4860:4860::8888");
+        }
+
+        StringBuilder text = new StringBuilder();
+        for (String server : servers) {
+            text.append("nameserver ").append(server).append('\n');
+        }
+        text.append("options timeout:2 attempts:2\n");
+
+        try (FileOutputStream output = new FileOutputStream(resolver, false)) {
+            output.write(text.toString().getBytes(StandardCharsets.UTF_8));
+            output.flush();
+        }
+        if (!resolver.setReadable(true, true)) {
+            throw new IOException("Unable to mark PortWarp resolver file readable");
+        }
+
+        ServerLog.append(context, "PORTWARP",
+                "Prepared Android DNS resolver snapshot with " + servers.size()
+                        + " server(s); fd-path=/proc/self/fd/10");
+        return resolver;
     }
 
     static File rootDir(Context context) {
