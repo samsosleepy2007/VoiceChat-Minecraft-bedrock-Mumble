@@ -391,6 +391,17 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void openUrl(String url, String label) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception error) {
+            ClipboardManager clipboard =
+                    (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            clipboard.setPrimaryClip(ClipData.newPlainText(label, url));
+            Toast.makeText(this, "Browser unavailable. Link copied.", Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void refreshLogView() {
         if (logView != null) {
             String value = ServerLog.read(this);
