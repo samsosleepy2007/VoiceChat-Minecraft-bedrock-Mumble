@@ -71,7 +71,7 @@ grep -Fq 'host=0.0.0.0' app/src/main/java/com/voicecraft/vcmumbleserver/MumbleCo
 grep -Fq 'new InetSocketAddress("127.0.0.1", port)' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'STARTUP_PROBE_MAX_ATTEMPTS = 30' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'Mumble core loaded but TCP port ' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
-grep -Fq '"● กำลังเริ่ม"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"กำลังเริ่ม"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'public static final String FILE_NAME = "vc-mumble-server.log";' app/src/main/java/com/voicecraft/vcmumbleserver/ServerLog.java
 grep -Fq 'ServerLog.file(context).getAbsolutePath()' app/src/main/java/com/voicecraft/vcmumbleserver/MumbleConfigWriter.java
 grep -Fq 'VC_ANDROID_FOREGROUND_LOGFILE' scripts/prepare-mumble-source.py
@@ -105,12 +105,12 @@ grep -Fq 'terminateProcessOnDestroy' app/src/core/java/com/voicecraft/vcmumblese
 grep -Fq 'android.os.Process.killProcess(pid)' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'Startup failed; stopping isolated Mumble process' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'refreshServerStateFromTcp()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"เปิด PortWarp ใน Google Play"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"เปิด PortWarp"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"com.ribeirosoftware.portwarp"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'embedded PortWarp runtime must not be packaged' .github/workflows/android-mumble-core.yml
 grep -Fq '"market://details?id=" + packageName' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'private void openUrl(String url, String label)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"เป้าหมาย PortWarp: 127.0.0.1:" + ServerConfig.load(this).port' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"ปลายทาง: 127.0.0.1:" + ServerConfig.load(this).port' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 if grep -Fq 'PortWarpTunnelService' app/src/main/AndroidManifest.xml; then
   echo "ERROR: embedded PortWarp service must not be registered" >&2
   exit 1
@@ -125,17 +125,22 @@ grep -Fq 'PAGE_LOG = 1' app/src/main/java/com/voicecraft/vcmumbleserver/MainActi
 grep -Fq 'PAGE_SETTINGS = 2' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"หน้าหลัก"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"ตั้งค่า"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"LOG // TERMINAL"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"บันทึกการทำงานของเซิร์ฟเวอร์"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '@color/cyber_bg' app/src/main/res/values/styles.xml
 grep -Fq 'Theme.Material.NoActionBar' app/src/main/res/values-night/styles.xml
-grep -Fq '<color name="cyber_neon">#00E5FF</color>' app/src/main/res/values-night/colors.xml
+grep -Fq '<color name="cyber_bg">#0B1120</color>' app/src/main/res/values-night/colors.xml
+grep -Fq '<color name="cyber_neon">#2563EB</color>' app/src/main/res/values-night/colors.xml
+grep -Fq '<color name="cyber_bg">#F6F7F9</color>' app/src/main/res/values/colors.xml
 grep -Fq 'private ScrollView logScroll;' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'dp(360)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'logScroll.fullScroll(View.FOCUS_DOWN)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'requestDisallowInterceptTouchEvent(true)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'MotionEvent.ACTION_DOWN' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '.scaleX(0.965f)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq 'setShadowLayer(dp(6)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '.scaleX(0.98f)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+if grep -Fq 'setShadowLayer' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java; then
+  echo "ERROR: modern UI must not restore neon shadow effects" >&2
+  exit 1
+fi
 grep -Fq 'private View pageView(int page)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '.translationX(-direction * dp(18))' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'ObjectAnimator.ofFloat(status, View.ALPHA' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
@@ -150,14 +155,16 @@ grep -Fq '"VCMumble-Background-Health"' app/src/core/java/com/voicecraft/vcmumbl
 grep -Fq 'ServerRuntimeState.shouldRun' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 grep -Fq 'ServerRuntimeState.setShouldRun(this, true)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'ServerRuntimeState.setShouldRun(this, false)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq 'MumbleServerService.EXTRA_BACKGROUND' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"BACKGROUND RUNTIME // PROTECTION"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'showBatteryAccessPromptIfNeeded()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"เปิดภายหลัง"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'Settings.ACTION_APPLICATION_DETAILS_SETTINGS' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'REQUEST_IGNORE_BATTERY_OPTIMIZATIONS' app/src/main/AndroidManifest.xml
 grep -Fq 'isIgnoringBatteryOptimizations' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'buildProximityCard()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"MINECRAFT PROXIMITY // ALWAYS ON"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"● เปิดใช้งานตลอดเวลา"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"สุ่ม Secret"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"Minecraft Proximity"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"เปิดตลอด"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"สุ่มใหม่"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"คัดลอก"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'new SecureRandom().nextBytes(bytes)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
@@ -167,6 +174,14 @@ grep -Fq '.putBoolean("proximity_enabled", true)' app/src/main/java/com/voicecra
 grep -Fq 'boolean proximityActive = true;' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
 if grep -Fq 'CheckBox proximityEnabled' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java; then
   echo "ERROR: proximity enable/disable UI must not return" >&2
+  exit 1
+fi
+if grep -Fq 'buildBackgroundCard' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java; then
+  echo "ERROR: battery guidance must use a popup, not a persistent background card" >&2
+  exit 1
+fi
+if grep -Fq 'VC MUMBLE // NODE' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java; then
+  echo "ERROR: cyberpunk UI labels must not return" >&2
   exit 1
 fi
 grep -Fq '"PROBE",' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java || { echo "Missing contract: TCP probe log tag" >&2; exit 1; }
