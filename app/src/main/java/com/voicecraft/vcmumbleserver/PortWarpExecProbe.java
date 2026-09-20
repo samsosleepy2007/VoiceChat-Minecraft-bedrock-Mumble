@@ -69,45 +69,9 @@ public final class PortWarpExecProbe {
     }
 
     private static String runBlocking(Context context) throws Exception {
-        if (!isArm64()) {
-            throw new IllegalStateException("PortWarp probe requires an ARM64 Android device");
-        }
-
-        File root = new File(context.getNoBackupFilesDir(), "portwarp-probe");
-        if (!root.isDirectory() && !root.mkdirs()) {
-            throw new IOException("Unable to create PortWarp probe directory");
-        }
-        File archive = new File(root, ARCHIVE_NAME);
-        File binary = new File(root, "pwrp");
-        File home = new File(root, "home");
-        if (!home.isDirectory() && !home.mkdirs()) {
-            throw new IOException("Unable to create PortWarp HOME directory");
-        }
-
-        ServerLog.append(context, "PORTWARP",
-                "Downloading official " + ARCHIVE_NAME + " for execution probe");
-        downloadToFile(ARCHIVE_URL, archive, MAX_ARCHIVE_BYTES);
-
-        String actualSha = sha256(archive);
-        String checksums = downloadText(CHECKSUMS_URL, 2L * 1024L * 1024L);
-        String expectedSha = findChecksum(checksums, ARCHIVE_NAME);
-        if (expectedSha == null) {
-            throw new IOException("Official checksum entry not found for " + ARCHIVE_NAME);
-        }
-        if (!actualSha.equalsIgnoreCase(expectedSha)) {
-            throw new SecurityException("SHA-256 mismatch: expected=" + expectedSha
-                    + ", actual=" + actualSha);
-        }
-        ServerLog.append(context, "PORTWARP",
-                "SHA-256 verified for official archive: " + actualSha);
-
-        extractNamedTarGzEntry(archive, "pwrp", binary);
-        if (!binary.setReadable(true, true)) {
-            throw new IOException("Unable to mark pwrp readable");
-        }
-        if (!binary.setExecutable(true, true)) {
-            throw new IOException("Unable to mark pwrp executable");
-        }
+        File binary = ensureInstalled(context);
+        File root = rootDir(context);
+        File home = homeDir(context);
 
         ServerLog.append(context, "PORTWARP",
                 "Attempting Android exec; path=" + binary.getAbsolutePath()
@@ -161,6 +125,61 @@ public final class PortWarpExecProbe {
         }
         if (text.isEmpty()) text = "pwrp exited 0 with no text output";
         return "PortWarp CLI executed on Android: " + text;
+    }
+
+    static File ensureInstalled(Context context) throws Exception {
+        if (!isArm64()) {
+            throw new IllegalStateException("PortWarp requires an ARM64 Android device");
+        }
+
+        File root = rootDir(context);
+        if (!root.isDirectory() && !root.mkdirs()) {
+            throw new IOException("Unable to create PortWarp runtime directory");
+        }
+        File binary = new File(root, "pwrp");
+        File home = homeDir(context);
+        if (!home.isDirectory() && !home.mkdirs()) {
+            throw new IOException("Unable to create PortWarp HOME directory");
+        }
+
+        if (binary.isFile() && binary.length() > 0 && binary.canExecute()) {
+            return binary;
+        }
+
+        File archive = new File(root, ARCHIVE_NAME);
+        ServerLog.append(context, "PORTWARP",
+                "Downloading official " + ARCHIVE_NAME + " for embedded runtime");
+        downloadToFile(ARCHIVE_URL, archive, MAX_ARCHIVE_BYTES);
+
+        String actualSha = sha256(archive);
+        String checksums = downloadText(CHECKSUMS_URL, 2L * 1024L * 1024L);
+        String expectedSha = findChecksum(checksums, ARCHIVE_NAME);
+        if (expectedSha == null) {
+            throw new IOException("Official checksum entry not found for " + ARCHIVE_NAME);
+        }
+        if (!actualSha.equalsIgnoreCase(expectedSha)) {
+            throw new SecurityException("SHA-256 mismatch: expected=" + expectedSha
+                    + ", actual=" + actualSha);
+        }
+        ServerLog.append(context, "PORTWARP",
+                "SHA-256 verified for official archive: " + actualSha);
+
+        extractNamedTarGzEntry(archive, "pwrp", binary);
+        if (!binary.setReadable(true, true)) {
+            throw new IOException("Unable to mark pwrp readable");
+        }
+        if (!binary.setExecutable(true, true)) {
+            throw new IOException("Unable to mark pwrp executable");
+        }
+        return binary;
+    }
+
+    static File rootDir(Context context) {
+        return new File(context.getNoBackupFilesDir(), "portwarp");
+    }
+
+    static File homeDir(Context context) {
+        return new File(rootDir(context), "home");
     }
 
     private static boolean isArm64() {
