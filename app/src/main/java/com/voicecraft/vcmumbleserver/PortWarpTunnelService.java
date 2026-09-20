@@ -62,6 +62,7 @@ public final class PortWarpTunnelService extends Service {
     private volatile Process loginProcess;
     private volatile boolean stopping;
     private File cli;
+    private File launcher;
     private File root;
     private File home;
 
@@ -315,10 +316,14 @@ public final class PortWarpTunnelService extends Service {
 
     private void requireRuntime() throws Exception {
         cli = PortWarpExecProbe.ensureInstalled(this);
+        launcher = PortWarpExecProbe.launcherFile(this);
         root = PortWarpExecProbe.rootDir(this);
         home = PortWarpExecProbe.homeDir(this);
         if (!cli.isFile() || !cli.canExecute()) {
             throw new IOException("PortWarp CLI is unavailable after installation");
+        }
+        if (!launcher.isFile() || !launcher.canExecute()) {
+            throw new IOException("PortWarp DNS launcher is unavailable");
         }
     }
 
@@ -356,10 +361,15 @@ public final class PortWarpTunnelService extends Service {
         return new CommandResult(exit, text);
     }
 
-    private ProcessBuilder command(String... args) {
+    private ProcessBuilder command(String... args) throws IOException {
+        File resolver = PortWarpExecProbe.prepareResolverFile(this);
+
         ArrayList<String> command = new ArrayList<>();
+        command.add(launcher.getAbsolutePath());
+        command.add(resolver.getAbsolutePath());
         command.add(cli.getAbsolutePath());
         for (String arg : args) command.add(arg);
+
         ProcessBuilder builder = new ProcessBuilder(command);
         builder.redirectErrorStream(true);
         builder.directory(root);
