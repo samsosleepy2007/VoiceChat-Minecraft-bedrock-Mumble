@@ -13,3 +13,7 @@ local.properties
 .build/
 __pycache__/
 *.pyc
+
+# Endstone build artifacts
+endstone-plugin/dist/
+endstone-plugin/*.egg-info/
