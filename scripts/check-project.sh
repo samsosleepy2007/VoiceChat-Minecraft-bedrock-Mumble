@@ -75,9 +75,9 @@ grep -Fq '"กำลังเริ่ม"' app/src/main/java/com/voicecraft/vcm
 grep -Fq 'public static final String FILE_NAME = "vc-mumble-server.log";' app/src/main/java/com/voicecraft/vcmumbleserver/ServerLog.java
 grep -Fq 'ServerLog.file(context).getAbsolutePath()' app/src/main/java/com/voicecraft/vcmumbleserver/MumbleConfigWriter.java
 grep -Fq 'VC_ANDROID_FOREGROUND_LOGFILE' scripts/prepare-mumble-source.py
-grep -Fq '"คัดลอก Log"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"บันทึก log.txt"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
-grep -Fq '"ล้าง Log"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'Button copyLog = secondaryButton("คัดลอก");' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'Button downloadLog = secondaryButton("บันทึกไฟล์");' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'Button clearLog = dangerButton("ล้าง");' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'Intent.ACTION_CREATE_DOCUMENT' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'Intent.EXTRA_TITLE, "log.txt"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'QtServiceLoader.loadQtLibraries' app/src/core/java/org/qtproject/qt/android/RestartableQtService.java
