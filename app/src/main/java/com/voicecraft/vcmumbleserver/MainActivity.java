@@ -96,7 +96,7 @@ public final class MainActivity extends Activity {
         requestNotificationsIfNeeded();
         setContentView(buildUi());
         fillConfig(ServerConfig.load(this));
-        updateState(false, "พร้อมเริ่มเซิร์ฟเวอร์", "ระบบเชื่อมต่อ Minecraft พร้อมใช้งาน", 0);
+        updateState(false, "พร้อมเริ่มเซิร์ฟเวอร์", "Minecraft: ยังไม่ได้เชื่อมต่อ", 0);
         showPage(PAGE_HOME);
         if (savedInstanceState == null) {
             showBatteryAccessPromptIfNeeded();
@@ -124,7 +124,7 @@ public final class MainActivity extends Activity {
     private View buildUi() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackground(cyberBackground());
+        root.setBackgroundColor(c(R.color.cyber_bg));
 
         settingsPage = buildSettingsPage();
         homePage = buildHomePage();
@@ -148,23 +148,23 @@ public final class MainActivity extends Activity {
         LinearLayout root = pageRoot();
         addScreenHeader(
                 root,
-                "VC MUMBLE // NODE",
-                "หน้าหลัก",
-                "ศูนย์ควบคุมเซิร์ฟเวอร์เสียง Minecraft Bedrock"
+                "",
+                "เซิร์ฟเวอร์",
+                "เปิดและดูสถานะ Mumble Server"
         );
 
         statusCard = card();
-        TextView statusLabel = eyebrow("สถานะเซิร์ฟเวอร์");
+        TextView statusLabel = eyebrow("สถานะ");
         statusCard.addView(statusLabel);
 
-        status = text("● ออฟไลน์", 24, true);
+        status = text("ออฟไลน์", 24, true);
         statusCard.addView(status, marginTop(8));
 
         address = text("พร้อมเริ่มเซิร์ฟเวอร์", 15, false);
         address.setTextIsSelectable(true);
         statusCard.addView(address, marginTop(8));
 
-        bridgeStatus = text("ระบบเชื่อมต่อ Minecraft พร้อมใช้งาน", 12, false);
+        bridgeStatus = text("Minecraft: ยังไม่ได้เชื่อมต่อ", 12, false);
         bridgeStatus.setTextColor(c(R.color.cyber_text_secondary));
         statusCard.addView(bridgeStatus, marginTop(8));
 
@@ -174,7 +174,7 @@ public final class MainActivity extends Activity {
         startStop.setOnClickListener(v -> toggleServer());
         root.addView(startStop, marginTop(14));
 
-        Button quick = secondaryButton("เริ่มด่วนด้วยค่ามาตรฐาน");
+        Button quick = secondaryButton("ใช้ค่าเริ่มต้นและเปิด");
         quick.setOnClickListener(v -> {
             serverName.setText("Minecraft Voice");
             port.setText("64738");
@@ -190,23 +190,12 @@ public final class MainActivity extends Activity {
         });
         root.addView(quick, marginTop(8));
 
-        LinearLayout runtimeCard = card();
-        runtimeCard.addView(eyebrow("ระบบ Mumble"));
-        String nativeMode = NativeServer.hasMumbleCore()
-                ? "ใช้ Mumble Core แบบฝังในแอป รองรับโปรโตคอล Mumble/Mumla มาตรฐาน"
-                : "โหมดทดสอบ Transport เท่านั้น รุ่นนี้ยังไม่รองรับโปรโตคอล Mumble เต็มรูปแบบ";
-        TextView runtime = text(nativeMode, 13, false);
-        runtime.setTextColor(c(R.color.cyber_text_secondary));
-        runtimeCard.addView(runtime, marginTop(8));
-        root.addView(runtimeCard, marginTop(14));
-
         root.addView(buildProximityCard(), marginTop(14));
 
         LinearLayout publicCard = card();
-        publicCard.addView(eyebrow("PUBLIC ACCESS // PORTWARP"));
+        publicCard.addView(eyebrow("ใช้งานผ่านอินเทอร์เน็ต"));
         TextView publicNote = text(
-                "ใช้แอป PortWarp ทางการคู่กับ VC Mumble Server เพื่อเปิดเซิร์ฟเวอร์ออกอินเทอร์เน็ต "
-                        + "สร้าง Tunnel แบบ TCP+UDP แล้วชี้ Local Host ไปที่ 127.0.0.1 และใช้ Port เดียวกับ Mumble",
+                "ใช้ PortWarp เพื่อให้คนนอกเครือข่ายเดียวกันเชื่อมต่อเซิร์ฟเวอร์ได้",
                 13,
                 false
         );
@@ -214,7 +203,7 @@ public final class MainActivity extends Activity {
         publicCard.addView(publicNote, marginTop(8));
 
         portWarpTarget = text(
-                "เป้าหมาย PortWarp: 127.0.0.1:" + ServerConfig.load(this).port,
+                "ปลายทาง: 127.0.0.1:" + ServerConfig.load(this).port,
                 14,
                 true
         );
@@ -222,30 +211,24 @@ public final class MainActivity extends Activity {
         portWarpTarget.setTextIsSelectable(true);
         publicCard.addView(portWarpTarget, marginTop(10));
 
-        Button playStore = secondaryButton("เปิด PortWarp ใน Google Play");
+        Button playStore = secondaryButton("เปิด PortWarp");
         playStore.setOnClickListener(v -> openPortWarpPlayStore());
         publicCard.addView(playStore, marginTop(10));
         root.addView(publicCard, marginTop(14));
-
-        TextView footer = text("VC // SECURE VOICE NODE", 10, true);
-        footer.setGravity(Gravity.CENTER);
-        footer.setTextColor(c(R.color.cyber_border));
-        root.addView(footer, marginTop(20));
 
         return wrapScroll(root);
     }
 
     private View buildProximityCard() {
         LinearLayout proximityCard = card();
-        proximityCard.addView(eyebrow("MINECRAFT PROXIMITY // ALWAYS ON"));
+        proximityCard.addView(eyebrow("Minecraft Proximity"));
 
-        TextView alwaysOn = text("● เปิดใช้งานตลอดเวลา", 14, true);
+        TextView alwaysOn = text("เปิดตลอด", 13, true);
         alwaysOn.setTextColor(c(R.color.cyber_success));
         proximityCard.addView(alwaysOn, marginTop(8));
 
         TextView proximityNote = text(
-                "ระบบจะรับตำแหน่งผู้เล่นจาก VC Mumble Endstone แล้วกำหนดว่าใครควรได้ยินใครตามระยะ "
-                        + "หากชื่อ Minecraft กับ Mumble ไม่ตรงกันให้ใช้ /vcmumble pair <name>",
+                "กำหนดระยะที่ผู้เล่นจะได้ยินกันใน Minecraft",
                 12,
                 false
         );
@@ -256,7 +239,7 @@ public final class MainActivity extends Activity {
         addLabeledField(proximityCard, "ระยะเสียง", voiceRange);
 
         bridgeHost = field(
-                "Host ของ Minecraft Server เช่น sv5.mcsv.me",
+                "เช่น sv5.mcsv.me หรือ IP ของเซิร์ฟเวอร์",
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI
         );
         bridgePort = field("VC Mumble Bridge Port", InputType.TYPE_CLASS_NUMBER);
@@ -265,14 +248,14 @@ public final class MainActivity extends Activity {
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
         );
 
-        addLabeledField(proximityCard, "Minecraft Server Host", bridgeHost);
+        addLabeledField(proximityCard, "Minecraft Server", bridgeHost);
         addLabeledField(proximityCard, "Bridge Port", bridgePort);
         addLabeledField(proximityCard, "Bridge Secret", bridgeSecret);
 
         LinearLayout secretActions = new LinearLayout(this);
         secretActions.setOrientation(LinearLayout.HORIZONTAL);
 
-        Button generateSecret = secondaryButton("สุ่ม Secret");
+        Button generateSecret = secondaryButton("สุ่มใหม่");
         generateSecret.setOnClickListener(v -> generateBridgeSecret());
         Button copySecret = secondaryButton("คัดลอก");
         copySecret.setOnClickListener(v -> copyBridgeSecret());
@@ -295,14 +278,14 @@ public final class MainActivity extends Activity {
         proximityCard.addView(secretActions, marginTop(8));
 
         TextView secretNote = text(
-                "Secret ที่สุ่มจากแอปใช้ SecureRandom และจะถูกเข้ารหัสด้วย Android Keystore ก่อนบันทึกลงเครื่อง",
+                "Secret จะถูกเก็บแบบเข้ารหัสในเครื่อง",
                 11,
                 false
         );
         secretNote.setTextColor(c(R.color.cyber_text_secondary));
         proximityCard.addView(secretNote, marginTop(6));
 
-        Button saveProximity = primaryButton("บันทึก Proximity");
+        Button saveProximity = primaryButton("บันทึก");
         saveProximity.setOnClickListener(v -> {
             try {
                 saveSettings(true);
@@ -319,9 +302,9 @@ public final class MainActivity extends Activity {
         LinearLayout root = pageRoot();
         addScreenHeader(
                 root,
-                "LOG // TERMINAL",
-                "ระบบบันทึก",
-                "บันทึกการทำงานของระบบ — เนื้อหา Log คงภาษาอังกฤษ"
+                "",
+                "Log",
+                "บันทึกการทำงานของเซิร์ฟเวอร์"
         );
 
         LinearLayout terminal = card();
@@ -332,7 +315,7 @@ public final class MainActivity extends Activity {
                 1
         ));
 
-        TextView terminalTitle = text("SYSTEM OUTPUT", 11, true);
+        TextView terminalTitle = text("Server Log", 12, true);
         terminalTitle.setTextColor(c(R.color.cyber_neon));
         terminal.addView(terminalTitle);
 
@@ -369,15 +352,15 @@ public final class MainActivity extends Activity {
         terminal.addView(logScroll, logViewport);
         root.addView(terminal, marginTop(18));
 
-        Button copyLog = secondaryButton("คัดลอก Log");
+        Button copyLog = secondaryButton("คัดลอก");
         copyLog.setOnClickListener(v -> copyLogToClipboard());
         root.addView(copyLog, marginTop(10));
 
-        Button downloadLog = secondaryButton("บันทึก log.txt");
+        Button downloadLog = secondaryButton("บันทึกไฟล์");
         downloadLog.setOnClickListener(v -> exportLog());
         root.addView(downloadLog, marginTop(8));
 
-        Button clearLog = dangerButton("ล้าง Log");
+        Button clearLog = dangerButton("ล้าง");
         clearLog.setOnClickListener(v -> {
             ServerLog.clear(this);
             refreshLogView();
@@ -392,13 +375,13 @@ public final class MainActivity extends Activity {
         LinearLayout root = pageRoot();
         addScreenHeader(
                 root,
-                "CONFIG // SETTINGS",
+                "",
                 "ตั้งค่า",
-                "ตั้งค่าพื้นฐานของ Mumble Server"
+                "ตั้งค่า Mumble Server"
         );
 
         LinearLayout serverCard = card();
-        serverCard.addView(eyebrow("ตั้งค่า Mumble Server"));
+        serverCard.addView(eyebrow("Mumble Server"));
 
         serverName = field("ชื่อเซิร์ฟเวอร์", InputType.TYPE_CLASS_TEXT);
         port = field("พอร์ต", InputType.TYPE_CLASS_NUMBER);
@@ -414,7 +397,7 @@ public final class MainActivity extends Activity {
         addLabeledField(serverCard, "ผู้เล่นสูงสุด", maxUsers);
         root.addView(serverCard, marginTop(18));
 
-        Button save = primaryButton("บันทึกการตั้งค่า");
+        Button save = primaryButton("บันทึก");
         save.setOnClickListener(v -> {
             try {
                 saveSettings(true);
@@ -425,7 +408,7 @@ public final class MainActivity extends Activity {
         root.addView(save, marginTop(14));
 
         TextView stopHint = text(
-                "หากเซิร์ฟเวอร์กำลังทำงาน ต้องปิดเซิร์ฟเวอร์ก่อนจึงจะแก้ไขค่าหลักได้",
+                "ปิดเซิร์ฟเวอร์ก่อนแก้ไขค่าเหล่านี้",
                 11,
                 false
         );
@@ -448,7 +431,7 @@ public final class MainActivity extends Activity {
         ));
 
         navHome = navButton("หน้าหลัก");
-        navLog = navButton("LOG");
+        navLog = navButton("Log");
         navSettings = navButton("ตั้งค่า");
 
         navHome.setOnClickListener(v -> showPage(PAGE_HOME));
@@ -637,7 +620,7 @@ public final class MainActivity extends Activity {
         boolean starting = isRunning && message != null && message.startsWith("Starting");
 
         if (starting) {
-            status.setText("● กำลังเริ่ม");
+            status.setText("กำลังเริ่ม");
             status.setTextColor(c(R.color.cyber_warning));
             statusCard.setBackground(rounded(
                     c(R.color.cyber_surface),
@@ -646,7 +629,7 @@ public final class MainActivity extends Activity {
                     1
             ));
         } else if (isRunning) {
-            status.setText("● ออนไลน์");
+            status.setText("ออนไลน์");
             status.setTextColor(c(R.color.cyber_success));
             statusCard.setBackground(rounded(
                     c(R.color.cyber_surface),
@@ -655,7 +638,7 @@ public final class MainActivity extends Activity {
                     1
             ));
         } else {
-            status.setText("● ออฟไลน์");
+            status.setText("ออฟไลน์");
             status.setTextColor(c(R.color.cyber_danger));
             statusCard.setBackground(rounded(
                     c(R.color.cyber_surface),
@@ -670,9 +653,17 @@ public final class MainActivity extends Activity {
         address.setText(displayMessage);
 
         String bridgeText = bridge == null ? "" : bridge;
-        if ("Bridge idle".equals(bridgeText)) bridgeText = "ระบบเชื่อมต่อ Minecraft พร้อมใช้งาน";
+        if (bridgeText.startsWith("Bridge config missing")) {
+            bridgeText = "Minecraft: ยังไม่ได้ตั้งค่า";
+        } else if (bridgeText.startsWith("Minecraft bridge connected")) {
+            bridgeText = "Minecraft: เชื่อมต่อแล้ว";
+        } else if (bridgeText.startsWith("Minecraft bridge error")) {
+            bridgeText = "Minecraft: เชื่อมต่อไม่สำเร็จ";
+        } else if ("Bridge idle".equals(bridgeText) || bridgeText.isEmpty()) {
+            bridgeText = "Minecraft: ยังไม่ได้เชื่อมต่อ";
+        }
         if (tracked > 0) {
-            bridgeText += " • ติดตาม " + tracked + " ผู้เล่น";
+            bridgeText += " • " + tracked + " คน";
         }
         bridgeStatus.setText(bridgeText);
 
@@ -728,7 +719,7 @@ public final class MainActivity extends Activity {
                     updateState(
                             true,
                             NetworkUtil.bestLanIpv4() + ":" + probePort,
-                            "ตรวจพบ Mumble Process",
+                            "เซิร์ฟเวอร์กำลังทำงาน",
                             0
                     );
                 } else if (!running) {
@@ -741,7 +732,7 @@ public final class MainActivity extends Activity {
     private void updatePortWarpTarget() {
         if (portWarpTarget != null) {
             portWarpTarget.setText(
-                    "เป้าหมาย PortWarp: 127.0.0.1:" + ServerConfig.load(this).port
+                    "ปลายทาง: 127.0.0.1:" + ServerConfig.load(this).port
             );
         }
     }
@@ -908,28 +899,18 @@ public final class MainActivity extends Activity {
             String titleText,
             String subtitle
     ) {
-        TextView codeView = text(code, 12, true);
-        codeView.setTextColor(c(R.color.cyber_neon));
-        root.addView(codeView);
+        TextView title = text(titleText, 28, true);
+        root.addView(title);
 
-        TextView title = text(titleText, 26, true);
-        root.addView(title, marginTop(4));
-
-        TextView sub = text(subtitle, 13, false);
+        TextView sub = text(subtitle, 14, false);
         sub.setTextColor(c(R.color.cyber_text_secondary));
-        root.addView(sub, marginTop(4));
-
-        View line = new View(this);
-        line.setBackgroundColor(c(R.color.cyber_neon));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(74), dp(2));
-        lp.topMargin = dp(12);
-        root.addView(line, lp);
+        root.addView(sub, marginTop(5));
     }
 
     private LinearLayout pageRoot() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(18), dp(20), dp(18), dp(28));
+        root.setPadding(dp(18), dp(22), dp(18), dp(30));
         root.setBackgroundColor(Color.TRANSPARENT);
         return root;
     }
@@ -945,20 +926,20 @@ public final class MainActivity extends Activity {
     private LinearLayout card() {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(dp(16), dp(16), dp(16), dp(16));
+        layout.setPadding(dp(18), dp(18), dp(18), dp(18));
         layout.setBackground(rounded(
                 c(R.color.cyber_surface),
                 c(R.color.cyber_border),
-                16,
+                18,
                 1
         ));
-        layout.setElevation(dp(3));
+        layout.setElevation(dp(1));
         return layout;
     }
 
     private TextView eyebrow(String value) {
-        TextView view = text(value, 11, true);
-        view.setTextColor(c(R.color.cyber_neon));
+        TextView view = text(value, 15, true);
+        view.setTextColor(c(R.color.cyber_text));
         return view;
     }
 
@@ -984,7 +965,7 @@ public final class MainActivity extends Activity {
         input.setBackground(rounded(
                 c(R.color.cyber_panel),
                 c(R.color.cyber_neon_dim),
-                10,
+                12,
                 1
         ));
         return input;
@@ -999,7 +980,7 @@ public final class MainActivity extends Activity {
 
     private Button primaryButton(String label) {
         Button button = buttonBase(label);
-        button.setTextColor(Color.rgb(0, 26, 38));
+        button.setTextColor(Color.WHITE);
         button.setBackground(rounded(
                 c(R.color.cyber_neon),
                 c(R.color.cyber_neon_soft),
@@ -1048,35 +1029,31 @@ public final class MainActivity extends Activity {
         button.setTypeface(button.getTypeface(), Typeface.BOLD);
         button.setMinHeight(dp(50));
         button.setStateListAnimator(null);
-        button.setElevation(dp(2));
-        attachCyberPressAnimation(button);
+        button.setElevation(dp(1));
+        attachPressAnimation(button);
         return button;
     }
 
-    private void attachCyberPressAnimation(Button button) {
+    private void attachPressAnimation(Button button) {
         button.setOnTouchListener((view, event) -> {
             int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_DOWN) {
                 button.animate()
-                        .scaleX(0.965f)
-                        .scaleY(0.965f)
-                        .alpha(0.86f)
-                        .translationY(dp(1))
+                        .scaleX(0.98f)
+                        .scaleY(0.98f)
+                        .alpha(0.90f)
                         .setDuration(90)
                         .start();
-                button.setElevation(dp(8));
-                button.setShadowLayer(dp(6), 0f, 0f, c(R.color.cyber_neon));
+                button.setElevation(dp(1));
             } else if (action == MotionEvent.ACTION_UP
                     || action == MotionEvent.ACTION_CANCEL) {
                 button.animate()
                         .scaleX(1f)
                         .scaleY(1f)
                         .alpha(1f)
-                        .translationY(0f)
-                        .setDuration(160)
+                        .setDuration(140)
                         .start();
-                button.setElevation(dp(2));
-                button.setShadowLayer(dp(2), 0f, 0f, c(R.color.cyber_neon_dim));
+                button.setElevation(dp(1));
             }
             return false;
         });
@@ -1090,15 +1067,6 @@ public final class MainActivity extends Activity {
                 10,
                 selected ? 1 : 0
         ));
-    }
-
-    private GradientDrawable cyberBackground() {
-        GradientDrawable drawable = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{c(R.color.cyber_bg), c(R.color.cyber_panel)}
-        );
-        drawable.setGradientType(GradientDrawable.LINEAR_GRADIENT);
-        return drawable;
     }
 
     private GradientDrawable rounded(int fill, int stroke, int radiusDp, int strokeDp) {
