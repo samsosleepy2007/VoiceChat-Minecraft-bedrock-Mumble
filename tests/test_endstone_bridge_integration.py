@@ -142,6 +142,7 @@ assert first.get("type") != "stale_before_connect"
 send_line(sock, {"type": "request_snapshot"})
 wait_incoming_types(bridge, {"request_snapshot"})
 
+stream.close()
 sock.close()
 deadline = time.monotonic() + 2.0
 while time.monotonic() < deadline and bridge.client_connected:
@@ -151,6 +152,7 @@ while time.monotonic() < deadline and bridge.client_connected:
 sock2, stream2 = authenticate(port, secret)
 wait_incoming_types(bridge, {"client_connected", "request_snapshot"})
 assert bridge.client_connected
+stream2.close()
 sock2.close()
 
 bridge.stop()
