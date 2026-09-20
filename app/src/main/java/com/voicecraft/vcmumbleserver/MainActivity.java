@@ -205,8 +205,9 @@ public final class MainActivity extends Activity {
         root.addView(section("Public Access (Playit Experimental)"), marginTop(22));
         TextView playitNote = text(
                 BuildConfig.VC_EMBEDDED_PLAYIT
-                        ? "Set up Playit once, approve this device in your browser, then the app can "
-                            + "run its own TCP+UDP public tunnel to the local Mumble port."
+                        ? "Set up Playit once with a verified Playit account, approve this device in your browser, "
+                            + "then the app can run its own TCP+UDP public tunnel to the local Mumble port. "
+                            + "Guest or unverified accounts cannot create this custom tunnel."
                         : "Embedded playit is not included in this build.",
                 12,
                 false
@@ -231,6 +232,11 @@ public final class MainActivity extends Activity {
         playitSetupButton.setEnabled(BuildConfig.VC_EMBEDDED_PLAYIT);
         playitSetupButton.setOnClickListener(v -> setupPlayit());
         root.addView(playitSetupButton, marginTop(8));
+
+        Button playitAccountButton = button("OPEN PLAYIT ACCOUNT");
+        playitAccountButton.setEnabled(BuildConfig.VC_EMBEDDED_PLAYIT);
+        playitAccountButton.setOnClickListener(v -> openPlayitAccount());
+        root.addView(playitAccountButton, marginTop(8));
 
         playitStartButton = button("START PUBLIC ACCESS");
         playitStartButton.setEnabled(false);
@@ -449,11 +455,26 @@ public final class MainActivity extends Activity {
 
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(claimUrl)));
-            Toast.makeText(this, "Approve VC Mumble Server in Playit, then return here.", Toast.LENGTH_LONG).show();
+            Toast.makeText(
+                    this,
+                    "Sign in with a verified Playit account (do not use Guest), approve VC Mumble Server, then return here.",
+                    Toast.LENGTH_LONG
+            ).show();
         } catch (Exception error) {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             clipboard.setPrimaryClip(ClipData.newPlainText("Playit claim URL", claimUrl));
             Toast.makeText(this, "Browser unavailable. Claim link copied.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void openPlayitAccount() {
+        String accountUrl = "https://playit.gg/account";
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(accountUrl)));
+        } catch (Exception error) {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            clipboard.setPrimaryClip(ClipData.newPlainText("Playit account URL", accountUrl));
+            Toast.makeText(this, "Browser unavailable. Playit account link copied.", Toast.LENGTH_LONG).show();
         }
     }
 
