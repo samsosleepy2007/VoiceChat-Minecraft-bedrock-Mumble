@@ -41,6 +41,7 @@ done
 
 python3 tests/test_prepare_mumble_source.py
 python3 tests/test_vc_mumble_bridge_contract.py
+python3 tests/test_endstone_plugin_contract.py
 
 python3 - <<'PY'
 from pathlib import Path

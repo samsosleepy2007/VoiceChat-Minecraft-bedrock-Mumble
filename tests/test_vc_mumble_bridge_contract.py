@@ -43,14 +43,16 @@ for expected in [
     'data.get("role") == "vc_mumble_server"',
     'data.get("type") != "auth_response"',
     'hmac.compare_digest(supplied, expected)',
+    'max_frame_bytes',
+    'auth_timeout_seconds',
+    '_clear_outgoing()',
 ]:
     assert expected in plugin + bridge, expected
 
 assert 'name = "endstone-vc-mumble"' in pyproject
-# Endstone 0.11.10 test server requires the proven 0.1.0 distribution slot.
-# Runtime feature version is carried by the plugin class and is currently 0.1.1.
-assert 'version = "0.1.0"' in pyproject
-assert 'version = "0.1.1"' in plugin
+# Runtime plugin metadata and Python distribution version stay aligned.
+assert 'version = "0.2.0"' in pyproject
+assert 'version = "0.2.0"' in plugin
 assert 'vc-mumble = "endstone_vc_mumble:VCMumblePlugin"' in pyproject
 
 # The real core uses explicit RegisterNatives binding from JNI_OnLoad so ART
