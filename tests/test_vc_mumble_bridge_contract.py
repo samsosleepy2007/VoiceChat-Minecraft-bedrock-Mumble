@@ -53,8 +53,8 @@ for expected in [
 
 assert 'name = "endstone-vc-mumble"' in pyproject
 # Runtime plugin metadata and Python distribution version stay aligned.
-assert 'version = "0.2.0"' in pyproject
-assert 'version = "0.2.0"' in plugin
+assert 'version = "0.3.0"' in pyproject
+assert 'version = "0.3.0"' in plugin
 assert 'vc-mumble = "endstone_vc_mumble:VCMumblePlugin"' in pyproject
 
 # The real core uses explicit RegisterNatives binding from JNI_OnLoad so ART
