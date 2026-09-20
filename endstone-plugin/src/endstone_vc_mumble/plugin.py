@@ -347,6 +347,11 @@ class VCMumblePlugin(Plugin):
         return None
 
     def handle_player_join(self, player: Player) -> None:
+        # Clear persisted Mic state from an older session. The addon republishes
+        # the current ON/OFF state immediately after spawn; without the addon,
+        # normal Mumble speech remains enabled by default.
+        self._remove_tag(player, self.MIC_ON_TAG)
+        self._remove_tag(player, self.MIC_OFF_TAG)
         state = self._snapshot_if_valid(player)
         if state is None:
             return
@@ -536,6 +541,8 @@ class VCMumblePlugin(Plugin):
         self._set_value_tag(player, self.RANGE_MAX_PREFIX, str(self._max_range))
         if self._is_addon_safe_mumble_name(mumble_name):
             self._set_value_tag(player, self.PAIR_VALUE_PREFIX, mumble_name)
+        else:
+            self._clear_tags_with_prefix(player, self.PAIR_VALUE_PREFIX)
 
     def _process_addon_requests(self, player: Player) -> None:
         key = self._player_key(player)
