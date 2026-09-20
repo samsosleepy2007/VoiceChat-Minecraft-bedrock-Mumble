@@ -262,7 +262,7 @@ public final class PortWarpExecProbe {
     private static ArchiveSpec findLatestArm64Archive(String text) {
         ArchiveSpec best = null;
         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
-                "^([0-9a-fA-F]{64})\\\\s+pwrp-([0-9]+)\\.([0-9]+)\\.([0-9]+)-linux-arm64\\.tar\\.gz$"
+                "^([0-9a-fA-F]{64})\\s+pwrp-([0-9]+)\\.([0-9]+)\\.([0-9]+)-linux-arm64\\.tar\\.gz$"
         );
         for (String raw : text.split("\\n")) {
             String line = raw.trim();
