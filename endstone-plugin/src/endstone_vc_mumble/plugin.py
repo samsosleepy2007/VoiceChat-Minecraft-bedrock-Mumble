@@ -589,8 +589,10 @@ class VCMumblePlugin(Plugin):
                     status = "ok"
                 current = self._mumble_name_for(key, str(player.name))
                 self._clear_tags_with_prefix(player, self.PAIR_ACK_PREFIX + request_id + ".")
-                safe_current = current if self._is_addon_safe_mumble_name(current) else str(player.name)
-                self._add_tag(player, f"{self.PAIR_ACK_PREFIX}{request_id}.{status}.{safe_current}")
+                if self._is_addon_safe_mumble_name(current):
+                    self._add_tag(player, f"{self.PAIR_ACK_PREFIX}{request_id}.{status}.{current}")
+                else:
+                    self._add_tag(player, f"{self.PAIR_ACK_PREFIX}{request_id}.{status}")
 
             elif tag.startswith(self.PAIR_UNPAIR_PREFIX):
                 request_id = tag[len(self.PAIR_UNPAIR_PREFIX):]
@@ -606,16 +608,21 @@ class VCMumblePlugin(Plugin):
                 self._save_bindings()
                 self._broadcast_current_player(player)
                 self._clear_tags_with_prefix(player, self.PAIR_ACK_PREFIX + request_id + ".")
-                self._add_tag(player, f"{self.PAIR_ACK_PREFIX}{request_id}.ok.{player.name}")
+                if self._is_addon_safe_mumble_name(str(player.name)):
+                    self._add_tag(player, f"{self.PAIR_ACK_PREFIX}{request_id}.ok.{player.name}")
+                else:
+                    self._add_tag(player, f"{self.PAIR_ACK_PREFIX}{request_id}.ok")
 
             elif tag.startswith(self.PAIR_SYNC_PREFIX):
                 request_id = tag[len(self.PAIR_SYNC_PREFIX):]
                 self._remove_tag(player, tag)
                 if request_id:
                     current = self._mumble_name_for(key, str(player.name))
-                    safe_current = current if self._is_addon_safe_mumble_name(current) else str(player.name)
                     self._clear_tags_with_prefix(player, self.PAIR_ACK_PREFIX + request_id + ".")
-                    self._add_tag(player, f"{self.PAIR_ACK_PREFIX}{request_id}.ok.{safe_current}")
+                    if self._is_addon_safe_mumble_name(current):
+                        self._add_tag(player, f"{self.PAIR_ACK_PREFIX}{request_id}.ok.{current}")
+                    else:
+                        self._add_tag(player, f"{self.PAIR_ACK_PREFIX}{request_id}.ok")
 
     @staticmethod
     def _is_addon_safe_mumble_name(value: str) -> bool:
