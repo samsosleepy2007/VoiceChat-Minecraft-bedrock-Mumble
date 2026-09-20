@@ -30,6 +30,7 @@ for f in \
   native/mumble_android/android-package/settings.gradle \
   scripts/fetch-mumble.sh \
   scripts/build-mumble-android-core.sh \
+  scripts/fetch-portwarp-android-runtime.sh \
   scripts/prepare-mumble-source.py
 do
   test -f "$f" || { echo "Missing: $f" >&2; exit 1; }
@@ -39,6 +40,7 @@ python3 tests/test_prepare_mumble_source.py
 python3 tests/test_vc_mumble_bridge_contract.py
 
 bash -n scripts/build-mumble-android-core.sh
+bash -n scripts/fetch-portwarp-android-runtime.sh
 
 grep -Fq 'libvcserver_${ANDROID_ABI}.so' scripts/build-mumble-android-core.sh
 grep -Fq 'CORE_MACHINE=' scripts/build-mumble-android-core.sh
@@ -104,8 +106,11 @@ grep -Fq 'Startup failed; stopping isolated Mumble process' app/src/core/java/co
 grep -Fq 'refreshServerStateFromTcp()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'new InetSocketAddress("127.0.0.1", probePort)' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'static File ensureInstalled(Context context)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
-grep -Fq 'findLatestArm64Archive(checksums)' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
-grep -Fq 'checksum-pinned official' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+grep -Fq 'new File(info.nativeLibraryDir, "libpwrp_exec.so")' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+grep -Fq 'Using APK-packaged PortWarp runtime from nativeLibraryDir' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpExecProbe.java
+grep -Fq 'sha256sum' scripts/fetch-portwarp-android-runtime.sh
+grep -Fq 'libpwrp_exec.so' scripts/fetch-portwarp-android-runtime.sh
+grep -Fq 'Stage checksum-pinned PortWarp runtime into APK' .github/workflows/android-mumble-core.yml
 grep -Fq 'pwrp connect' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
 grep -Fq '"connect", "--all", "--save", "--detach"' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
 grep -Fq '"stop", "--all"' app/src/main/java/com/voicecraft/vcmumbleserver/PortWarpTunnelService.java
