@@ -131,6 +131,7 @@ jobs:
           cat .build/android-stage/vc-mumble-runtime.contents.txt
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -E 'lib/arm64-v8a/|classes' || true
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -F 'lib/arm64-v8a/libpwrp_exec.so'
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -F 'lib/arm64-v8a/libpwrp_dns_launcher_exec.so'
 
       - uses: actions/upload-artifact@v7
         with:
