@@ -104,7 +104,17 @@ class VCMumblePlugin(Plugin):
             self.save_config()
             self.logger.warning("BRIDGE secret generated. Read plugins/vc_mumble/config.toml and copy it into VC Mumble Server.")
         max_queue = self._bounded_int(bridge.get("max_queue", 4096), 128, 65536, 4096)
-        self._bridge = BridgeServer(self.logger, host, port, secret, max_queue)
+        max_frame_bytes = self._bounded_int(bridge.get("max_frame_bytes", 262144), 4096, 1048576, 262144)
+        auth_timeout_seconds = self._bounded_int(bridge.get("auth_timeout_seconds", 10), 2, 60, 10)
+        self._bridge = BridgeServer(
+            self.logger,
+            host,
+            port,
+            secret,
+            max_queue=max_queue,
+            max_frame_bytes=max_frame_bytes,
+            auth_timeout_seconds=auth_timeout_seconds,
+        )
 
     def _load_bindings(self) -> None:
         path = self.data_folder / "bindings.json"

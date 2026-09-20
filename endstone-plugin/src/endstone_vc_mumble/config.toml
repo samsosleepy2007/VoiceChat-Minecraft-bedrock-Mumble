@@ -10,6 +10,8 @@ host = "0.0.0.0"
 port = 27220
 secret = ""
 max_queue = 4096
+max_frame_bytes = 262144
+auth_timeout_seconds = 10
 
 [voice]
 default_range = 30
