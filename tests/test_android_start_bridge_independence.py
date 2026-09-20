@@ -17,6 +17,9 @@ assert ".commit()" in secret
 assert "Could not persist bridge secret" in secret
 assert ".apply()" not in secret
 
+# Regression: editing Minecraft Server / Bridge settings and immediately tapping
+# Start must behave the same as Quick Start; the isolated :mumble process must
+# never depend on an asynchronous settings flush.
 # Normal Start and Quick Start share the same launch path. Quick Start may set
 # defaults, but it must not pre-save through a separate path that hides races.
 quick_start = main[main.index('Button quick = secondaryButton("ใช้ค่าเริ่มต้นและเปิด");'):]
