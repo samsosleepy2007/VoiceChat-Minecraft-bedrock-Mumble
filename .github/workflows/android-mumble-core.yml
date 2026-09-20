@@ -28,7 +28,6 @@ jobs:
         run: |
           sh -n ./scripts/check-project.sh
           bash -n ./scripts/build-mumble-android-core.sh
-          bash -n ./scripts/fetch-portwarp-android-runtime.sh
 
       - name: Project contract checks
         run: bash ./scripts/check-project.sh
@@ -50,9 +49,6 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '9.6.0'
-
-      - name: Stage checksum-pinned PortWarp runtime into APK
-        run: bash ./scripts/fetch-portwarp-android-runtime.sh
 
       - name: Install host build tools
         run: |
@@ -130,8 +126,6 @@ jobs:
           test -f .build/android-stage/vc-mumble-runtime.aar
           cat .build/android-stage/vc-mumble-runtime.contents.txt
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -E 'lib/arm64-v8a/|classes' || true
-          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -F 'lib/arm64-v8a/libpwrp_exec.so'
-          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -F 'lib/arm64-v8a/libpwrp_dns_launcher_exec.so'
 
       - uses: actions/upload-artifact@v7
         with:
