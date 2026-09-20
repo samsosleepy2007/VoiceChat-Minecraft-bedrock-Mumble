@@ -149,7 +149,8 @@ public final class MainActivity extends Activity {
     private View buildHeader() {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.VERTICAL);
-        header.setPadding(dp(18), dp(14), dp(18), dp(12));
+        int horizontal = contentHorizontalPadding();
+        header.setPadding(horizontal, dp(14), horizontal, dp(12));
         header.setBackgroundColor(theme.surface);
 
         TextView brand = text("VC MUMBLE // NODE", 22, true);
@@ -204,6 +205,7 @@ public final class MainActivity extends Activity {
 
         status = text("● ออฟไลน์", 27, true);
         status.setTextColor(theme.danger);
+        theme.glowTitle(status);
         statusCard.addView(status, marginTop(8));
 
         address = text("พร้อมใช้งาน", 16, true);
@@ -305,7 +307,7 @@ public final class MainActivity extends Activity {
         logView.setTextIsSelectable(true);
         logView.setMinLines(20);
         logView.setPadding(dp(14), dp(14), dp(14), dp(14));
-        logView.setBackground(theme.panel(dp(14), true));
+        logView.setBackground(theme.terminalPanel(dp(14)));
         root.addView(logView, marginTop(14));
 
         Button copyLog = button("คัดลอก Log");
@@ -676,6 +678,18 @@ public final class MainActivity extends Activity {
         if (message == null || message.isEmpty() || "Bridge idle".equals(message)) {
             return "Bridge พร้อมใช้งาน";
         }
+        if ("Mumble process detected".equals(message)) {
+            return "ตรวจพบ Mumble Server";
+        }
+        if (message.startsWith("Bridge connected")) {
+            return "Bridge เชื่อมต่อแล้ว" + message.substring("Bridge connected".length());
+        }
+        if (message.startsWith("Bridge connecting")) {
+            return "กำลังเชื่อมต่อ Bridge…" + message.substring("Bridge connecting".length());
+        }
+        if (message.startsWith("Bridge disabled")) {
+            return "ปิด Proximity Bridge";
+        }
         return message;
     }
 
@@ -836,9 +850,18 @@ public final class MainActivity extends Activity {
     private LinearLayout pageContainer() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(16), dp(16), dp(16), dp(28));
+        int horizontal = contentHorizontalPadding();
+        root.setPadding(horizontal, dp(16), horizontal, dp(28));
         root.setBackgroundColor(theme.background);
         return root;
+    }
+
+    private int contentHorizontalPadding() {
+        float widthDp = getResources().getDisplayMetrics().widthPixels
+                / getResources().getDisplayMetrics().density;
+        if (widthDp >= 840f) return dp(96);
+        if (widthDp >= 600f) return dp(48);
+        return dp(16);
     }
 
     private ScrollView scroll(View child) {
