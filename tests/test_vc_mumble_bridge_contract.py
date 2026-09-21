@@ -34,6 +34,8 @@ assert 'bridge_host' in config
 assert 'bridge_port' in config
 assert 'VoiceCraft' not in config
 assert 'NativeServer.setProximityEnabled(proximityActive)' in core_service
+assert 'NativeServer.setProximityStaleTimeoutMs(45000L)' in core_service
+assert 'NativeServer.touchPlayerStates()' in client
 assert 'VCMumbleBridgeClient' in core_service
 
 for expected in [
@@ -70,6 +72,7 @@ for expected in [
     '"updatePlayerStateNative"',
     '"removePlayerStateNative"',
     '"clearPlayerStatesNative"',
+    '"touchPlayerStatesNative"',
     '"proximityPlayerCountNative"',
 ]:
     assert expected in real_jni, expected
@@ -79,6 +82,8 @@ assert '(Ljava/lang/String;Ljava/lang/String;DDDFZI)V' in real_jni
 assert 'voiceEnabled == JNI_TRUE' in real_jni
 assert 'if (!speaker.voiceEnabled) return 0.0F;' in proximity
 assert 'float attenuationFactor' in proximity
+assert 'void touchPlayers()' in proximity
+assert 'g_staleTimeoutMs{ 45000 }' in proximity
 assert 'normalizedDistance <= 0.20' in proximity
 assert 'attenuationForNormalizedDistance(double normalizedDistance, int level)' in proximity
 assert 'case 1:' in proximity
