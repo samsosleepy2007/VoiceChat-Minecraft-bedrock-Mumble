@@ -151,6 +151,7 @@ final class VCMumbleBridgeClient {
                 removePlayer(data);
                 break;
             case "heartbeat":
+                NativeServer.touchPlayerStates();
                 notifyStatus(syncing ? "Minecraft bridge connected • syncing" : "Minecraft bridge connected", true);
                 break;
             default:
