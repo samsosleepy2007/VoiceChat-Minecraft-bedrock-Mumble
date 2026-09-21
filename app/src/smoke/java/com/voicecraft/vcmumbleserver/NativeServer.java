@@ -150,5 +150,6 @@ public final class NativeServer {
     }
 
     public static void clearPlayerStates() { proximityPlayers.clear(); }
+    public static void touchPlayerStates() {}
     public static int proximityPlayerCount() { return proximityPlayers.size(); }
 }
