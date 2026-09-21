@@ -18,6 +18,7 @@ void updatePlayer(const QString &mumbleName,
                   int attenuationLevel);
 void removePlayer(const QString &mumbleName);
 void clearPlayers();
+void touchPlayers();
 int playerCount();
 
 // Returns a per-listener volume factor in the range [0, 1]. When proximity is
