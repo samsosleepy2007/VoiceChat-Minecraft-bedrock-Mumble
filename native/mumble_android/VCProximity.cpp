@@ -26,7 +26,7 @@ struct PlayerState {
 QReadWriteLock g_lock;
 QHash<QString, PlayerState> g_players;
 std::atomic_bool g_enabled{ false };
-std::atomic<qint64> g_staleTimeoutMs{ 15000 };
+std::atomic<qint64> g_staleTimeoutMs{ 45000 };
 
 QString keyFor(const QString &name) {
     return name.trimmed().toCaseFolded();
@@ -131,6 +131,14 @@ void removePlayer(const QString &mumbleName) {
 void clearPlayers() {
     QWriteLocker locker(&g_lock);
     g_players.clear();
+}
+
+void touchPlayers() {
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    QWriteLocker locker(&g_lock);
+    for (auto it = g_players.begin(); it != g_players.end(); ++it) {
+        it.value().updatedAtMs = now;
+    }
 }
 
 int playerCount() {
