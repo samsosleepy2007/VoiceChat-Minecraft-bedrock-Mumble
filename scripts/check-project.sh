@@ -113,6 +113,9 @@ grep -Fq 'VC_PROXIMITY_REGULAR_ATTENUATION' scripts/prepare-mumble-source.py
 grep -Fq 'VC_PROXIMITY_LINKED_ATTENUATION' scripts/prepare-mumble-source.py
 grep -Fq 'data.optBoolean("voiceEnabled", true)' app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java
 grep -Fq 'data.optInt("attenuationLevel", 2)' app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java
+grep -Fq 'NativeServer.touchPlayerStates();' app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java
+grep -Fq 'NativeServer.setProximityStaleTimeoutMs(45000L);' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'g_staleTimeoutMs{ 45000 }' native/mumble_android/VCProximity.cpp
 grep -Fq 'private static native void setProximityStaleTimeoutMsNative(long timeoutMs);' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
 grep -Fq 'private static native void updatePlayerStateNative(' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
 grep -Fq 'if (runtimeLoaded) setProximityStaleTimeoutMsNative(timeoutMs);' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
