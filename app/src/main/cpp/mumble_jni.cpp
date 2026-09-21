@@ -77,6 +77,10 @@ void clearPlayerStatesNative(JNIEnv *, jclass) {
     VCProximity::clearPlayers();
 }
 
+void touchPlayerStatesNative(JNIEnv *, jclass) {
+    VCProximity::touchPlayers();
+}
+
 JNINativeMethod kNativeMethods[] = {
         {const_cast<char *>("startNative"),
          const_cast<char *>("(Ljava/lang/String;ILjava/lang/String;)I"),
@@ -111,6 +115,9 @@ JNINativeMethod kNativeMethods[] = {
         {const_cast<char *>("clearPlayerStatesNative"),
          const_cast<char *>("()V"),
          reinterpret_cast<void *>(clearPlayerStatesNative)},
+        {const_cast<char *>("touchPlayerStatesNative"),
+         const_cast<char *>("()V"),
+         reinterpret_cast<void *>(touchPlayerStatesNative)},
 };
 
 } // namespace
