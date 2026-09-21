@@ -223,7 +223,7 @@ public final class MumbleServerService extends RestartableQtService {
         boolean proximityActive = true;
         try {
             ServerLog.append(this, "JNI", "setProximityStaleTimeoutMs begin");
-            NativeServer.setProximityStaleTimeoutMs(15000L);
+            NativeServer.setProximityStaleTimeoutMs(45000L);
             ServerLog.append(this, "JNI", "setProximityStaleTimeoutMs OK");
 
             ServerLog.append(this, "JNI", "clearPlayerStates begin");
