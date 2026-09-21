@@ -33,6 +33,7 @@ public final class NativeServer {
     );
     private static native void removePlayerStateNative(String mumbleName);
     private static native void clearPlayerStatesNative();
+    private static native void touchPlayerStatesNative();
 
     public static synchronized int start(String iniPath, int fallbackPort, String nativeLibraryDir) {
         if (!runtimeLoaded) return 1;
@@ -108,5 +109,9 @@ public final class NativeServer {
 
     public static void clearPlayerStates() {
         if (runtimeLoaded) clearPlayerStatesNative();
+    }
+
+    public static void touchPlayerStates() {
+        if (runtimeLoaded) touchPlayerStatesNative();
     }
 }
