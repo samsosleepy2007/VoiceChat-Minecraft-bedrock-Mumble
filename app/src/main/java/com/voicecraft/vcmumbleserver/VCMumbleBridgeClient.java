@@ -233,7 +233,9 @@ final class VCMumbleBridgeClient {
                 }
 
                 readOffset = 0;
-                readLimit = input.read(readBuffer);
+                readLimit = 0;
+                int count = input.read(readBuffer);
+                readLimit = count;
                 if (readLimit < 0) {
                     if (pending.size() > 0) {
                         pending.reset();
