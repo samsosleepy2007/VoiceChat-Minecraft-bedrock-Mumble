@@ -146,9 +146,9 @@ final class EndstonePluginPackage {
                     throw new IOException("Signed wheel cannot be safely rewritten");
                 }
 
-                byte[] data = EndstoneReleaseResolver.readLimited(
+                byte[] data = readZipEntryLimited(
                         zip,
-                        Math.min(MAX_UNPACKED_BYTES, MAX_UNPACKED_BYTES - unpackedBytes)
+                        MAX_UNPACKED_BYTES - unpackedBytes
                 );
                 unpackedBytes += data.length;
                 if (unpackedBytes > MAX_UNPACKED_BYTES) {
@@ -194,6 +194,25 @@ final class EndstonePluginPackage {
             zip.finish();
             return output.toByteArray();
         }
+    }
+
+    private static byte[] readZipEntryLimited(ZipInputStream zip, int maxBytes)
+            throws IOException {
+        if (maxBytes <= 0) {
+            throw new IOException("Endstone wheel expands beyond safety limit");
+        }
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[16 * 1024];
+        int total = 0;
+        int read;
+        while ((read = zip.read(buffer)) != -1) {
+            total += read;
+            if (total > maxBytes) {
+                throw new IOException("Endstone wheel expands beyond safety limit");
+            }
+            output.write(buffer, 0, read);
+        }
+        return output.toByteArray();
     }
 
     private static byte[] buildRecord(LinkedHashMap<String, byte[]> entries, String recordPath)
