@@ -28,20 +28,7 @@ PARTS = [
 SOURCE_TGZ_SHA256 = "f66a7633d4d923e49efd5236f382747e21205e9448454dda9ffa5f074cc33c8f"
 VERSION = [2, 7, 6]
 
-OLD_MIC_STATE = """function publishMicState(player, on) {
-  try {
-    const wanted = on ? MIC_ON_TAG : MIC_OFF_TAG;
-    const unwanted = on ? MIC_OFF_TAG : MIC_ON_TAG;
-
-    if (player.hasTag(unwanted)) player.removeTag(unwanted);
-    if (!player.hasTag(wanted)) player.addTag(wanted);
-  } catch (e) {
-    console.warn(\`[VCMumbleItem/BP] mic tag sync failed player=\${player.name}: \${e}\`);
-  }
-}
-"""
-
-NEW_MIC_STATE = """function publishMicState(player, on) {
+NEW_MIC_STATE = r"""function publishMicState(player, on) {
   const wanted = on ? MIC_ON_TAG : MIC_OFF_TAG;
   const unwanted = on ? MIC_OFF_TAG : MIC_ON_TAG;
 
@@ -64,15 +51,14 @@ NEW_MIC_STATE = """function publishMicState(player, on) {
     // Command fallback repairs tag state if Script API tag mutation did not
     // become visible immediately to Endstone. Only runs when verification fails.
     if (!correct) {
-      try { player.runCommand(\`tag @s remove \${unwanted}\`); } catch {}
-      try { player.runCommand(\`tag @s add \${wanted}\`); } catch {}
+      try { player.runCommand(`tag @s remove ${unwanted}`); } catch {}
+      try { player.runCommand(`tag @s add ${wanted}`); } catch {}
     }
   } catch (e) {
-    console.warn(\`[VCMumbleItem/BP] mic tag sync failed player=\${player.name}: \${e}\`);
+    console.warn(`[VCMumbleItem/BP] mic tag sync failed player=${player.name}: ${e}`);
   }
 }
 """
-
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -121,9 +107,12 @@ def update_manifest(path: Path, pack: str) -> None:
 
 def patch_script(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
-    if OLD_MIC_STATE not in text:
-        raise RuntimeError("v2.7.4 publishMicState anchor not found")
-    text = text.replace(OLD_MIC_STATE, NEW_MIC_STATE, 1)
+    start = text.find("function publishMicState(player, on) {")
+    end = text.find("\nfunction stateFor(player) {", start)
+    if start < 0 or end < 0:
+        raise RuntimeError("publishMicState/stateFor anchors not found")
+    text = text[:start] + NEW_MIC_STATE + text[end + 1:]
+
     old_banner = (
         "[VCMumbleItem/BP] Loaded v2.7.4 — VC Mumble native mic/range contract "
         "(feature/minecraft-mic-addon-v1)"
