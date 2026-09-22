@@ -202,6 +202,15 @@ float attenuationFactor(const QString &speakerName, const QString &listenerName)
     const PlayerState listener = listenerIt.value();
     locker.unlock();
 
+    // VC_ROUTE_BYPASS_TEST: prove whether session/name mapping works before
+    // applying mic, freshness, dimension, range, or attenuation filters.
+    return finish(1.0F, "bypass-pair-found",
+                  QString("speakerDim=%1 listenerDim=%2 speakerRange=%3 mic=%4")
+                      .arg(speaker.dimension)
+                      .arg(listener.dimension)
+                      .arg(speaker.rangeBlocks, 0, 'f', 1)
+                      .arg(speaker.voiceEnabled ? QStringLiteral("on") : QStringLiteral("off")));
+
     if (!isFresh(speaker, now)) return finish(0.0F, "speaker-stale");
     if (!isFresh(listener, now)) return finish(0.0F, "listener-stale");
     if (!speaker.voiceEnabled) return finish(0.0F, "speaker-mic-off");
