@@ -1,4 +1,5 @@
 name: Endstone Proximity Plugin
+# mic-state-sync-v1
 
 on:
   workflow_dispatch:
