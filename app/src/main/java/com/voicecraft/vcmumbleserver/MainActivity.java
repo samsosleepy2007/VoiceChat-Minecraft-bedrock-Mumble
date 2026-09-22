@@ -48,6 +48,8 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_EXPORT_ENDSTONE_PLUGIN = 4202;
     private static final int REQUEST_EXPORT_ENDSTONE_CONFIG = 4203;
     private static final int REQUEST_EXPORT_MINECRAFT_ADDON = 4204;
+    private static final String UI_PREFS = "vc_mumble_ui";
+    private static final String PREF_ENDSTONE_NOTICE_ACK = "endstone_notice_ack_v1";
     private static final int PAGE_HOME = 0;
     private static final int PAGE_LOG = 1;
     private static final int PAGE_SETTINGS = 2;
@@ -116,7 +118,9 @@ public final class MainActivity extends Activity {
         refreshEndstoneReleaseStatus();
         refreshAddonReleaseStatus();
         if (savedInstanceState == null) {
-            showBatteryAccessPromptIfNeeded();
+            if (!showEndstoneFirstRunNoticeIfNeeded()) {
+                showBatteryAccessPromptIfNeeded();
+            }
         }
     }
 
@@ -355,12 +359,12 @@ public final class MainActivity extends Activity {
         }
 
         ImageView logo = new ImageView(this);
-        logo.setImageResource(R.drawable.mcsv_logo);
+        logo.setImageBitmap(McsvLogoAsset.bitmap());
         logo.setAdjustViewBounds(true);
-        logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
         LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(68)
+                dp(82)
         );
         mcsvCard.addView(logo, logoParams);
 
@@ -548,6 +552,10 @@ public final class MainActivity extends Activity {
         );
         stopHint.setTextColor(c(R.color.cyber_text_secondary));
         root.addView(stopHint, marginTop(8));
+
+        Button endstoneGuide = secondaryButton("คู่มือ Endstone / MCSV");
+        endstoneGuide.setOnClickListener(v -> showEndstoneCompatibilityNotice(false));
+        root.addView(endstoneGuide, marginTop(14));
 
         return wrapScroll(root);
     }
@@ -1236,6 +1244,111 @@ public final class MainActivity extends Activity {
             refreshLogView();
             Toast.makeText(this, "บันทึก config.toml ไม่สำเร็จ: " + error.getMessage(), Toast.LENGTH_LONG).show();
         }
+    }
+
+    private boolean showEndstoneFirstRunNoticeIfNeeded() {
+        boolean acknowledged = getSharedPreferences(UI_PREFS, MODE_PRIVATE)
+                .getBoolean(PREF_ENDSTONE_NOTICE_ACK, false);
+        if (acknowledged) return false;
+        showEndstoneCompatibilityNotice(true);
+        return true;
+    }
+
+    private void showEndstoneCompatibilityNotice(boolean firstRun) {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setGravity(Gravity.CENTER_HORIZONTAL);
+        content.setPadding(dp(20), dp(18), dp(20), dp(14));
+        content.setBackground(rounded(
+                Color.rgb(55, 8, 13),
+                Color.rgb(248, 70, 70),
+                18,
+                2
+        ));
+        content.setElevation(dp(12));
+
+        ImageView endstoneLogo = new ImageView(this);
+        endstoneLogo.setImageBitmap(EndstoneLogoAsset.bitmap());
+        endstoneLogo.setAdjustViewBounds(true);
+        endstoneLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        LinearLayout.LayoutParams imageParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(122)
+        );
+        content.addView(endstoneLogo, imageParams);
+
+        TextView title = text("ต้องใช้เซิร์ฟเวอร์ Endstone เท่านั้น", 19, true);
+        title.setTextColor(Color.WHITE);
+        title.setGravity(Gravity.CENTER);
+        content.addView(title, marginTop(10));
+
+        TextView warning = text(
+                "ระบบ Minecraft Proximity ของ VC Mumble ใช้ Endstone Plugin "
+                        + "ดังนั้นเซิร์ฟเวอร์ Minecraft Bedrock ต้องรันด้วย Endstone ก่อนจึงจะใช้งานได้",
+                13,
+                false
+        );
+        warning.setTextColor(Color.rgb(255, 215, 215));
+        warning.setGravity(Gravity.CENTER);
+        content.addView(warning, marginTop(8));
+
+        TextView stepsTitle = text("ติดตั้ง Endstone บน MCSV", 14, true);
+        stepsTitle.setTextColor(Color.WHITE);
+        content.addView(stepsTitle, marginTop(14));
+
+        TextView steps = text(
+                "1. เข้า mcsv.me → Dashboard → เลือกหรือสร้างเซิร์ฟเวอร์ Bedrock\n"
+                        + "2. ไปที่ ตั้งค่า แล้วเลือกเปลี่ยน Build / Reinstall\n"
+                        + "3. เลือก Endstone หากมีอยู่ในรายการ Build ปัจจุบันของ MCSV\n"
+                        + "4. ถ้าใช้ Reinstall ให้สำรองโลก/ไฟล์ก่อน เพราะข้อมูลเซิร์ฟเวอร์เดิมจะถูกลบ\n"
+                        + "5. รอให้ Endstone ติดตั้งเสร็จและเปิดเซิร์ฟเวอร์ให้พร้อมใช้งาน\n"
+                        + "6. ไปที่ ระบบ → API / MCP → สร้าง key\n"
+                        + "7. กลับมา VC Mumble Server → ใส่ mcsv_ API Key → กด ติดตั้งผ่าน MCSV\n\n"
+                        + "ถ้า MCSV ไม่มี Endstone ในรายการ Build ฟังก์ชันติดตั้งอัตโนมัติจะใช้งานไม่ได้",
+                12,
+                false
+        );
+        steps.setTextColor(Color.rgb(255, 230, 230));
+        content.addView(steps, marginTop(7));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(content)
+                .setCancelable(!firstRun)
+                .setPositiveButton(
+                        "เข้าใจแล้ว",
+                        (d, which) -> {
+                            acknowledgeEndstoneNotice();
+                            if (firstRun) {
+                                showBatteryAccessPromptIfNeeded();
+                            }
+                        }
+                )
+                .setNeutralButton(
+                        "เปิดคู่มือ MCSV",
+                        (d, which) -> {
+                            acknowledgeEndstoneNotice();
+                            openUrl(
+                                    "https://mcsv.me/docs/bedrock-server",
+                                    "MCSV Bedrock Guide"
+                            );
+                        }
+                )
+                .create();
+
+        dialog.setOnShowListener(ignored -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                    .setTextColor(Color.rgb(239, 68, 68));
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
+                    .setTextColor(Color.rgb(239, 68, 68));
+        });
+        dialog.show();
+    }
+
+    private void acknowledgeEndstoneNotice() {
+        getSharedPreferences(UI_PREFS, MODE_PRIVATE)
+                .edit()
+                .putBoolean(PREF_ENDSTONE_NOTICE_ACK, true)
+                .apply();
     }
 
     private void showMcsvApiKeyGuide() {
