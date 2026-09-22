@@ -1,7 +1,7 @@
 package com.voicecraft.vcmumbleserver;
 
 import org.json.JSONArray;
-import org.json.JSONObject;
+import org.json.JSONObject;\nimport org.json.JSONException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
