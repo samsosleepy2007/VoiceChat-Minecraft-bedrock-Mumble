@@ -306,6 +306,12 @@ Both download actions resolve GitHub Releases again every time they are pressed,
 
 The configured wheel and exported config contain the Bridge Secret in plaintext by necessity. Treat those exported files as private server credentials. The Addon download does not contain the Bridge Secret.
 
+### Endstone compatibility notice
+
+On the first app launch, VC Mumble Server shows a red compatibility notice explaining that Minecraft proximity integration requires a **Minecraft Bedrock server running Endstone**. The notice includes the Endstone artwork supplied for the app and a short MCSV setup guide. Once acknowledged, it is not shown automatically again; it can be reopened from **Settings → Endstone / MCSV guide**.
+
+The app uses validated embedded WebP artwork for both the MCSV logo and Endstone notice instead of relying on a binary drawable upload. Project contract checks verify the expected dimensions and SHA-256 of both embedded assets before Android builds.
+
 ### Optional MCSV one-click install
 
 For MCSV-hosted Bedrock/Endstone servers, the Android app also has an optional green **MCSV** card. The user only pastes an MCSV API key and presses **Install via MCSV**.
