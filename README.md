@@ -306,6 +306,14 @@ Both download actions resolve GitHub Releases again every time they are pressed,
 
 The configured wheel and exported config contain the Bridge Secret in plaintext by necessity. Treat those exported files as private server credentials. The Addon download does not contain the Bridge Secret.
 
+### Optional MCSV one-click install
+
+For MCSV-hosted Bedrock/Endstone servers, the Android app also has an optional green **MCSV** card. The user only pastes an MCSV API key and presses **Install via MCSV**.
+
+The app validates the key, confirms the bound server is Minecraft Bedrock + Endstone, selects an allocated non-game port for the VC Mumble bridge, downloads and SHA-verifies the newest Endstone wheel, injects the Android Bridge Secret, uploads it to `/plugins`, writes `/plugins/vc_mumble/config.toml`, restarts the MCSV server, and fills the Android Bridge host/port automatically.
+
+The MCSV API key is used only for that install request and is not persisted by VC Mumble Server. For a custom-permission key, enable only: `server_info`, `domain_info`, `files_list`, `files_upload_base64`, `files_delete`, `files_write`, and `power_action`.
+
 ## Building the Android Mumble core
 
 Requirements used by CI:
