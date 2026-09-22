@@ -12,6 +12,31 @@ Endstone plugin :27220/TCP  <-----  VC Mumble Server Android
 
 The Mumble side can keep every user in the **Root** channel. Channel membership is not used to calculate proximity.
 
+
+## Downloading the plugin from VC Mumble Server
+
+The Android app can download and configure the Endstone wheel directly from this repository's GitHub Releases.
+
+Each time **Download Plugin (.whl)** is pressed, the app performs a fresh GitHub Releases lookup. Drafts are ignored, while both stable and prerelease releases are eligible. The selected release is the newest published release that contains an `endstone_vc_mumble-*.whl` asset.
+
+Before export, the app downloads `SHA256SUMS.txt` from the same release and verifies the original wheel. It then injects the Android app's current Bridge Secret into:
+
+```text
+endstone_vc_mumble/config.toml
+```
+
+The wheel's `.dist-info/RECORD` is rebuilt after the config change so the configured wheel remains internally consistent.
+
+If the Android app does not yet have a Bridge Secret, it generates a 32-byte URL-safe secret and stores it through Android Keystore-backed `SecretStore`. The secret is never written to the app log.
+
+For an Endstone server where the plugin is already installed, use **Download config.toml** and replace the server's existing:
+
+```text
+plugins/vc_mumble/config.toml
+```
+
+The exported wheel and config contain the shared secret in plaintext and should be handled as server credentials.
+
 ## Authentication
 
 Transport is UTF-8 NDJSON over TCP.
@@ -110,8 +135,8 @@ Android may send:
 
 The plugin responds with a complete `sync_begin -> player_state* -> sync_end` snapshot.
 
-Operators can also request a snapshot with:
+Operators can request bridge/player resynchronization from the admin tools inside:
 
 ```text
-/vcmumbleadmin resync
+/vcb
 ```
