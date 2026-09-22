@@ -120,9 +120,9 @@ def main() -> int:
             '#include <cstring>\n'
             'namespace Mumble { namespace Protocol {\n'
             'template< Role role > std::span< byte > UDPAudioEncoder< role >::updateAudioPacket_legacy(const AudioData &data) {\n'
-            '\tstd::size_t packetSize = data.containsPositionalData ? m_positionalAudioSize : m_staticPartSize;\n'
+            '\t\tstd::size_t packetSize = data.containsPositionalData ? m_positionalAudioSize : m_staticPartSize;\n'
             '\n'
-            '\treturn std::span< byte >(m_byteBuffer.data(), packetSize);\n'
+            '\t\treturn std::span< byte >(m_byteBuffer.data(), packetSize);\n'
             '}\n'
             '} }\n',
             encoding="utf-8",
