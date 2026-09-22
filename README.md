@@ -286,9 +286,9 @@ Commands:
 
 The bridge tracks Minecraft identity, dimension, XYZ position, Mic ON/OFF state, voice range, and attenuation level and maps those players to Mumble usernames. All Mumble users may stay in the Root channel; proximity routing and smooth distance-based attenuation are handled by the server together with VC Mumla v0.4 Stable Gain.
 
-### In-app Endstone plugin download
+### In-app Endstone plugin and Minecraft Addon downloads
 
-VC Mumble Server can prepare the Endstone plugin directly from this repository's GitHub Releases.
+VC Mumble Server can prepare the Endstone plugin and download the matching Item Mic Addon directly from this repository's GitHub Releases.
 
 When the user presses **Download Plugin (.whl)**, the app:
 
@@ -300,9 +300,11 @@ When the user presses **Download Plugin (.whl)**, the app:
 6. rebuilds the wheel `.dist-info/RECORD` hashes and sizes; and
 7. saves the configured wheel under its original valid wheel filename.
 
-The download action resolves GitHub Releases again every time it is pressed, so a newer beta or stable release can be picked up without shipping a new Android APK just to change the plugin URL. A separate **Download config.toml** action is available for servers where the plugin is already installed and its existing data-folder config must be replaced manually.
+**Download Addon (.mcaddon)** performs a separate fresh release lookup and selects the newest published release containing a `VC_Mumble_ItemMic_*.mcaddon` asset. The original Addon is downloaded unchanged after its SHA-256 is verified against `SHA256SUMS.txt` from the same release.
 
-The configured wheel and exported config contain the Bridge Secret in plaintext by necessity. Treat those exported files as private server credentials.
+Both download actions resolve GitHub Releases again every time they are pressed, so newer beta or stable assets can be picked up without shipping a new Android APK just to change a download URL. A separate **Download config.toml** action is available for servers where the plugin is already installed and its existing data-folder config must be replaced manually.
+
+The configured wheel and exported config contain the Bridge Secret in plaintext by necessity. Treat those exported files as private server credentials. The Addon download does not contain the Bridge Secret.
 
 ## Building the Android Mumble core
 
