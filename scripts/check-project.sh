@@ -20,6 +20,8 @@ for f in \
   app/src/smoke/java/com/voicecraft/vcmumbleserver/MumbleServerService.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/MumbleConfigWriter.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/McsvLogoAsset.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/EndstoneLogoAsset.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/SecretStore.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerConfig.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerLog.java \
@@ -44,6 +46,7 @@ python3 tests/test_vc_mumble_bridge_contract.py
 python3 tests/test_android_start_bridge_independence.py
 python3 tests/test_endstone_plugin_contract.py
 python3 tests/test_endstone_bridge_integration.py
+python3 tests/test_embedded_ui_assets.py
 
 python3 - <<'PY'
 from pathlib import Path
