@@ -76,15 +76,15 @@ jobs:
           APK="$(find .build/mumla/app/build/outputs/apk -type f -name '*beta*debug*.apk' -print -quit)"
           test -n "${APK}" && test -f "${APK}"
           cp "${APK}" VC-Mumla-v0.2-stable-beta-debug.apk
-          unzip -t VC-Mumla-v0.1-beta-debug.apk >/dev/null
-          sha256sum VC-Mumla-v0.1-beta-debug.apk > VC-Mumla-v0.2-stable-beta-debug.apk.sha256
-          cat VC-Mumla-v0.1-beta-debug.apk.sha256
+          unzip -t VC-Mumla-v0.2-stable-beta-debug.apk >/dev/null
+          sha256sum VC-Mumla-v0.2-stable-beta-debug.apk > VC-Mumla-v0.2-stable-beta-debug.apk.sha256
+          cat VC-Mumla-v0.2-stable-beta-debug.apk.sha256
 
       - name: Upload VC Mumla APK
         uses: actions/upload-artifact@v7
         with:
           name: vc-mumla-v0.2-stable-beta-debug
           path: |
-            VC-Mumla-v0.1-beta-debug.apk
-            VC-Mumla-v0.1-beta-debug.apk.sha256
+            VC-Mumla-v0.2-stable-beta-debug.apk
+            VC-Mumla-v0.2-stable-beta-debug.apk.sha256
           if-no-files-found: error
