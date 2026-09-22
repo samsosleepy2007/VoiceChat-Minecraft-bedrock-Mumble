@@ -258,4 +258,10 @@ test "$(grep -Fc 'stage_external_lib()' scripts/build-mumble-android-core.sh)" -
 test "$(grep -Fc 'Build the APK with:' scripts/build-mumble-android-core.sh)" -eq 1
 test "$(grep -Fc 'CORE_DYNSYMS=' scripts/build-mumble-android-core.sh)" -eq 1
 
+rm -rf .build/mic-addon-contract
+mkdir -p .build/mic-addon-contract
+python3 scripts/build-mic-addon-release.py --output .build/mic-addon-contract >/dev/null
+test -f .build/mic-addon-contract/VC_Mumble_ItemMic_v2.7.6.mcaddon
+unzip -t .build/mic-addon-contract/VC_Mumble_ItemMic_v2.7.6.mcaddon >/dev/null
+
 echo "VC Mumble Server project structure: OK"
