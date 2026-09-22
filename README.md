@@ -281,14 +281,28 @@ Native Mumble proximity routing
 Commands:
 
 ```text
-/vcmumble
-/vcmumble status
-/vcmumble pair <mumble_name>
-/vcmumble unpair
-/vcmumble range <blocks>
+/vcb
 ```
 
 The bridge tracks Minecraft identity, dimension, XYZ position, Mic ON/OFF state, voice range, and attenuation level and maps those players to Mumble usernames. All Mumble users may stay in the Root channel; proximity routing and smooth distance-based attenuation are handled by the server together with VC Mumla v0.4 Stable Gain.
+
+### In-app Endstone plugin download
+
+VC Mumble Server can prepare the Endstone plugin directly from this repository's GitHub Releases.
+
+When the user presses **Download Plugin (.whl)**, the app:
+
+1. requests the current Releases list from GitHub instead of using a hard-coded tag;
+2. ignores drafts, includes stable and prerelease releases, and selects the most recently published release that contains an `endstone_vc_mumble-*.whl` asset;
+3. downloads that wheel together with `SHA256SUMS.txt` from the same release;
+4. verifies the original wheel SHA-256 before modifying it;
+5. writes the Android device's encrypted-at-rest Bridge Secret into `endstone_vc_mumble/config.toml`;
+6. rebuilds the wheel `.dist-info/RECORD` hashes and sizes; and
+7. saves the configured wheel under its original valid wheel filename.
+
+The download action resolves GitHub Releases again every time it is pressed, so a newer beta or stable release can be picked up without shipping a new Android APK just to change the plugin URL. A separate **Download config.toml** action is available for servers where the plugin is already installed and its existing data-folder config must be replaced manually.
+
+The configured wheel and exported config contain the Bridge Secret in plaintext by necessity. Treat those exported files as private server credentials.
 
 ## Building the Android Mumble core
 
