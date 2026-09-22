@@ -65,11 +65,7 @@ final class McsvInstaller {
                 argument("directory", "/plugins")
         );
         List<String> oldWheels = findVcMumbleWheels(pluginListing.optJSONArray("files"));
-
-        if (oldWheels.contains(release.wheelName)) {
-            deletePluginFiles(client, listOf(release.wheelName));
-            oldWheels.remove(release.wheelName);
-        }
+        oldWheels.remove(release.wheelName);
 
         JSONObject uploadArgs = new JSONObject();
         try {
@@ -185,12 +181,6 @@ final class McsvInstaller {
             throw new IOException("Could not prepare old plugin cleanup", impossible);
         }
         client.callTool("files_delete", args);
-    }
-
-    private static List<String> listOf(String value) {
-        List<String> values = new ArrayList<>();
-        values.add(value);
-        return values;
     }
 
     private static JSONObject argument(String key, Object value) throws IOException {
