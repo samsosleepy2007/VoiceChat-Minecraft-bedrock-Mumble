@@ -12,6 +12,7 @@
 #include <cmath>
 
 namespace VCProximity {
+// VC_DIAGNOSTIC_ROUTE_BUILD
 namespace {
 struct PlayerState {
     QString dimension;
