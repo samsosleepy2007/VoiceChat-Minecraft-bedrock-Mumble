@@ -17,4 +17,9 @@
     <color name="cyber_log_text">#E5E7EB</color>
     <color name="cyber_nav">#FFFFFF</color>
     <color name="cyber_nav_selected">#DBEAFE</color>
+    <color name="mcsv_surface">#EEFFF7</color>
+    <color name="mcsv_green">#00B86B</color>
+    <color name="mcsv_green_soft">#00D983</color>
+    <color name="mcsv_green_dim">#A7F3D0</color>
+    <color name="mcsv_text">#064E3B</color>
 </resources>
