@@ -58,6 +58,12 @@ jobs:
           grep -F "VC_SERVER_GAIN_PCM" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutputSpeech.java
           grep -F "VC Mumla" .build/mumla/app/src/beta/res/values/strings_notranslate.xml
 
+      - name: Build Humla custom SpongyCastle jars
+        working-directory: .build/mumla/libraries/humla/libs/humla-spongycastle
+        run: |
+          chmod +x ../../gradlew
+          ../../gradlew jar --no-daemon
+
       - name: Build VC Mumla beta debug APK
         working-directory: .build/mumla
         run: |
