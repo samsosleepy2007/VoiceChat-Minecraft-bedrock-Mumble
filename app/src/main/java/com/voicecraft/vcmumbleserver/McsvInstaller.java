@@ -46,9 +46,9 @@ final class McsvInstaller {
 
         JSONObject domain = client.callTool("domain_info", new JSONObject());
         String bridgeHost = firstNonEmpty(
-                domain.optString("connect_address", ""),
                 domain.optString("full_domain", ""),
-                domain.optString("node_hostname", "")
+                domain.optString("node_hostname", ""),
+                normalizeHost(domain.optString("connect_address", ""))
         );
         if (bridgeHost.isEmpty()) {
             throw new IOException("MCSV API ไม่ได้ส่ง Host สำหรับเชื่อมต่อกลับมา");
@@ -62,7 +62,7 @@ final class McsvInstaller {
 
         JSONObject pluginListing = client.callTool(
                 "files_list",
-                new JSONObject().put("directory", "/plugins")
+                argument("directory", "/plugins")
         );
         List<String> oldWheels = findVcMumbleWheels(pluginListing.optJSONArray("files"));
 
@@ -104,7 +104,7 @@ final class McsvInstaller {
 
         client.callTool(
                 "power_action",
-                new JSONObject().put("action", "restart")
+                argument("action", "restart")
         );
 
         return new InstallResult(
@@ -191,6 +191,38 @@ final class McsvInstaller {
         List<String> values = new ArrayList<>();
         values.add(value);
         return values;
+    }
+
+    private static JSONObject argument(String key, Object value) throws IOException {
+        JSONObject args = new JSONObject();
+        try {
+            args.put(key, value);
+            return args;
+        } catch (JSONException impossible) {
+            throw new IOException("Could not prepare MCSV request", impossible);
+        }
+    }
+
+    private static String normalizeHost(String value) {
+        if (value == null) return "";
+        String host = value.trim();
+        int scheme = host.indexOf("://");
+        if (scheme >= 0) host = host.substring(scheme + 3);
+        int slash = host.indexOf('/');
+        if (slash >= 0) host = host.substring(0, slash);
+        if (host.startsWith("[")) {
+            int close = host.indexOf(']');
+            if (close > 1) return host.substring(1, close);
+        }
+        int firstColon = host.indexOf(':');
+        int lastColon = host.lastIndexOf(':');
+        if (firstColon > 0 && firstColon == lastColon) {
+            String portPart = host.substring(firstColon + 1);
+            if (portPart.matches("[0-9]{1,5}")) {
+                return host.substring(0, firstColon);
+            }
+        }
+        return host;
     }
 
     private static String firstNonEmpty(String... values) {
