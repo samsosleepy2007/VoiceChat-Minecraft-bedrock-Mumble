@@ -101,7 +101,10 @@ def patch_audio_output_speech(path: pathlib.Path) -> None:
             }
             System.arraycopy(mOut, 0, mBuffer, mBufferFilled, decodedSamples);
 """
-    text = replace_once(text, old_copy, new_copy, "PCM gain application")
+    if old_copy not in text:
+        raise RuntimeError("could not locate final PCM mixer copy")
+    before, marker, after = text.rpartition(old_copy)
+    text = before + new_copy + after
 
     path.write_text(text, encoding="utf-8")
 
