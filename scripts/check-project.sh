@@ -102,7 +102,9 @@ grep -Fq 'FindClass("com/voicecraft/vcmumbleserver/NativeServer")' app/src/main/
 grep -Fq '"setProximityStaleTimeoutMsNative"' app/src/main/cpp/mumble_jni.cpp
 grep -Fq '"updatePlayerStateNative"' app/src/main/cpp/mumble_jni.cpp
 grep -Fq '(Ljava/lang/String;Ljava/lang/String;DDDFZI)V' app/src/main/cpp/mumble_jni.cpp
-grep -Fq 'if (!speaker.voiceEnabled) return 0.0F;' native/mumble_android/VCProximity.cpp
+grep -Fq 'if (!speaker.voiceEnabled) return finish(0.0F, "speaker-mic-off");' native/mumble_android/VCProximity.cpp
+grep -Fq '[VC-PROX-ROUTE]' native/mumble_android/VCProximity.cpp
+grep -Fq '[VC-PROX-STATE]' native/mumble_android/VCProximity.cpp
 grep -Fq 'float attenuationFactor' native/mumble_android/VCProximity.cpp
 grep -Fq 'normalizedDistance <= 0.20' native/mumble_android/VCProximity.cpp
 grep -Fq 'attenuationForNormalizedDistance(double normalizedDistance, int level)' native/mumble_android/VCProximity.cpp
