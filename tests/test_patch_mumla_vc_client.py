@@ -22,6 +22,17 @@ def main() -> int:
             "}\n}\n""",
             encoding="utf-8",
         )
+        humla_root = root / "libraries/humla/src/main/java/se/lublin/humla"
+        humla_root.mkdir(parents=True, exist_ok=True)
+        (humla_root / "HumlaService.java").write_text(
+            "class HumlaService {\n"
+            "void connect() {\n"
+            "            mConnection.setForceTCP(mForceTcp);\n"
+            "}\n"
+            "}\n",
+            encoding="utf-8",
+        )
+
         (audio / "AudioOutputSpeech.java").write_text(
             """class AudioOutputSpeech {\n"
             "    private int mMissCount;\n"
@@ -45,6 +56,7 @@ def main() -> int:
         assert "VC_GAIN_TRAILER" in (audio / "AudioOutput.java").read_text()
         assert "VC_SERVER_GAIN_PCM" in (audio / "AudioOutputSpeech.java").read_text()
         assert "VC Mumla" in (beta / "strings_notranslate.xml").read_text()
+        assert "VC_FORCE_TCP_STABLE_TRANSPORT" in (humla_root / "HumlaService.java").read_text()
 
     print("VC Mumla patch fixture: OK")
     return 0
