@@ -10,6 +10,7 @@ The patch stays intentionally narrow and reproducible:
 - compile JNI control and proximity state into the same native library;
 - gate regular-speech receiver additions through the VC proximity policy;
 - apply a per-listener distance attenuation factor through Mumble's native VolumeAdjustment path;
+- append a tiny VC gain trailer to legacy audio packets for the patched Mumla client;
 - preserve stock Mumble routing when proximity is disabled (the default).
 """
 
@@ -480,6 +481,60 @@ def patch_server_routing(murmur: pathlib.Path) -> None:
     server_cpp.write_text(text, encoding="utf-8")
 
 
+
+def patch_legacy_gain_trailer(source: pathlib.Path) -> None:
+    """Append VC gain metadata to legacy server->client voice packets.
+
+    Legacy Mumble UDP voice packets have no standard per-listener volume field.
+    The trailer is deliberately appended after the ordinary payload/positional
+    data so unmodified legacy clients ignore it, while the VC Mumla client can
+    read the factor and scale decoded PCM locally.
+    """
+    protocol_cpp = source / "src" / "MumbleProtocol.cpp"
+    text = protocol_cpp.read_text(encoding="utf-8")
+
+    if "VC_LEGACY_GAIN_TRAILER" in text:
+        return
+
+    old = """\t\tstd::size_t packetSize = data.containsPositionalData ? m_positionalAudioSize : m_staticPartSize;
+
+\t\treturn std::span< byte >(m_byteBuffer.data(), packetSize);
+"""
+    new = """\t\tstd::size_t packetSize = data.containsPositionalData ? m_positionalAudioSize : m_staticPartSize;
+
+\t\tif constexpr (role == Role::Server) { // VC_LEGACY_GAIN_TRAILER
+\t\t\tconst float gain = std::clamp(data.volumeAdjustment.factor, 0.0f, 1.0f);
+\t\t\tif (gain < 0.999f && packetSize + 8 <= MAX_UDP_PACKET_SIZE) {
+\t\t\t\tm_byteBuffer.resize(packetSize + 8);
+\t\t\t\tbyte *trailer = m_byteBuffer.data() + packetSize;
+\t\t\t\ttrailer[0] = static_cast< byte >('V');
+\t\t\t\ttrailer[1] = static_cast< byte >('C');
+\t\t\t\ttrailer[2] = static_cast< byte >('G');
+\t\t\t\ttrailer[3] = static_cast< byte >('1');
+
+\t\t\t\tstatic_assert(sizeof(float) == sizeof(std::uint32_t));
+\t\t\t\tstd::uint32_t bits = 0;
+\t\t\t\tstd::memcpy(&bits, &gain, sizeof(bits));
+\t\t\t\ttrailer[4] = static_cast< byte >(bits & 0xffu);
+\t\t\t\ttrailer[5] = static_cast< byte >((bits >> 8u) & 0xffu);
+\t\t\t\ttrailer[6] = static_cast< byte >((bits >> 16u) & 0xffu);
+\t\t\t\ttrailer[7] = static_cast< byte >((bits >> 24u) & 0xffu);
+\t\t\t\tpacketSize += 8;
+\t\t\t}
+\t\t}
+
+\t\treturn std::span< byte >(m_byteBuffer.data(), packetSize);
+"""
+    if old not in text:
+        raise RuntimeError("could not locate legacy audio packet return block")
+    text = text.replace(old, new, 1)
+
+    if "#include <cstdint>" not in text:
+        text = text.replace("#include <cstring>\n", "#include <cstring>\n#include <cstdint>\n", 1)
+
+    protocol_cpp.write_text(text, encoding="utf-8")
+
+
 def patch_cmake(murmur: pathlib.Path) -> None:
     cmake = murmur / "CMakeLists.txt"
     cmake_text = cmake.read_text(encoding="utf-8")
@@ -608,10 +663,12 @@ def prepare(
     patch_android_default_ini(murmur)
     patch_android_foreground_logfile(murmur)
     patch_server_routing(murmur)
+    patch_legacy_gain_trailer(source)
 
     final_cmake = cmake.read_text(encoding="utf-8")
     final_main = main_cpp.read_text(encoding="utf-8")
     final_server = server_cpp.read_text(encoding="utf-8")
+    final_protocol = (source / "src" / "MumbleProtocol.cpp").read_text(encoding="utf-8")
     checks = {
         "Qt Android executable target": "qt_add_executable(mumble-server MANUAL_FINALIZATION" in final_cmake,
         "vcserver output name": 'OUTPUT_NAME "vcserver"' in final_cmake,
@@ -636,6 +693,8 @@ def prepare(
         "regular attenuation hook": "VC_PROXIMITY_REGULAR_ATTENUATION" in final_server,
         "linked attenuation hook": "VC_PROXIMITY_LINKED_ATTENUATION" in final_server,
         "distance attenuation factor": "VCProximity::attenuationFactor" in final_server,
+        "legacy VC gain trailer": "VC_LEGACY_GAIN_TRAILER" in final_protocol,
+        "legacy VC gain magic": "'V'" in final_protocol and "'C'" in final_protocol and "'G'" in final_protocol,
     }
     missing = [label for label, ok in checks.items() if not ok]
     if missing:
