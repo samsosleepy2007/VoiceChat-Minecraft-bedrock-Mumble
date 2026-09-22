@@ -12,7 +12,7 @@ from endstone_vc_mumble import VCMumblePlugin
 
 assert issubclass(VCMumblePlugin, Plugin)
 assert VCMumblePlugin.api_version == "0.11"
-assert VCMumblePlugin.version == "0.4.0"
+assert VCMumblePlugin.version == "0.4.1"
 
 assert hasattr(CommandSender, "has_permission")
 assert ActionForm is not None
