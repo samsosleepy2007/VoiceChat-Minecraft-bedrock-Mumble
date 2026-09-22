@@ -1,0 +1,82 @@
+name: VC Mumla Client
+
+on:
+  push:
+    branches:
+      - feature/mumla-volume-client-v1
+    paths:
+      - "scripts/patch-mumla-vc-client.py"
+      - ".github/workflows/mumla-vc-client.yml"
+      - "tests/test_patch_mumla_vc_client.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MUMLA_COMMIT: "477b337ebcee1655c1357d51db99cf92bbc175a4"
+  HUMLA_COMMIT: "7966f3828d6ed87ef29c517abfade6ad7998cdc5"
+  NDK_VERSION: "25.1.8937393"
+
+jobs:
+  build-vc-mumla:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK / NDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-36" "ndk;${NDK_VERSION}"
+
+      - name: Check out pinned Mumla source
+        run: |
+          rm -rf .build/mumla
+          git clone https://github.com/quite/mumla.git .build/mumla
+          git -C .build/mumla checkout "${MUMLA_COMMIT}"
+
+          rm -rf .build/mumla/libraries/humla
+          git clone https://github.com/quite/humla.git .build/mumla/libraries/humla
+          git -C .build/mumla/libraries/humla checkout "${HUMLA_COMMIT}"
+          git -C .build/mumla/libraries/humla submodule update --init --recursive
+
+      - name: Apply VC per-listener gain patch
+        run: |
+          python3 scripts/patch-mumla-vc-client.py --root .build/mumla
+          grep -F "VC_GAIN_TRAILER" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutput.java
+          grep -F "VC_SERVER_GAIN_PCM" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutputSpeech.java
+          grep -F "VC Mumla" .build/mumla/app/src/beta/res/values/strings_notranslate.xml
+
+      - name: Build VC Mumla beta debug APK
+        working-directory: .build/mumla
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleBetaDebug --stacktrace --no-daemon
+
+      - name: Stage APK
+        run: |
+          APK="$(find .build/mumla/app/build/outputs/apk -type f -name '*beta*debug*.apk' -print -quit)"
+          test -n "${APK}" && test -f "${APK}"
+          cp "${APK}" VC-Mumla-v0.1-beta-debug.apk
+          unzip -t VC-Mumla-v0.1-beta-debug.apk >/dev/null
+          sha256sum VC-Mumla-v0.1-beta-debug.apk > VC-Mumla-v0.1-beta-debug.apk.sha256
+          cat VC-Mumla-v0.1-beta-debug.apk.sha256
+
+      - name: Upload VC Mumla APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: vc-mumla-v0.1-beta-debug
+          path: |
+            VC-Mumla-v0.1-beta-debug.apk
+            VC-Mumla-v0.1-beta-debug.apk.sha256
+          if-no-files-found: error
