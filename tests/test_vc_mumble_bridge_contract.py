@@ -58,7 +58,7 @@ for expected in [
 
 assert 'name = "endstone-vc-mumble"' in pyproject
 # Runtime plugin metadata and Python distribution version stay aligned.
-assert 'version = "0.4.0"' in pyproject
+assert 'version = "0.4.1"' in pyproject
 assert 'version = "0.4.0"' in plugin
 assert 'vc-mumble = "endstone_vc_mumble:VCMumblePlugin"' in pyproject
 
