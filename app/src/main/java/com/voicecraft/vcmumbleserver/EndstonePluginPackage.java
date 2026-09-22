@@ -128,7 +128,7 @@ final class EndstonePluginPackage {
         return -1;
     }
 
-    private static byte[] patchWheel(byte[] wheel, String bridgeSecret) throws IOException {
+    static byte[] patchWheel(byte[] wheel, String bridgeSecret) throws IOException {
         LinkedHashMap<String, byte[]> entries = new LinkedHashMap<>();
         String recordPath = null;
         int unpackedBytes = 0;
