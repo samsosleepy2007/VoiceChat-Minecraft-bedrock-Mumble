@@ -57,6 +57,7 @@ jobs:
           grep -F "VC_GAIN_TRAILER" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutput.java
           grep -F "VC_SERVER_GAIN_PCM" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutputSpeech.java
           grep -F "VC Mumla" .build/mumla/app/src/beta/res/values/strings_notranslate.xml
+          grep -F "VC_FORCE_TCP_STABLE_TRANSPORT" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/HumlaService.java
 
       - name: Build Humla custom SpongyCastle jars
         working-directory: .build/mumla/libraries/humla/libs/humla-spongycastle
@@ -74,15 +75,15 @@ jobs:
         run: |
           APK="$(find .build/mumla/app/build/outputs/apk -type f -name '*beta*debug*.apk' -print -quit)"
           test -n "${APK}" && test -f "${APK}"
-          cp "${APK}" VC-Mumla-v0.1-beta-debug.apk
+          cp "${APK}" VC-Mumla-v0.2-stable-beta-debug.apk
           unzip -t VC-Mumla-v0.1-beta-debug.apk >/dev/null
-          sha256sum VC-Mumla-v0.1-beta-debug.apk > VC-Mumla-v0.1-beta-debug.apk.sha256
+          sha256sum VC-Mumla-v0.1-beta-debug.apk > VC-Mumla-v0.2-stable-beta-debug.apk.sha256
           cat VC-Mumla-v0.1-beta-debug.apk.sha256
 
       - name: Upload VC Mumla APK
         uses: actions/upload-artifact@v7
         with:
-          name: vc-mumla-v0.1-beta-debug
+          name: vc-mumla-v0.2-stable-beta-debug
           path: |
             VC-Mumla-v0.1-beta-debug.apk
             VC-Mumla-v0.1-beta-debug.apk.sha256
