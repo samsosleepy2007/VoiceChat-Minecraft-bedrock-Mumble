@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import pathlib
-import re
 import sys
 
 
@@ -26,11 +25,20 @@ def patch_audio_output(path: pathlib.Path) -> None:
     if "VC_GAIN_TRAILER" in text:
         return
 
+    text = replace_once(
+        text,
+        "    private ExecutorService mDecodeExecutorService;\n",
+        "    private ExecutorService mDecodeExecutorService;\n"
+        "    private long mVcLastGainLogMs = 0L; // VC_GAIN_DIAGNOSTIC\n",
+        "AudioOutput diagnostic field",
+    )
+
     old = """            PacketBuffer dataBuffer = new PacketBuffer(pds.bufferBlock(pds.left()));
             aop.addFrameToBuffer(dataBuffer, msgFlags, seq);
 """
     new = """            byte[] vcVoicePayload = pds.dataBlock(pds.left());
             float vcServerGain = 1.0f; // VC_GAIN_TRAILER
+            boolean vcHasGainTrailer = false;
             if (vcVoicePayload.length >= 8) {
                 int vcOffset = vcVoicePayload.length - 8;
                 if (vcVoicePayload[vcOffset] == 'V'
@@ -44,9 +52,19 @@ def patch_audio_output(path: pathlib.Path) -> None:
                     float vcCandidate = Float.intBitsToFloat(vcBits);
                     if (Float.isFinite(vcCandidate) && vcCandidate >= 0.0f && vcCandidate <= 1.0f) {
                         vcServerGain = vcCandidate;
+                        vcHasGainTrailer = true;
                         vcVoicePayload = Arrays.copyOf(vcVoicePayload, vcOffset);
                     }
                 }
+            }
+
+            long vcNow = System.currentTimeMillis();
+            if (vcNow - mVcLastGainLogMs >= 2000L) {
+                mVcLastGainLogMs = vcNow;
+                Log.i(TAG, "VC-GAIN rx session=" + session
+                        + " gain=" + vcServerGain
+                        + " trailer=" + vcHasGainTrailer
+                        + " payloadBytes=" + vcVoicePayload.length);
             }
 
             PacketBuffer dataBuffer = new PacketBuffer(vcVoicePayload, vcVoicePayload.length);
@@ -64,7 +82,8 @@ def patch_audio_output_speech(path: pathlib.Path) -> None:
     text = replace_once(
         text,
         "    private int mMissCount = 0;\n",
-        "    private int mMissCount = 0;\n    private float mServerVolumeFactor = 1.0f; // VC_SERVER_GAIN_PCM\n",
+        "    private int mMissCount = 0;\n"
+        "    private float mServerVolumeFactor = 1.0f; // VC_SERVER_GAIN_PCM\n",
         "server volume field",
     )
 
@@ -109,48 +128,71 @@ def patch_audio_output_speech(path: pathlib.Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def patch_stable_transport(path: pathlib.Path) -> None:
-    """Force Mumble voice through TCP tunnel to avoid legacy UDP nonce desync.
+def patch_stable_transport(service_path: pathlib.Path, connection_path: pathlib.Path) -> None:
+    """Hard-force voice through Mumble TCP tunnel and identify the VC build."""
+    service = service_path.read_text(encoding="utf-8")
+    if "VC_FORCE_TCP_STABLE_TRANSPORT" not in service:
+        service = replace_once(
+            service,
+            "            mConnection.setForceTCP(mForceTcp);\n",
+            "            mConnection.setForceTCP(true); // VC_FORCE_TCP_STABLE_TRANSPORT\n",
+            "Humla force-TCP configuration",
+        )
 
-    The VC gain trailer is part of the ordinary audio payload and therefore
-    survives UDPTunnel unchanged. This keeps attenuation working while avoiding
-    Humla's legacy UDP crypt path on modern Android.
-    """
-    text = path.read_text(encoding="utf-8")
-    if "VC_FORCE_TCP_STABLE_TRANSPORT" in text:
-        return
+    if "VC_CLIENT_RELEASE_ID" not in service:
+        service = replace_once(
+            service,
+            "        version.setRelease(mClientName);\n",
+            '        version.setRelease("VC Mumla v0.3 TCP Gain"); // VC_CLIENT_RELEASE_ID\n',
+            "Mumble release string",
+        )
+    service_path.write_text(service, encoding="utf-8")
 
-    old = "            mConnection.setForceTCP(mForceTcp);\n"
-    new = "            mConnection.setForceTCP(true); // VC_FORCE_TCP_STABLE_TRANSPORT\n"
-    if old not in text:
-        raise RuntimeError("could not locate Humla force-TCP configuration")
-    text = text.replace(old, new, 1)
-    path.write_text(text, encoding="utf-8")
+    connection = connection_path.read_text(encoding="utf-8")
+    if "VC_FORCE_TCP_HARD" not in connection:
+        connection = replace_once(
+            connection,
+            """    public boolean shouldForceTCP() {
+        return mForceTCP || mUseTor;
+    }
+""",
+            """    public boolean shouldForceTCP() {
+        return true; // VC_FORCE_TCP_HARD
+    }
+""",
+            "Humla shouldForceTCP",
+        )
+    connection_path.write_text(connection, encoding="utf-8")
 
 
 def patch_app_identity(root: pathlib.Path) -> None:
     beta_strings = root / "app/src/beta/res/values/strings_notranslate.xml"
     text = beta_strings.read_text(encoding="utf-8")
-    text = text.replace("<string name=\"app_name\">Mumla Beta</string>",
-                        "<string name=\"app_name\">VC Mumla</string>")
+    text = text.replace(
+        '<string name="app_name">Mumla Beta</string>',
+        '<string name="app_name">VC Mumla</string>',
+    )
     beta_strings.write_text(text, encoding="utf-8")
 
 
 def validate(root: pathlib.Path) -> None:
     audio_output = (root / "libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutput.java").read_text(encoding="utf-8")
     speech = (root / "libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutputSpeech.java").read_text(encoding="utf-8")
+    service = (root / "libraries/humla/src/main/java/se/lublin/humla/HumlaService.java").read_text(encoding="utf-8")
+    connection = (root / "libraries/humla/src/main/java/se/lublin/humla/net/HumlaConnection.java").read_text(encoding="utf-8")
     beta_strings = (root / "app/src/beta/res/values/strings_notranslate.xml").read_text(encoding="utf-8")
-    humla_service = (root / "libraries/humla/src/main/java/se/lublin/humla/HumlaService.java").read_text(encoding="utf-8")
 
     checks = {
         "gain trailer parser": "VC_GAIN_TRAILER" in audio_output,
-        "gain magic": "'V'" in audio_output and "'C'" in audio_output and "'G'" in audio_output and "'1'" in audio_output,
+        "gain diagnostic": "VC_GAIN_DIAGNOSTIC" in audio_output and "VC-GAIN rx" in audio_output,
         "gain handoff": "addFrameToBuffer(dataBuffer, msgFlags, seq, vcServerGain)" in audio_output,
         "PCM gain": "VC_SERVER_GAIN_PCM" in speech,
         "per-packet gain": "vcGainByte" in speech and "vcUserData" in speech,
         "PCM multiply": "mOut[i] *= mServerVolumeFactor" in speech,
+        "stable TCP tunnel": "VC_FORCE_TCP_STABLE_TRANSPORT" in service and "setForceTCP(true)" in service,
+        "hard TCP tunnel": "VC_FORCE_TCP_HARD" in connection and "return true;" in connection,
+        "client release id": "VC Mumla v0.3 TCP Gain" in service,
         "custom app label": "VC Mumla" in beta_strings,
-        "stable TCP tunnel": "VC_FORCE_TCP_STABLE_TRANSPORT" in humla_service and "setForceTCP(true)" in humla_service,
     }
     missing = [name for name, ok in checks.items() if not ok]
     if missing:
@@ -166,7 +208,10 @@ def main() -> int:
     try:
         patch_audio_output(root / "libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutput.java")
         patch_audio_output_speech(root / "libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutputSpeech.java")
-        patch_stable_transport(root / "libraries/humla/src/main/java/se/lublin/humla/HumlaService.java")
+        patch_stable_transport(
+            root / "libraries/humla/src/main/java/se/lublin/humla/HumlaService.java",
+            root / "libraries/humla/src/main/java/se/lublin/humla/net/HumlaConnection.java",
+        )
         patch_app_identity(root)
         validate(root)
     except RuntimeError as exc:
