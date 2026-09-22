@@ -157,6 +157,8 @@ jobs:
         if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]')
         run: |
           sdkmanager "ndk;${MUMLA_NDK_VERSION}"
+          export ANDROID_NDK_HOME="${ANDROID_SDK_ROOT}/ndk/${MUMLA_NDK_VERSION}"
+          export ANDROID_NDK_ROOT="${ANDROID_NDK_HOME}"
           rm -rf .build/mumla-release
           git clone https://github.com/quite/mumla.git .build/mumla-release
           git -C .build/mumla-release checkout 477b337ebcee1655c1357d51db99cf92bbc175a4
