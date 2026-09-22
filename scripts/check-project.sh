@@ -225,6 +225,12 @@ grep -Fq 'Settings.ACTION_APPLICATION_DETAILS_SETTINGS' app/src/main/java/com/vo
 grep -Fq 'REQUEST_IGNORE_BATTERY_OPTIMIZATIONS' app/src/main/AndroidManifest.xml
 grep -Fq 'isIgnoringBatteryOptimizations' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'buildProximityCard()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'McsvLogoAsset.bitmap()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'EndstoneLogoAsset.bitmap()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'PREF_ENDSTONE_NOTICE_ACK' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"ต้องใช้เซิร์ฟเวอร์ Endstone เท่านั้น"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"คู่มือ Endstone / MCSV"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+test ! -e app/src/main/res/drawable-nodpi/mcsv_logo.png
 grep -Fq '"Minecraft Proximity"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"เปิดตลอด"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"สุ่มใหม่"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
