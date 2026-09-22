@@ -63,8 +63,8 @@ def patch_audio_output_speech(path: pathlib.Path) -> None:
 
     text = replace_once(
         text,
-        "    private int mMissCount;\n",
-        "    private int mMissCount;\n    private float mServerVolumeFactor = 1.0f; // VC_SERVER_GAIN_PCM\n",
+        "    private int mMissCount = 0;\n",
+        "    private int mMissCount = 0;\n    private float mServerVolumeFactor = 1.0f; // VC_SERVER_GAIN_PCM\n",
         "server volume field",
     )
 
