@@ -109,6 +109,25 @@ def patch_audio_output_speech(path: pathlib.Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def patch_stable_transport(path: pathlib.Path) -> None:
+    """Force Mumble voice through TCP tunnel to avoid legacy UDP nonce desync.
+
+    The VC gain trailer is part of the ordinary audio payload and therefore
+    survives UDPTunnel unchanged. This keeps attenuation working while avoiding
+    Humla's legacy UDP crypt path on modern Android.
+    """
+    text = path.read_text(encoding="utf-8")
+    if "VC_FORCE_TCP_STABLE_TRANSPORT" in text:
+        return
+
+    old = "            mConnection.setForceTCP(mForceTcp);\n"
+    new = "            mConnection.setForceTCP(true); // VC_FORCE_TCP_STABLE_TRANSPORT\n"
+    if old not in text:
+        raise RuntimeError("could not locate Humla force-TCP configuration")
+    text = text.replace(old, new, 1)
+    path.write_text(text, encoding="utf-8")
+
+
 def patch_app_identity(root: pathlib.Path) -> None:
     beta_strings = root / "app/src/beta/res/values/strings_notranslate.xml"
     text = beta_strings.read_text(encoding="utf-8")
@@ -121,6 +140,7 @@ def validate(root: pathlib.Path) -> None:
     audio_output = (root / "libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutput.java").read_text(encoding="utf-8")
     speech = (root / "libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutputSpeech.java").read_text(encoding="utf-8")
     beta_strings = (root / "app/src/beta/res/values/strings_notranslate.xml").read_text(encoding="utf-8")
+    humla_service = (root / "libraries/humla/src/main/java/se/lublin/humla/HumlaService.java").read_text(encoding="utf-8")
 
     checks = {
         "gain trailer parser": "VC_GAIN_TRAILER" in audio_output,
@@ -130,6 +150,7 @@ def validate(root: pathlib.Path) -> None:
         "per-packet gain": "vcGainByte" in speech and "vcUserData" in speech,
         "PCM multiply": "mOut[i] *= mServerVolumeFactor" in speech,
         "custom app label": "VC Mumla" in beta_strings,
+        "stable TCP tunnel": "VC_FORCE_TCP_STABLE_TRANSPORT" in humla_service and "setForceTCP(true)" in humla_service,
     }
     missing = [name for name, ok in checks.items() if not ok]
     if missing:
@@ -145,6 +166,7 @@ def main() -> int:
     try:
         patch_audio_output(root / "libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutput.java")
         patch_audio_output_speech(root / "libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutputSpeech.java")
+        patch_stable_transport(root / "libraries/humla/src/main/java/se/lublin/humla/HumlaService.java")
         patch_app_identity(root)
         validate(root)
     except RuntimeError as exc:
