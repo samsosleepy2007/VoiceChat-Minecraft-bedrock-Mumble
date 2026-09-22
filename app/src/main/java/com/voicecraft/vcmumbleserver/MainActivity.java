@@ -39,10 +39,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 
 public final class MainActivity extends Activity {
     private static final int REQUEST_EXPORT_LOG = 4201;
+    private static final int REQUEST_EXPORT_ENDSTONE_PLUGIN = 4202;
+    private static final int REQUEST_EXPORT_ENDSTONE_CONFIG = 4203;
     private static final int PAGE_HOME = 0;
     private static final int PAGE_LOG = 1;
     private static final int PAGE_SETTINGS = 2;
@@ -52,6 +55,7 @@ public final class MainActivity extends Activity {
     private TextView bridgeStatus;
     private LinearLayout statusCard;
     private TextView portWarpTarget;
+    private TextView endstonePluginStatus;
 
     private EditText serverName;
     private EditText port;
@@ -76,6 +80,9 @@ public final class MainActivity extends Activity {
     private boolean running;
     private int currentPage = -1;
     private ObjectAnimator statusPulse;
+    private EndstoneReleaseResolver.ReleaseInfo pendingEndstoneRelease;
+    private String pendingEndstoneBridgeSecret = "";
+    private String pendingEndstoneConfig = "";
 
     private final BroadcastReceiver stateReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
@@ -99,6 +106,7 @@ public final class MainActivity extends Activity {
         fillConfig(ServerConfig.load(this));
         updateState(false, "พร้อมเริ่มเซิร์ฟเวอร์", "Minecraft: ยังไม่ได้เชื่อมต่อ", 0);
         showPage(PAGE_HOME);
+        refreshEndstoneReleaseStatus();
         if (savedInstanceState == null) {
             showBatteryAccessPromptIfNeeded();
         }
@@ -187,6 +195,7 @@ public final class MainActivity extends Activity {
         root.addView(quick, marginTop(8));
 
         root.addView(buildProximityCard(), marginTop(14));
+        root.addView(buildEndstonePluginCard(), marginTop(14));
 
         LinearLayout publicCard = card();
         publicCard.addView(eyebrow("ใช้งานผ่านอินเทอร์เน็ต"));
@@ -292,6 +301,41 @@ public final class MainActivity extends Activity {
         proximityCard.addView(saveProximity, marginTop(10));
 
         return proximityCard;
+    }
+
+    private View buildEndstonePluginCard() {
+        LinearLayout pluginCard = card();
+        pluginCard.addView(eyebrow("Endstone Plugin"));
+
+        TextView note = text(
+                "ดาวน์โหลดปลั๊กอินจาก GitHub Release ล่าสุด และใส่ Bridge Secret ให้อัตโนมัติ",
+                12,
+                false
+        );
+        note.setTextColor(c(R.color.cyber_text_secondary));
+        pluginCard.addView(note, marginTop(7));
+
+        endstonePluginStatus = text("เวอร์ชันล่าสุด: กำลังตรวจสอบ...", 12, true);
+        endstonePluginStatus.setTextColor(c(R.color.cyber_neon));
+        endstonePluginStatus.setTextIsSelectable(true);
+        pluginCard.addView(endstonePluginStatus, marginTop(9));
+
+        Button downloadPlugin = primaryButton("ดาวน์โหลด Plugin (.whl)");
+        downloadPlugin.setOnClickListener(v -> prepareEndstonePluginDownload());
+        pluginCard.addView(downloadPlugin, marginTop(10));
+
+        Button downloadConfig = secondaryButton("ดาวน์โหลด config.toml");
+        downloadConfig.setOnClickListener(v -> prepareEndstoneConfigExport());
+        pluginCard.addView(downloadConfig, marginTop(8));
+
+        TextView securityNote = text(
+                "ไฟล์ที่ดาวน์โหลดจะมี Bridge Secret ของเครื่องนี้อยู่ภายใน กรุณาเก็บไฟล์เป็นส่วนตัว",
+                11,
+                false
+        );
+        securityNote.setTextColor(c(R.color.cyber_text_secondary));
+        pluginCard.addView(securityNote, marginTop(7));
+        return pluginCard;
     }
 
     private View buildLogPage() {
@@ -757,12 +801,7 @@ public final class MainActivity extends Activity {
     }
 
     private void generateBridgeSecret() {
-        byte[] bytes = new byte[32];
-        new SecureRandom().nextBytes(bytes);
-        String secret = Base64.encodeToString(
-                bytes,
-                Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING
-        );
+        String secret = newBridgeSecret();
         bridgeSecret.setText(secret);
         bridgeSecret.setSelection(secret.length());
         Toast.makeText(this, "สุ่ม Secret แล้ว", Toast.LENGTH_SHORT).show();
@@ -778,6 +817,199 @@ public final class MainActivity extends Activity {
                 (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         clipboard.setPrimaryClip(ClipData.newPlainText("VC Mumble Bridge Secret", secret));
         Toast.makeText(this, "คัดลอกแล้ว", Toast.LENGTH_SHORT).show();
+    }
+
+    private void refreshEndstoneReleaseStatus() {
+        if (endstonePluginStatus == null) return;
+        endstonePluginStatus.setText("เวอร์ชันล่าสุด: กำลังตรวจสอบ...");
+        new Thread(() -> {
+            try {
+                EndstoneReleaseResolver.ReleaseInfo release = EndstoneReleaseResolver.resolveLatest();
+                runOnUiThread(() -> endstonePluginStatus.setText(
+                        "เวอร์ชันล่าสุด: " + release.tagName + " • " + release.wheelName
+                ));
+            } catch (Exception error) {
+                runOnUiThread(() -> endstonePluginStatus.setText(
+                        "เวอร์ชันล่าสุด: ตรวจสอบไม่สำเร็จ • กดดาวน์โหลดเพื่อลองใหม่"
+                ));
+            }
+        }, "VCMumble-Endstone-Version").start();
+    }
+
+    private void prepareEndstonePluginDownload() {
+        final String secret;
+        try {
+            secret = ensureBridgeSecretForExport();
+        } catch (Exception error) {
+            Toast.makeText(this, "เตรียม Bridge Secret ไม่สำเร็จ: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        endstonePluginStatus.setText("กำลังตรวจสอบ GitHub Release ล่าสุด...");
+        new Thread(() -> {
+            try {
+                EndstoneReleaseResolver.ReleaseInfo release = EndstoneReleaseResolver.resolveLatest();
+                if (!release.hasChecksumAsset()) {
+                    throw new IOException("Release " + release.tagName + " ไม่มี SHA256SUMS.txt");
+                }
+                runOnUiThread(() -> {
+                    pendingEndstoneRelease = release;
+                    pendingEndstoneBridgeSecret = secret;
+                    endstonePluginStatus.setText(
+                            "เลือกแล้ว: " + release.tagName + " • " + release.wheelName
+                    );
+
+                    Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.setType("application/octet-stream");
+                    intent.putExtra(Intent.EXTRA_TITLE, release.wheelName);
+                    startActivityForResult(intent, REQUEST_EXPORT_ENDSTONE_PLUGIN);
+                });
+            } catch (Exception error) {
+                ServerLog.append(
+                        this,
+                        "ENDSTONE",
+                        "Release lookup failed: " + error.getClass().getSimpleName()
+                                + ": " + String.valueOf(error.getMessage())
+                );
+                runOnUiThread(() -> {
+                    endstonePluginStatus.setText("ตรวจสอบ Release ไม่สำเร็จ");
+                    refreshLogView();
+                    Toast.makeText(
+                            this,
+                            "หา Endstone Plugin ล่าสุดไม่สำเร็จ: " + error.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+            }
+        }, "VCMumble-Endstone-Release").start();
+    }
+
+    private String ensureBridgeSecretForExport() {
+        String secret = bridgeSecret.getText().toString().trim();
+        if (secret.isEmpty()) {
+            secret = newBridgeSecret();
+            bridgeSecret.setText(secret);
+            bridgeSecret.setSelection(secret.length());
+        }
+        SecretStore.save(this, secret);
+        ServerLog.append(this, "ENDSTONE", "Bridge Secret prepared for configured plugin export");
+        return secret;
+    }
+
+    private String newBridgeSecret() {
+        byte[] bytes = new byte[32];
+        new SecureRandom().nextBytes(bytes);
+        return Base64.encodeToString(
+                bytes,
+                Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING
+        );
+    }
+
+    private void downloadConfiguredEndstonePlugin(Uri destination) {
+        final EndstoneReleaseResolver.ReleaseInfo release = pendingEndstoneRelease;
+        final String secret = pendingEndstoneBridgeSecret;
+        pendingEndstoneRelease = null;
+        pendingEndstoneBridgeSecret = "";
+
+        if (release == null || secret.isEmpty()) {
+            Toast.makeText(this, "ข้อมูลการดาวน์โหลดหมดอายุ กรุณากดดาวน์โหลดใหม่", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        endstonePluginStatus.setText("กำลังดาวน์โหลดและตรวจ SHA-256...");
+        new Thread(() -> {
+            try {
+                EndstonePluginPackage.ConfiguredPlugin plugin =
+                        EndstonePluginPackage.downloadAndConfigure(release, secret);
+
+                try (OutputStream output = getContentResolver().openOutputStream(destination, "w")) {
+                    if (output == null) throw new IOException("Unable to open selected destination");
+                    output.write(plugin.bytes);
+                    output.flush();
+                }
+
+                ServerLog.append(
+                        this,
+                        "ENDSTONE",
+                        "Configured plugin saved; release=" + release.tagName
+                                + ", asset=" + release.wheelName
+                                + ", sourceSha256=" + plugin.sourceSha256
+                                + ", configuredSha256=" + plugin.configuredSha256
+                );
+                runOnUiThread(() -> {
+                    endstonePluginStatus.setText(
+                            "พร้อมใช้: " + release.tagName + " • SHA-256 ผ่าน"
+                    );
+                    refreshLogView();
+                    Toast.makeText(this, "ดาวน์โหลด Endstone Plugin พร้อม Bridge Secret แล้ว", Toast.LENGTH_LONG).show();
+                });
+            } catch (Exception error) {
+                ServerLog.append(
+                        this,
+                        "ENDSTONE",
+                        "Plugin download failed: " + error.getClass().getSimpleName()
+                                + ": " + String.valueOf(error.getMessage())
+                );
+                runOnUiThread(() -> {
+                    endstonePluginStatus.setText("ดาวน์โหลด Plugin ไม่สำเร็จ");
+                    refreshLogView();
+                    Toast.makeText(
+                            this,
+                            "ดาวน์โหลด Endstone Plugin ไม่สำเร็จ: " + error.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+            }
+        }, "VCMumble-Endstone-Download").start();
+    }
+
+    private void prepareEndstoneConfigExport() {
+        try {
+            String secret = ensureBridgeSecretForExport();
+            int bridgePortValue = parseInt(bridgePort, "Bridge Port", 1, 65535);
+            int rangeValue = parseInt(voiceRange, "ระยะเสียง", 1, 1000);
+            pendingEndstoneConfig = EndstonePluginPackage.buildConfigToml(
+                    secret,
+                    bridgePortValue,
+                    rangeValue
+            );
+
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("text/plain");
+            intent.putExtra(Intent.EXTRA_TITLE, "config.toml");
+            startActivityForResult(intent, REQUEST_EXPORT_ENDSTONE_CONFIG);
+        } catch (Exception error) {
+            Toast.makeText(this, "เตรียม config.toml ไม่สำเร็จ: " + error.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void writeEndstoneConfig(Uri destination) {
+        String config = pendingEndstoneConfig;
+        pendingEndstoneConfig = "";
+        if (config.isEmpty()) {
+            Toast.makeText(this, "ข้อมูล config หมดอายุ กรุณากดดาวน์โหลดใหม่", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        try (OutputStream output = getContentResolver().openOutputStream(destination, "w")) {
+            if (output == null) throw new IOException("Unable to open selected destination");
+            output.write(config.getBytes(StandardCharsets.UTF_8));
+            output.flush();
+            ServerLog.append(this, "ENDSTONE", "Configured Endstone config.toml saved");
+            refreshLogView();
+            Toast.makeText(this, "บันทึก config.toml แล้ว", Toast.LENGTH_SHORT).show();
+        } catch (IOException error) {
+            ServerLog.append(
+                    this,
+                    "ENDSTONE",
+                    "Config export failed: " + error.getClass().getSimpleName()
+                            + ": " + String.valueOf(error.getMessage())
+            );
+            refreshLogView();
+            Toast.makeText(this, "บันทึก config.toml ไม่สำเร็จ: " + error.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     private void showBatteryAccessPromptIfNeeded() {
@@ -869,21 +1101,32 @@ public final class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQUEST_EXPORT_LOG || resultCode != RESULT_OK
-                || data == null || data.getData() == null) {
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) {
             return;
         }
 
-        try (OutputStream output = getContentResolver().openOutputStream(data.getData(), "w")) {
-            if (output == null) throw new IOException("Unable to open selected destination");
-            output.write(ServerLog.readAllBytes(this));
-            output.flush();
-            Toast.makeText(this, "บันทึก log.txt แล้ว", Toast.LENGTH_SHORT).show();
-        } catch (IOException error) {
-            ServerLog.append(this, "ERROR", "Log export failed: " + error.getClass().getSimpleName()
-                    + ": " + String.valueOf(error.getMessage()));
-            refreshLogView();
-            Toast.makeText(this, "บันทึก log.txt ไม่สำเร็จ: " + error.getMessage(), Toast.LENGTH_LONG).show();
+        if (requestCode == REQUEST_EXPORT_LOG) {
+            try (OutputStream output = getContentResolver().openOutputStream(data.getData(), "w")) {
+                if (output == null) throw new IOException("Unable to open selected destination");
+                output.write(ServerLog.readAllBytes(this));
+                output.flush();
+                Toast.makeText(this, "บันทึก log.txt แล้ว", Toast.LENGTH_SHORT).show();
+            } catch (IOException error) {
+                ServerLog.append(this, "ERROR", "Log export failed: " + error.getClass().getSimpleName()
+                        + ": " + String.valueOf(error.getMessage()));
+                refreshLogView();
+                Toast.makeText(this, "บันทึก log.txt ไม่สำเร็จ: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+
+        if (requestCode == REQUEST_EXPORT_ENDSTONE_PLUGIN) {
+            downloadConfiguredEndstonePlugin(data.getData());
+            return;
+        }
+
+        if (requestCode == REQUEST_EXPORT_ENDSTONE_CONFIG) {
+            writeEndstoneConfig(data.getData());
         }
     }
 
