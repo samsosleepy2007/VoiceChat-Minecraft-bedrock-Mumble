@@ -48,14 +48,6 @@ def main() -> int:
             "}\n",
             encoding="utf-8",
         )
-        (net / "HumlaConnection.java").write_text(
-            "class HumlaConnection {\n"
-            "    public boolean shouldForceTCP() {\n"
-            "        return mForceTCP || mUseTor;\n"
-            "    }\n"
-            "}\n",
-            encoding="utf-8",
-        )
         (beta / "strings_notranslate.xml").write_text(
             '<resources><string name="app_name">Mumla Beta</string></resources>',
             encoding="utf-8",
@@ -71,7 +63,7 @@ def main() -> int:
         assert "VC_SERVER_GAIN_PCM" in (audio / "AudioOutputSpeech.java").read_text()
         assert "VC Mumla" in (beta / "strings_notranslate.xml").read_text()
         assert "VC_FORCE_TCP_STABLE_TRANSPORT" in (humla_root / "HumlaService.java").read_text()
-        assert "VC Mumla v0.3 TCP Gain" in (humla_root / "HumlaService.java").read_text()
+        assert "VC Mumla v0.4 Stable Gain" in (humla_root / "HumlaService.java").read_text()
         assert "VC_FORCE_TCP_HARD" in (net / "HumlaConnection.java").read_text()
 
     print("VC Mumla patch fixture: OK")
