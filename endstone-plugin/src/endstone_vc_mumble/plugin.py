@@ -27,7 +27,7 @@ ATTENUATION_LEVELS: dict[int, tuple[str, str]] = {
 
 class VCMumblePlugin(Plugin):
     prefix = "VCMumble"
-    version = "0.4.0"
+    version = "0.4.1"
     api_version = "0.11"
     description = "Standalone Minecraft position bridge for VC Mumble Server"
     authors = ["SamSoSleepy"]
@@ -860,10 +860,21 @@ class VCMumblePlugin(Plugin):
     def _voice_enabled_for(player: Player) -> bool:
         try:
             tags = set(player.scoreboard_tags)
-            if "vcmumble.mic.off" in tags:
-                return False
-            if "vcmumble.mic.on" in tags:
+            has_on = "vcmumble.mic.on" in tags
+            has_off = "vcmumble.mic.off" in tags
+
+            # ON wins if both tags exist. Older addon builds could leave the
+            # previous OFF tag behind even though the Mic item/UI already
+            # switched to ON. Heal that conflict server-side immediately.
+            if has_on:
+                if has_off:
+                    try:
+                        player.remove_scoreboard_tag("vcmumble.mic.off")
+                    except Exception:
+                        pass
                 return True
+            if has_off:
+                return False
         except Exception:
             pass
         return True
