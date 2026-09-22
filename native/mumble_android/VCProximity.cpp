@@ -140,7 +140,7 @@ void updatePlayer(const QString &mumbleName,
             << "dim=" + state.dimension
             << QString("pos=%1,%2,%3").arg(state.x, 0, 'f', 1).arg(state.y, 0, 'f', 1).arg(state.z, 0, 'f', 1)
             << QString("range=%1").arg(state.rangeBlocks, 0, 'f', 1)
-            << QString("mic=%1").arg(state.voiceEnabled ? "on" : "off")
+            << QString("mic=%1").arg(state.voiceEnabled ? QStringLiteral("on") : QStringLiteral("off"))
             << QString("level=%1").arg(state.attenuationLevel)
             << QString("tracked=%1").arg(playerCount());
     }
@@ -229,7 +229,7 @@ float attenuationFactor(const QString &speakerName, const QString &listenerName)
                       .arg(distance, 0, 'f', 2)
                       .arg(range, 0, 'f', 2)
                       .arg(speaker.attenuationLevel)
-                      .arg(speaker.voiceEnabled ? "on" : "off"));
+                      .arg(speaker.voiceEnabled ? QStringLiteral("on") : QStringLiteral("off")));
 }
 
 bool shouldRoute(const QString &speakerName, const QString &listenerName) {
