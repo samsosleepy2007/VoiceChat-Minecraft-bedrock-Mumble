@@ -46,6 +46,7 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_EXPORT_LOG = 4201;
     private static final int REQUEST_EXPORT_ENDSTONE_PLUGIN = 4202;
     private static final int REQUEST_EXPORT_ENDSTONE_CONFIG = 4203;
+    private static final int REQUEST_EXPORT_MINECRAFT_ADDON = 4204;
     private static final int PAGE_HOME = 0;
     private static final int PAGE_LOG = 1;
     private static final int PAGE_SETTINGS = 2;
@@ -56,6 +57,7 @@ public final class MainActivity extends Activity {
     private LinearLayout statusCard;
     private TextView portWarpTarget;
     private TextView endstonePluginStatus;
+    private TextView minecraftAddonStatus;
 
     private EditText serverName;
     private EditText port;
@@ -81,6 +83,7 @@ public final class MainActivity extends Activity {
     private int currentPage = -1;
     private ObjectAnimator statusPulse;
     private EndstoneReleaseResolver.ReleaseInfo pendingEndstoneRelease;
+    private AddonReleaseResolver.ReleaseInfo pendingAddonRelease;
     private String pendingEndstoneBridgeSecret = "";
     private String pendingEndstoneConfig = "";
 
@@ -107,6 +110,7 @@ public final class MainActivity extends Activity {
         updateState(false, "พร้อมเริ่มเซิร์ฟเวอร์", "Minecraft: ยังไม่ได้เชื่อมต่อ", 0);
         showPage(PAGE_HOME);
         refreshEndstoneReleaseStatus();
+        refreshAddonReleaseStatus();
         if (savedInstanceState == null) {
             showBatteryAccessPromptIfNeeded();
         }
@@ -305,10 +309,10 @@ public final class MainActivity extends Activity {
 
     private View buildEndstonePluginCard() {
         LinearLayout pluginCard = card();
-        pluginCard.addView(eyebrow("Endstone Plugin"));
+        pluginCard.addView(eyebrow("Endstone & Minecraft Addon"));
 
         TextView note = text(
-                "ดาวน์โหลดปลั๊กอินจาก GitHub Release ล่าสุด และใส่ Bridge Secret ให้อัตโนมัติ",
+                "ดาวน์โหลด Endstone Plugin และ Item Mic Addon จาก GitHub Release ล่าสุด",
                 12,
                 false
         );
@@ -324,12 +328,21 @@ public final class MainActivity extends Activity {
         downloadPlugin.setOnClickListener(v -> prepareEndstonePluginDownload());
         pluginCard.addView(downloadPlugin, marginTop(10));
 
+        minecraftAddonStatus = text("Addon ล่าสุด: กำลังตรวจสอบ...", 12, true);
+        minecraftAddonStatus.setTextColor(c(R.color.cyber_neon));
+        minecraftAddonStatus.setTextIsSelectable(true);
+        pluginCard.addView(minecraftAddonStatus, marginTop(12));
+
+        Button downloadAddon = secondaryButton("ดาวน์โหลด Addon (.mcaddon)");
+        downloadAddon.setOnClickListener(v -> prepareMinecraftAddonDownload());
+        pluginCard.addView(downloadAddon, marginTop(8));
+
         Button downloadConfig = secondaryButton("ดาวน์โหลด config.toml");
         downloadConfig.setOnClickListener(v -> prepareEndstoneConfigExport());
         pluginCard.addView(downloadConfig, marginTop(8));
 
         TextView securityNote = text(
-                "ไฟล์ที่ดาวน์โหลดจะมี Bridge Secret ของเครื่องนี้อยู่ภายใน กรุณาเก็บไฟล์เป็นส่วนตัว",
+                "Plugin/config ที่ตั้งค่าแล้วจะมี Bridge Secret อยู่ภายใน ส่วน Addon จะดาวน์โหลดไฟล์ต้นฉบับจาก Release หลังตรวจ SHA-256",
                 11,
                 false
         );
@@ -836,6 +849,138 @@ public final class MainActivity extends Activity {
         }, "VCMumble-Endstone-Version").start();
     }
 
+    private void refreshAddonReleaseStatus() {
+        if (minecraftAddonStatus == null) return;
+        minecraftAddonStatus.setText("Addon ล่าสุด: กำลังตรวจสอบ...");
+        new Thread(() -> {
+            try {
+                AddonReleaseResolver.ReleaseInfo release = AddonReleaseResolver.resolveLatest();
+                runOnUiThread(() -> minecraftAddonStatus.setText(
+                        "Addon ล่าสุด: " + release.tagName + " • " + release.addonName
+                ));
+            } catch (Exception error) {
+                runOnUiThread(() -> minecraftAddonStatus.setText(
+                        "Addon ล่าสุด: ตรวจสอบไม่สำเร็จ • กดดาวน์โหลดเพื่อลองใหม่"
+                ));
+            }
+        }, "VCMumble-Addon-Version").start();
+    }
+
+    private void prepareMinecraftAddonDownload() {
+        if (minecraftAddonStatus != null) {
+            minecraftAddonStatus.setText("กำลังตรวจสอบ GitHub Release ล่าสุด...");
+        }
+        new Thread(() -> {
+            try {
+                AddonReleaseResolver.ReleaseInfo release = AddonReleaseResolver.resolveLatest();
+                if (!release.hasChecksumAsset()) {
+                    throw new IOException("Release " + release.tagName + " ไม่มี SHA256SUMS.txt");
+                }
+                runOnUiThread(() -> {
+                    pendingAddonRelease = release;
+                    minecraftAddonStatus.setText(
+                            "เลือกแล้ว: " + release.tagName + " • " + release.addonName
+                    );
+
+                    Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.setType("application/octet-stream");
+                    intent.putExtra(Intent.EXTRA_TITLE, release.addonName);
+                    startActivityForResult(intent, REQUEST_EXPORT_MINECRAFT_ADDON);
+                });
+            } catch (Exception error) {
+                ServerLog.append(
+                        this,
+                        "ADDON",
+                        "Release lookup failed: " + error.getClass().getSimpleName()
+                                + ": " + String.valueOf(error.getMessage())
+                );
+                runOnUiThread(() -> {
+                    if (minecraftAddonStatus != null) {
+                        minecraftAddonStatus.setText("ตรวจสอบ Addon Release ไม่สำเร็จ");
+                    }
+                    refreshLogView();
+                    Toast.makeText(
+                            this,
+                            "หา Minecraft Addon ล่าสุดไม่สำเร็จ: " + error.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+            }
+        }, "VCMumble-Addon-Release").start();
+    }
+
+    private void downloadMinecraftAddon(Uri destination) {
+        final AddonReleaseResolver.ReleaseInfo release = pendingAddonRelease;
+        pendingAddonRelease = null;
+        if (release == null) {
+            Toast.makeText(
+                    this,
+                    "ข้อมูลการดาวน์โหลด Addon หมดอายุ กรุณากดดาวน์โหลดใหม่",
+                    Toast.LENGTH_LONG
+            ).show();
+            return;
+        }
+
+        if (minecraftAddonStatus != null) {
+            minecraftAddonStatus.setText("กำลังดาวน์โหลดและตรวจ SHA-256...");
+        }
+        new Thread(() -> {
+            try {
+                VerifiedAddonPackage.DownloadedAddon addon =
+                        VerifiedAddonPackage.downloadAndVerify(release);
+
+                try (OutputStream output =
+                             getContentResolver().openOutputStream(destination, "w")) {
+                    if (output == null) {
+                        throw new IOException("Unable to open selected destination");
+                    }
+                    output.write(addon.bytes);
+                    output.flush();
+                }
+
+                ServerLog.append(
+                        this,
+                        "ADDON",
+                        "Addon saved; release=" + release.tagName
+                                + ", asset=" + release.addonName
+                                + ", sha256=" + addon.sha256
+                );
+                runOnUiThread(() -> {
+                    if (minecraftAddonStatus != null) {
+                        minecraftAddonStatus.setText(
+                                "พร้อมใช้: " + release.tagName + " • SHA-256 ผ่าน"
+                        );
+                    }
+                    refreshLogView();
+                    Toast.makeText(
+                            this,
+                            "ดาวน์โหลด Minecraft Addon ล่าสุดแล้ว",
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+            } catch (Exception error) {
+                ServerLog.append(
+                        this,
+                        "ADDON",
+                        "Addon download failed: " + error.getClass().getSimpleName()
+                                + ": " + String.valueOf(error.getMessage())
+                );
+                runOnUiThread(() -> {
+                    if (minecraftAddonStatus != null) {
+                        minecraftAddonStatus.setText("ดาวน์โหลด Addon ไม่สำเร็จ");
+                    }
+                    refreshLogView();
+                    Toast.makeText(
+                            this,
+                            "ดาวน์โหลด Minecraft Addon ไม่สำเร็จ: " + error.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+            }
+        }, "VCMumble-Addon-Download").start();
+    }
+
     private void prepareEndstonePluginDownload() {
         final String secret;
         try {
@@ -1127,6 +1272,11 @@ public final class MainActivity extends Activity {
 
         if (requestCode == REQUEST_EXPORT_ENDSTONE_CONFIG) {
             writeEndstoneConfig(data.getData());
+            return;
+        }
+
+        if (requestCode == REQUEST_EXPORT_MINECRAFT_ADDON) {
+            downloadMinecraftAddon(data.getData());
         }
     }
 
