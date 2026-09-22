@@ -1,7 +1,8 @@
 package com.voicecraft.vcmumbleserver;
 
 import org.json.JSONArray;
-import org.json.JSONObject;\nimport org.json.JSONException;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -33,6 +34,14 @@ final class EndstoneReleaseResolver {
                     readLimited(connection.getInputStream(), MAX_METADATA_BYTES),
                     StandardCharsets.UTF_8
             );
+            return parseLatest(json);
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    static ReleaseInfo parseLatest(String json) throws IOException {
+        try {
             JSONArray releases = new JSONArray(json);
             ReleaseInfo newest = null;
 
@@ -80,10 +89,8 @@ final class EndstoneReleaseResolver {
                 throw new IOException("No published GitHub Release contains an Endstone .whl asset");
             }
             return newest;
-        } catch (RuntimeException error) {
+        } catch (JSONException error) {
             throw new IOException("Could not parse GitHub Releases metadata", error);
-        } finally {
-            connection.disconnect();
         }
     }
 
