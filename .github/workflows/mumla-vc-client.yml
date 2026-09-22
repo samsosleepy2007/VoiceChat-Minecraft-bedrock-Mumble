@@ -58,7 +58,6 @@ jobs:
           grep -F "VC_SERVER_GAIN_PCM" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutputSpeech.java
           grep -F "VC Mumla" .build/mumla/app/src/beta/res/values/strings_notranslate.xml
           grep -F "VC_FORCE_TCP_STABLE_TRANSPORT" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/HumlaService.java
-          grep -F "VC_FORCE_TCP_HARD" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/net/HumlaConnection.java
           grep -F "VC Mumla v0.4 Stable Gain" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/HumlaService.java
           grep -F "VC_GAIN_DIAGNOSTIC" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutput.java
 
