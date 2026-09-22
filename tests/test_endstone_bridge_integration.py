@@ -129,6 +129,7 @@ fresh_state = {
     "yaw": 0.0,
     "pitch": 0.0,
     "voiceRange": 30,
+    "attenuationLevel": 2,
 }
 assert bridge.send({"type": "sync_begin", "count": 1})
 assert bridge.send(fresh_state)
@@ -140,6 +141,7 @@ third = read_line(stream)
 assert [first["type"], second["type"], third["type"]] == ["sync_begin", "player_state", "sync_end"]
 assert second["mumbleName"] == "Alice"
 assert second["voiceRange"] == 30
+assert second["attenuationLevel"] == 2
 assert second["dimension"] == "Overworld"
 assert first.get("type") != "stale_before_connect"
 

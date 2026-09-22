@@ -139,7 +139,8 @@ public final class NativeServer {
             double y,
             double z,
             float rangeBlocks,
-            boolean voiceEnabled
+            boolean voiceEnabled,
+            int attenuationLevel
     ) {
         if (mumbleName != null && !mumbleName.trim().isEmpty()) proximityPlayers.add(mumbleName.trim());
     }
@@ -149,5 +150,6 @@ public final class NativeServer {
     }
 
     public static void clearPlayerStates() { proximityPlayers.clear(); }
+    public static void touchPlayerStates() {}
     public static int proximityPlayerCount() { return proximityPlayers.size(); }
 }

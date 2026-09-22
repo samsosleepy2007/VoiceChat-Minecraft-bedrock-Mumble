@@ -151,6 +151,7 @@ final class VCMumbleBridgeClient {
                 removePlayer(data);
                 break;
             case "heartbeat":
+                NativeServer.touchPlayerStates();
                 notifyStatus(syncing ? "Minecraft bridge connected • syncing" : "Minecraft bridge connected", true);
                 break;
             default:
@@ -167,12 +168,14 @@ final class VCMumbleBridgeClient {
         double z = data.optDouble("z", Double.NaN);
         int range = data.optInt("voiceRange", config.voiceRange);
         boolean voiceEnabled = data.optBoolean("voiceEnabled", true);
+        int attenuationLevel = data.optInt("attenuationLevel", 2);
         if (mumbleName.isEmpty() || dimension.isEmpty()) return;
         if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) return;
         if (Math.abs(x) > 30_000_000.0 || Math.abs(z) > 30_000_000.0 || y < -4096.0 || y > 4096.0) return;
         if (range < 1) range = config.voiceRange;
+        if (attenuationLevel < 0 || attenuationLevel > 4) attenuationLevel = 2;
 
-        NativeServer.updatePlayerState(mumbleName, dimension, x, y, z, range, voiceEnabled);
+        NativeServer.updatePlayerState(mumbleName, dimension, x, y, z, range, voiceEnabled, attenuationLevel);
         if (!syncing) notifyStatus("Minecraft bridge connected • proximity active", true);
     }
 

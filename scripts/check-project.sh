@@ -101,14 +101,23 @@ grep -Fq 'RegisterNatives' app/src/main/cpp/mumble_jni.cpp
 grep -Fq 'FindClass("com/voicecraft/vcmumbleserver/NativeServer")' app/src/main/cpp/mumble_jni.cpp
 grep -Fq '"setProximityStaleTimeoutMsNative"' app/src/main/cpp/mumble_jni.cpp
 grep -Fq '"updatePlayerStateNative"' app/src/main/cpp/mumble_jni.cpp
-grep -Fq '(Ljava/lang/String;Ljava/lang/String;DDDFZ)V' app/src/main/cpp/mumble_jni.cpp
-grep -Fq 'if (!speaker.voiceEnabled) return 0.0F;' native/mumble_android/VCProximity.cpp
+grep -Fq '(Ljava/lang/String;Ljava/lang/String;DDDFZI)V' app/src/main/cpp/mumble_jni.cpp
+grep -Fq 'if (!speaker.voiceEnabled) return finish(0.0F, "speaker-mic-off");' native/mumble_android/VCProximity.cpp
+grep -Fq '[VC-PROX-ROUTE]' native/mumble_android/VCProximity.cpp
+grep -Fq '[VC-PROX-STATE]' native/mumble_android/VCProximity.cpp
 grep -Fq 'float attenuationFactor' native/mumble_android/VCProximity.cpp
 grep -Fq 'normalizedDistance <= 0.20' native/mumble_android/VCProximity.cpp
-grep -Fq 'smoothMix(0.15F, 0.03F' native/mumble_android/VCProximity.cpp
+grep -Fq 'attenuationForNormalizedDistance(double normalizedDistance, int level)' native/mumble_android/VCProximity.cpp
+grep -Fq 'mid = 0.80F' native/mumble_android/VCProximity.cpp
+grep -Fq 'mid = 0.25F' native/mumble_android/VCProximity.cpp
+grep -Fq 'speaker.attenuationLevel' native/mumble_android/VCProximity.cpp
 grep -Fq 'VC_PROXIMITY_REGULAR_ATTENUATION' scripts/prepare-mumble-source.py
 grep -Fq 'VC_PROXIMITY_LINKED_ATTENUATION' scripts/prepare-mumble-source.py
 grep -Fq 'data.optBoolean("voiceEnabled", true)' app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java
+grep -Fq 'data.optInt("attenuationLevel", 2)' app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java
+grep -Fq 'NativeServer.touchPlayerStates();' app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java
+grep -Fq 'NativeServer.setProximityStaleTimeoutMs(45000L);' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
+grep -Fq 'g_staleTimeoutMs{ 45000 }' native/mumble_android/VCProximity.cpp
 grep -Fq 'private static native void setProximityStaleTimeoutMsNative(long timeoutMs);' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
 grep -Fq 'private static native void updatePlayerStateNative(' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
 grep -Fq 'if (runtimeLoaded) setProximityStaleTimeoutMsNative(timeoutMs);' app/src/core/java/com/voicecraft/vcmumbleserver/NativeServer.java
@@ -194,8 +203,8 @@ grep -Fq 'android.permission.WAKE_LOCK' app/src/main/AndroidManifest.xml
 grep -Fq 'android:stopWithTask="false"' app/src/main/AndroidManifest.xml
 grep -Fq 'android:icon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
 grep -Fq 'android:roundIcon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
-grep -Fq 'versionCode = 11' app/build.gradle.kts
-grep -Fq 'versionName = "0.6.0-beta.6"' app/build.gradle.kts
+grep -Fq 'versionCode = 12' app/build.gradle.kts
+grep -Fq 'versionName = "0.6.0-beta.7"' app/build.gradle.kts
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher.png
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher_sleepy.png
 grep -Fq 'PowerManager.PARTIAL_WAKE_LOCK' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
@@ -248,5 +257,11 @@ test "$(grep -Fc 'find_external_candidate()' scripts/build-mumble-android-core.s
 test "$(grep -Fc 'stage_external_lib()' scripts/build-mumble-android-core.sh)" -eq 1
 test "$(grep -Fc 'Build the APK with:' scripts/build-mumble-android-core.sh)" -eq 1
 test "$(grep -Fc 'CORE_DYNSYMS=' scripts/build-mumble-android-core.sh)" -eq 1
+
+rm -rf .build/mic-addon-contract
+mkdir -p .build/mic-addon-contract
+python3 scripts/build-mic-addon-release.py --output .build/mic-addon-contract >/dev/null
+test -f .build/mic-addon-contract/VC_Mumble_ItemMic_v2.7.6.mcaddon
+unzip -t .build/mic-addon-contract/VC_Mumble_ItemMic_v2.7.6.mcaddon >/dev/null
 
 echo "VC Mumble Server project structure: OK"

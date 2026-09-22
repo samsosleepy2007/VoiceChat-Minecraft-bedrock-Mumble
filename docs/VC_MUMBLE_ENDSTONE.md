@@ -66,13 +66,17 @@ A `player_state` message contains:
   "z": 20.0,
   "yaw": 90.0,
   "pitch": 0.0,
-  "voiceRange": 30
+  "voiceRange": 30,
+  "voiceEnabled": true,
+  "attenuationLevel": 2
 }
 ```
 
 `mumbleName` defaults to the Minecraft player name unless the player explicitly pairs another name.
 
 `voiceRange` belongs to the **speaker**. Android uses it when deciding how far that player's voice can be heard.
+
+`attenuationLevel` is also speaker-owned: `0` disables fading inside the range, `1` is light, `2` normal, `3` strong, and `4` very strong. Missing values default to level `2` for compatibility.
 
 ## Incremental updates
 
@@ -92,14 +96,9 @@ Different Minecraft dimensions are treated as separate voice spaces. Android sho
 
 ## Distance attenuation
 
-Protocol v1 already supplies the data required for future smooth attenuation:
+Endstone sends speaker position, dimension, `voiceRange`, `voiceEnabled`, and `attenuationLevel`. The Android/native Mumble core applies the selected smooth falloff independently for every listener. Endstone never processes audio.
 
-- speaker position
-- listener position
-- dimension
-- speaker `voiceRange`
-
-The Endstone plugin does **not** process Mumble audio. Smooth volume falloff belongs on the Android/native Mumble side so one speaker can be loud for a nearby listener while simultaneously quiet for a distant listener.
+Use `/vcb` to open the ActionForm control panel and change range or attenuation without remembering subcommands. Operators get the admin tools in the same UI.
 
 ## Resync
 

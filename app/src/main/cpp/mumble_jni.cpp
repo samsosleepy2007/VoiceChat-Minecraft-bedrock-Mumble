@@ -54,7 +54,7 @@ void setProximityStaleTimeoutMsNative(JNIEnv *, jclass, jlong timeoutMs) {
 
 void updatePlayerStateNative(
         JNIEnv *env, jclass, jstring mumbleNameValue, jstring dimensionValue,
-        jdouble x, jdouble y, jdouble z, jfloat rangeBlocks, jboolean voiceEnabled) {
+        jdouble x, jdouble y, jdouble z, jfloat rangeBlocks, jboolean voiceEnabled, jint attenuationLevel) {
     const std::string mumbleName = fromJString(env, mumbleNameValue);
     const std::string dimension = fromJString(env, dimensionValue);
     VCProximity::updatePlayer(
@@ -64,7 +64,8 @@ void updatePlayerStateNative(
             static_cast<double>(y),
             static_cast<double>(z),
             static_cast<float>(rangeBlocks),
-            voiceEnabled == JNI_TRUE);
+            voiceEnabled == JNI_TRUE,
+            static_cast<int>(attenuationLevel));
 }
 
 void removePlayerStateNative(JNIEnv *env, jclass, jstring mumbleNameValue) {
@@ -74,6 +75,10 @@ void removePlayerStateNative(JNIEnv *env, jclass, jstring mumbleNameValue) {
 
 void clearPlayerStatesNative(JNIEnv *, jclass) {
     VCProximity::clearPlayers();
+}
+
+void touchPlayerStatesNative(JNIEnv *, jclass) {
+    VCProximity::touchPlayers();
 }
 
 JNINativeMethod kNativeMethods[] = {
@@ -102,7 +107,7 @@ JNINativeMethod kNativeMethods[] = {
          const_cast<char *>("(J)V"),
          reinterpret_cast<void *>(setProximityStaleTimeoutMsNative)},
         {const_cast<char *>("updatePlayerStateNative"),
-         const_cast<char *>("(Ljava/lang/String;Ljava/lang/String;DDDFZ)V"),
+         const_cast<char *>("(Ljava/lang/String;Ljava/lang/String;DDDFZI)V"),
          reinterpret_cast<void *>(updatePlayerStateNative)},
         {const_cast<char *>("removePlayerStateNative"),
          const_cast<char *>("(Ljava/lang/String;)V"),
@@ -110,6 +115,9 @@ JNINativeMethod kNativeMethods[] = {
         {const_cast<char *>("clearPlayerStatesNative"),
          const_cast<char *>("()V"),
          reinterpret_cast<void *>(clearPlayerStatesNative)},
+        {const_cast<char *>("touchPlayerStatesNative"),
+         const_cast<char *>("()V"),
+         reinterpret_cast<void *>(touchPlayerStatesNative)},
 };
 
 } // namespace

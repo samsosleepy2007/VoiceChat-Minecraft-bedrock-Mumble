@@ -1,4 +1,5 @@
 name: Endstone Proximity Plugin
+# mic-state-sync-v1
 
 on:
   workflow_dispatch:
@@ -7,10 +8,13 @@ on:
       - main
       - feature/endstone-proximity-v1
       - feature/minecraft-mic-addon-v1
+      - feature/vcb-ui-attenuation-level-v1
+      - fix/mic-state-sync-v1
     paths:
       - "endstone-plugin/**"
       - "tests/test_endstone_plugin_contract.py"
       - "tests/test_endstone_bridge_integration.py"
+      - "tests/test_endstone_runtime_api.py"
       - "tests/test_vc_mumble_bridge_contract.py"
       - "docs/VC_MUMBLE_ENDSTONE.md"
       - ".github/workflows/endstone-proximity-plugin.yml"
@@ -48,7 +52,7 @@ jobs:
       - name: Install against Endstone 0.11 runtime
         run: |
           python -m pip install "endstone==0.11.11"
-          python -m pip install --force-reinstall endstone-plugin/dist/endstone_vc_mumble-0.3.0-py3-none-any.whl
+          python -m pip install --force-reinstall endstone-plugin/dist/endstone_vc_mumble-0.4.1-py3-none-any.whl
           python tests/test_endstone_runtime_api.py
 
       - name: Verify wheel contents
@@ -57,7 +61,7 @@ jobs:
           from pathlib import Path
           import zipfile
 
-          wheels = list(Path("endstone-plugin/dist").glob("endstone_vc_mumble-0.3.0-*.whl"))
+          wheels = list(Path("endstone-plugin/dist").glob("endstone_vc_mumble-0.4.1-*.whl"))
           assert len(wheels) == 1, wheels
           wheel = wheels[0]
           with zipfile.ZipFile(wheel) as archive:
@@ -72,6 +76,6 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: vc-mumble-endstone-plugin-v0.3.0
+          name: vc-mumble-endstone-plugin-v0.4.1
           path: endstone-plugin/dist/*.whl
           retention-days: 14

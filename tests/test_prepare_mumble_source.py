@@ -112,6 +112,21 @@ def main() -> int:
         )
         (murmur / "main.cpp").write_text(main_fixture(), encoding="utf-8")
         (murmur / "Server.cpp").write_text(server_fixture(), encoding="utf-8")
+        (source / "src" / "MumbleProtocol.cpp").write_text(
+            '#include "MumbleProtocol.h"\n'
+            '#include "PacketDataStream.h"\n'
+            '#include "VolumeAdjustment.h"\n'
+            '#include <algorithm>\n'
+            '#include <cstring>\n'
+            'namespace Mumble { namespace Protocol {\n'
+            'template< Role role > std::span< byte > UDPAudioEncoder< role >::updateAudioPacket_legacy(const AudioData &data) {\n'
+            '\t\tstd::size_t packetSize = data.containsPositionalData ? m_positionalAudioSize : m_staticPartSize;\n'
+            '\n'
+            '\t\treturn std::span< byte >(m_byteBuffer.data(), packetSize);\n'
+            '}\n'
+            '} }\n',
+            encoding="utf-8",
+        )
         (murmur / "UnixMurmur.cpp").write_text(
             "#ifdef Q_OS_LINUX\n# include <sys/capability.h>\n#endif\n"
             "#if defined(Q_OS_LINUX)\nint linux_only = 1;\n#endif\n"
@@ -132,6 +147,7 @@ def main() -> int:
         cmake = (murmur / "CMakeLists.txt").read_text(encoding="utf-8")
         main_cpp = (murmur / "main.cpp").read_text(encoding="utf-8")
         server_cpp = (murmur / "Server.cpp").read_text(encoding="utf-8")
+        protocol_cpp = (source / "src" / "MumbleProtocol.cpp").read_text(encoding="utf-8")
         unix_cpp = (murmur / "UnixMurmur.cpp").read_text(encoding="utf-8")
         android_jni = (murmur / "AndroidJni.cpp").read_text(encoding="utf-8")
 
@@ -177,6 +193,9 @@ def main() -> int:
         assert "VC_PROXIMITY_LINKED_ATTENUATION" in server_cpp
         assert server_cpp.count("VCProximity::attenuationFactor") >= 4
         assert server_cpp.count("VolumeAdjustment::fromFactor") >= 4
+        assert "VC_LEGACY_GAIN_TRAILER" in protocol_cpp
+        assert "packetSize + 8" in protocol_cpp
+        assert "data.volumeAdjustment.factor" in protocol_cpp
         assert (murmur / "AndroidEmbed.cpp").is_file()
         assert (murmur / "AndroidJni.cpp").is_file()
         assert "RegisterNatives" in android_jni
@@ -196,6 +215,7 @@ def main() -> int:
         cmake_once = cmake
         main_once = main_cpp
         server_once = server_cpp
+        protocol_once = protocol_cpp
         unix_once = unix_cpp
 
         second = run_prepare(source)
@@ -203,6 +223,7 @@ def main() -> int:
         assert (murmur / "CMakeLists.txt").read_text(encoding="utf-8") == cmake_once
         assert (murmur / "main.cpp").read_text(encoding="utf-8") == main_once
         assert (murmur / "Server.cpp").read_text(encoding="utf-8") == server_once
+        assert (source / "src" / "MumbleProtocol.cpp").read_text(encoding="utf-8") == protocol_once
         assert (murmur / "UnixMurmur.cpp").read_text(encoding="utf-8") == unix_once
 
     print("prepare-mumble-source 1.6.870 fixture test: OK")

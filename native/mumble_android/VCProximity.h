@@ -14,9 +14,11 @@ void updatePlayer(const QString &mumbleName,
                   double y,
                   double z,
                   float rangeBlocks,
-                  bool voiceEnabled);
+                  bool voiceEnabled,
+                  int attenuationLevel);
 void removePlayer(const QString &mumbleName);
 void clearPlayers();
+void touchPlayers();
 int playerCount();
 
 // Returns a per-listener volume factor in the range [0, 1]. When proximity is
