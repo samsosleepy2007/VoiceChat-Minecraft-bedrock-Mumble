@@ -3,7 +3,7 @@ name: Android Embedded Mumble Core (experimental)
 on:
   workflow_dispatch:
   push:
-    branches: ['test/vc-mumble-github-import', 'main', 'feature/portwarp-embedded-probe', 'feature/cyberpunk-ui-v1', 'feature/modern-ui-v2', 'fix/android-start-after-bridge-edit', 'feature/minecraft-mic-addon-v1', 'feature/proximity-volume-attenuation-v1', 'feature/vcb-ui-attenuation-level-v1']
+    branches: ['test/vc-mumble-github-import', 'main', 'feature/portwarp-embedded-probe', 'feature/cyberpunk-ui-v1', 'feature/modern-ui-v2', 'fix/android-start-after-bridge-edit', 'feature/minecraft-mic-addon-v1', 'feature/proximity-volume-attenuation-v1', 'feature/vcb-ui-attenuation-level-v1', 'feature/mumla-volume-client-v1']
 
 permissions:
   contents: write
