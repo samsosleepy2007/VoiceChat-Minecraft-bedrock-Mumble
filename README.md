@@ -324,7 +324,7 @@ The app validates the key, confirms the bound server is Minecraft Bedrock + Ends
 4. stage/decompress the Addon through MCSV file tools, detect its Behavior/Resource manifests, install the packs to `/behavior_packs` and `/resource_packs`, and merge the pack UUID/version into the active world's `world_behavior_packs.json` and `world_resource_packs.json` without removing unrelated packs;
 5. restart the MCSV server once and fill the Android Bridge host/port automatically.
 
-The MCSV API key is used only for that install request and is not persisted by VC Mumble Server. For a custom-permission key, enable only: `server_info`, `domain_info`, `files_list`, `files_read`, `files_upload_base64`, `files_mkdir`, `files_decompress`, `files_rename`, `files_delete`, `files_write`, and `power_action`.
+The installer checks the remote runtime state first. If the server is running, it stops and waits for it to be offline before changing Bedrock world pack files, then starts it again after a successful install; on failure it makes a best-effort attempt to restore the previously running state.\n\nThe MCSV API key is used only for that install request and is not persisted by VC Mumble Server. For a custom-permission key, enable only: `server_info`, `server_resources`, `domain_info`, `files_list`, `files_read`, `files_upload_base64`, `files_mkdir`, `files_decompress`, `files_rename`, `files_delete`, `files_write`, and `power_action`.
 
 ## Building the Android Mumble core
 
