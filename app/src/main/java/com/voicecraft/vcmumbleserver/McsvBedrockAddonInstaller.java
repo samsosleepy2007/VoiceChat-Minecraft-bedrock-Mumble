@@ -287,9 +287,8 @@ final class McsvBedrockAddonInstaller {
             String destinationPath,
             String destinationRelative
     ) throws IOException {
-        String backupName = destinationRelative.replace('/', '_')
+        String backupRelative = destinationRelative
                 + ".backup_" + Long.toHexString(System.currentTimeMillis());
-        String backupRelative = ".vc_mumble_pack_backup/" + backupName;
 
         boolean existing = pathExists(
                 client,
