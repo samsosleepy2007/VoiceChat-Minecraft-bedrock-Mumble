@@ -64,6 +64,12 @@ final class McsvInstaller {
                     argument("action", "stop")
             );
             waitForServerStopped(client);
+        } else if ("stopping".equalsIgnoreCase(initialRuntimeState)) {
+            waitForServerStopped(client);
+        } else if (!isRuntimeStopped(initialRuntimeState)) {
+            throw new IOException(
+                    "ไม่รู้จักสถานะ runtime ของ MCSV: " + initialRuntimeState
+            );
         }
 
         boolean serverResumed = false;
@@ -145,6 +151,11 @@ final class McsvInstaller {
     static boolean isRuntimeActive(String state) {
         return "running".equalsIgnoreCase(state)
                 || "starting".equalsIgnoreCase(state);
+    }
+
+    static boolean isRuntimeStopped(String state) {
+        return "offline".equalsIgnoreCase(state)
+                || "stopped".equalsIgnoreCase(state);
     }
 
     private static void waitForServerStopped(McsvApiClient client)
