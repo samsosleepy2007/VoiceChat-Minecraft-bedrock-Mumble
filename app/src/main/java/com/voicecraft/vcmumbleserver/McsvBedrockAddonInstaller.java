@@ -238,7 +238,7 @@ final class McsvBedrockAddonInstaller {
         if (serverProperties == null) {
             throw new IOException("อ่าน server.properties ไม่สำเร็จ");
         }
-        for (String rawLine : serverProperties.split("\r?\n")) {
+        for (String rawLine : serverProperties.split("\\r?\\n")) {
             String line = rawLine.trim();
             if (line.isEmpty() || line.startsWith("#")) continue;
             int equals = line.indexOf('=');
@@ -248,7 +248,7 @@ final class McsvBedrockAddonInstaller {
             String value = line.substring(equals + 1).trim();
             if (value.isEmpty()
                     || value.contains("/")
-                    || value.contains("\")
+                    || value.contains("\\\\")
                     || value.equals(".")
                     || value.equals("..")) {
                 throw new IOException("level-name ใน server.properties ไม่ปลอดภัย");
@@ -507,7 +507,7 @@ final class McsvBedrockAddonInstaller {
                 && !name.equals(".")
                 && !name.equals("..")
                 && !name.contains("/")
-                && !name.contains("\");
+                && !name.contains("\\\\");
     }
 
     enum PackKind {
