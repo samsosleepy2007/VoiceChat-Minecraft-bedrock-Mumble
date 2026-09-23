@@ -396,7 +396,7 @@ public final class MainActivity extends Activity {
         ));
         addMcsvLabeledField(mcsvCard, "MCSV API Key", mcsvApiKey);
 
-        mcsvInstallButton = buttonBase("ติดตั้งผ่าน MCSV");
+        mcsvInstallButton = buttonBase("ติดตั้ง VC Mumble ผ่าน MCSV");
         mcsvInstallButton.setTextColor(Color.WHITE);
         mcsvInstallButton.setBackground(rounded(
                 c(R.color.mcsv_green),
@@ -1303,7 +1303,7 @@ public final class MainActivity extends Activity {
                         + "4. ถ้าใช้ Reinstall ให้สำรองโลก/ไฟล์ก่อน เพราะข้อมูลเซิร์ฟเวอร์เดิมจะถูกลบ\n"
                         + "5. รอให้ติดตั้งเสร็จและเซิร์ฟเวอร์อยู่ในสถานะพร้อมใช้งาน\n"
                         + "6. ไปที่ ระบบ → API / MCP → สร้าง key\n"
-                        + "7. กลับมา VC Mumble Server → ใส่ mcsv_ API Key → กด ติดตั้งผ่าน MCSV\n\n"
+                        + "7. กลับมา VC Mumble Server → ใส่ mcsv_ API Key → กด ติดตั้ง VC Mumble ผ่าน MCSV\n\n"
                         + "ถ้า MCSV ไม่มี Endstone ในรายการ Build ฟังก์ชันติดตั้งอัตโนมัติจะใช้ไม่ได้",
                 12,
                 false
@@ -1379,11 +1379,12 @@ public final class MainActivity extends Activity {
                         + "4. กดปุ่ม สร้าง key\n"
                         + "5. ตั้งชื่อ เช่น VC Mumble Server\n"
                         + "6. เลือกสิทธิ์ กำหนดเอง\n"
-                        + "7. เปิดสิทธิ์เฉพาะ: server_info, domain_info, files_list, "
-                        + "files_upload_base64, files_delete, files_write และ power_action\n"
+                        + "7. เปิดสิทธิ์เฉพาะ: server_info, domain_info, files_list, files_read, "
+                        + "files_upload_base64, files_decompress, files_rename, files_delete, "
+                        + "files_write และ power_action\n"
                         + "8. กดสร้าง/ยืนยัน Key\n"
                         + "9. กดคัดลอก token ที่ขึ้นต้นด้วย mcsv_ — token จะแสดงครั้งเดียว\n"
-                        + "10. กลับมาที่แอปนี้ วางในช่อง MCSV API Key แล้วกด ติดตั้งผ่าน MCSV\n\n"
+                        + "10. กลับมาที่แอปนี้ วางในช่อง MCSV API Key แล้วกด ติดตั้ง VC Mumble ผ่าน MCSV\n\n"
                         + "API Key เป็นเหมือนรหัสผ่าน หากหลุดให้กลับไปหน้า API / MCP "
                         + "แล้ว revoke Key นั้นทันที";
 
@@ -1436,7 +1437,7 @@ public final class MainActivity extends Activity {
         }
 
         mcsvInstallButton.setEnabled(false);
-        mcsvInstallStatus.setText("กำลังตรวจสอบ MCSV และติดตั้ง...");
+        mcsvInstallStatus.setText("กำลังติดตั้ง Plugin + Addon ผ่าน MCSV...");
         final String keyForRequest = apiKey;
 
         new Thread(() -> {
@@ -1449,9 +1450,18 @@ public final class MainActivity extends Activity {
                     );
                 }
 
+                AddonReleaseResolver.ReleaseInfo addonRelease =
+                        AddonReleaseResolver.resolveLatest();
+                if (!addonRelease.hasChecksumAsset()) {
+                    throw new IOException(
+                            "Release " + addonRelease.tagName + " ของ Addon ไม่มี SHA256SUMS.txt"
+                    );
+                }
+
                 McsvInstaller.InstallResult result = McsvInstaller.install(
                         keyForRequest,
                         release,
+                        addonRelease,
                         secret,
                         preferredPort,
                         rangeValue
@@ -1461,6 +1471,9 @@ public final class MainActivity extends Activity {
                     bridgeHost.setText(result.bridgeHost);
                     bridgePort.setText(String.valueOf(result.bridgePort));
                     bridgeSecret.setText(secret);
+                    minecraftAddonStatus.setText(
+                            "Addon ล่าสุด: " + addonVersion(result.addonName)
+                    );
 
                     try {
                         saveSettings(false);
@@ -1476,13 +1489,15 @@ public final class MainActivity extends Activity {
                                 "Install complete; server=" + result.serverName
                                         + ", release=" + result.releaseTag
                                         + ", asset=" + result.wheelName
+                                        + ", addon=" + result.addonName
+                                        + ", world=" + result.levelName
                                         + ", bridge=" + result.bridgeHost
                                         + ":" + result.bridgePort
                         );
                         refreshLogView();
                         Toast.makeText(
                                 this,
-                                "ติดตั้ง Endstone Plugin ผ่าน MCSV แล้ว และรีสตาร์ทเซิร์ฟเวอร์แล้ว",
+                                "ติดตั้ง Endstone Plugin + Item Mic Addon ผ่าน MCSV แล้ว และรีสตาร์ทเซิร์ฟเวอร์แล้ว",
                                 Toast.LENGTH_LONG
                         ).show();
                     } catch (Exception saveError) {
