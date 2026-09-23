@@ -47,6 +47,9 @@ public final class McsvInstallerTest {
         org.junit.Assert.assertTrue(McsvInstaller.isRuntimeActive("starting"));
         org.junit.Assert.assertFalse(McsvInstaller.isRuntimeActive("offline"));
         org.junit.Assert.assertFalse(McsvInstaller.isRuntimeActive("stopped"));
+        org.junit.Assert.assertTrue(McsvInstaller.isRuntimeStopped("offline"));
+        org.junit.Assert.assertTrue(McsvInstaller.isRuntimeStopped("stopped"));
+        org.junit.Assert.assertFalse(McsvInstaller.isRuntimeStopped("running"));
     }
 
     @Test
