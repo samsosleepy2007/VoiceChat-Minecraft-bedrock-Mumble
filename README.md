@@ -316,9 +316,15 @@ The app uses validated embedded WebP artwork for both the MCSV logo and Endstone
 
 For MCSV-hosted Bedrock/Endstone servers, the Android app also has an optional green **MCSV** card. The user only pastes an MCSV API key and presses **Install via MCSV**.
 
-The app validates the key, confirms the bound server is Minecraft Bedrock + Endstone, selects an allocated non-game port for the VC Mumble bridge, downloads and SHA-verifies the newest Endstone wheel, injects the Android Bridge Secret, uploads it to `/plugins`, writes `/plugins/vc_mumble/config.toml`, restarts the MCSV server, and fills the Android Bridge host/port automatically.
+The app validates the key, confirms the bound server is Minecraft Bedrock + Endstone, selects an allocated non-game port for the VC Mumble bridge, then installs the complete VC Mumble server-side setup in one action:
 
-The MCSV API key is used only for that install request and is not persisted by VC Mumble Server. For a custom-permission key, enable only: `server_info`, `domain_info`, `files_list`, `files_upload_base64`, `files_delete`, `files_write`, and `power_action`.
+1. resolve + SHA-verify the newest Endstone wheel;
+2. inject the Android Bridge Secret, upload the wheel to `/plugins`, and write `/plugins/vc_mumble/config.toml`;
+3. resolve + SHA-verify the newest `VC_Mumble_ItemMic_*.mcaddon`;
+4. stage/decompress the Addon through MCSV file tools, detect its Behavior/Resource manifests, install the packs to `/behavior_packs` and `/resource_packs`, and merge the pack UUID/version into the active world's `world_behavior_packs.json` and `world_resource_packs.json` without removing unrelated packs;
+5. restart the MCSV server once and fill the Android Bridge host/port automatically.
+
+The MCSV API key is used only for that install request and is not persisted by VC Mumble Server. For a custom-permission key, enable only: `server_info`, `domain_info`, `files_list`, `files_read`, `files_upload_base64`, `files_decompress`, `files_rename`, `files_delete`, `files_write`, and `power_action`.
 
 ## Building the Android Mumble core
 
