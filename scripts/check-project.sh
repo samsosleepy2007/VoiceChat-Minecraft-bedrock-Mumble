@@ -20,6 +20,7 @@ for f in \
   app/src/smoke/java/com/voicecraft/vcmumbleserver/MumbleServerService.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/MumbleConfigWriter.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/McsvBedrockAddonInstaller.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/McsvLogoAsset.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/EndstoneLogoAsset.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/SecretStore.java \
@@ -226,6 +227,10 @@ grep -Fq 'REQUEST_IGNORE_BATTERY_OPTIMIZATIONS' app/src/main/AndroidManifest.xml
 grep -Fq 'isIgnoringBatteryOptimizations' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'buildProximityCard()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'McsvLogoAsset.bitmap()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"ติดตั้ง VC Mumble ผ่าน MCSV"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'McsvBedrockAddonInstaller.install(client, addonRelease)' app/src/main/java/com/voicecraft/vcmumbleserver/McsvInstaller.java
+grep -Fq '"world_behavior_packs.json"' app/src/main/java/com/voicecraft/vcmumbleserver/McsvBedrockAddonInstaller.java
+grep -Fq '"world_resource_packs.json"' app/src/main/java/com/voicecraft/vcmumbleserver/McsvBedrockAddonInstaller.java
 grep -Fq 'EndstoneLogoAsset.bitmap()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'PREF_ENDSTONE_NOTICE_ACK' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"ต้องใช้เซิร์ฟเวอร์ Endstone เท่านั้น"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
