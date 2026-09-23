@@ -120,6 +120,13 @@ public final class McsvBedrockAddonInstallerTest {
     }
 
     @Test
+    public void recognizesNestedMcpackAndZipArchives() {
+        assertTrue(McsvBedrockAddonInstaller.isPackArchive("VC_Mumble_BP.mcpack"));
+        assertTrue(McsvBedrockAddonInstaller.isPackArchive("VC_Mumble_RP.MCPACK"));
+        assertTrue(McsvBedrockAddonInstaller.isPackArchive("pack.zip"));
+    }
+
+    @Test
     public void parsesActiveBedrockWorldName() throws Exception {
         String properties = """
                 server-name=VC Test
