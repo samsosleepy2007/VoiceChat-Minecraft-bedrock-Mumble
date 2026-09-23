@@ -159,9 +159,38 @@ final class McsvBedrockAddonInstaller {
 
         for (int i = 0; i < files.length(); i++) {
             JSONObject file = files.optJSONObject(i);
-            if (file == null || file.optBoolean("is_file", false)) continue;
+            if (file == null) continue;
             String name = file.optString("name", "");
             if (!isSafeName(name)) continue;
+
+            if (file.optBoolean("is_file", false)) {
+                if (isPackArchive(name)) {
+                    String unpackName = ".vc_unpack_" + depth + "_" + i;
+                    String unpackDir = directory + "/" + unpackName;
+                    client.callTool(
+                            "files_mkdir",
+                            object("root", directory, "name", unpackName)
+                    );
+                    rename(
+                            client,
+                            stripLeadingSlash(directory + "/" + name),
+                            stripLeadingSlash(unpackDir + "/pack.zip")
+                    );
+                    client.callTool(
+                            "files_decompress",
+                            object("root", unpackDir, "file", "pack.zip")
+                    );
+                    discoverPacks(
+                            client,
+                            stageRoot,
+                            unpackDir,
+                            depth + 1,
+                            output
+                    );
+                }
+                continue;
+            }
+
             discoverPacks(
                     client,
                     stageRoot,
@@ -170,6 +199,12 @@ final class McsvBedrockAddonInstaller {
                     output
             );
         }
+    }
+
+    static boolean isPackArchive(String name) {
+        if (name == null) return false;
+        String lower = name.toLowerCase(Locale.US);
+        return lower.endsWith(".mcpack") || lower.endsWith(".zip");
     }
 
     static PackInfo parsePackManifest(
