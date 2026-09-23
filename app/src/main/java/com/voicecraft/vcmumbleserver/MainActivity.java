@@ -1380,7 +1380,7 @@ public final class MainActivity extends Activity {
                         + "5. ตั้งชื่อ เช่น VC Mumble Server\n"
                         + "6. เลือกสิทธิ์ กำหนดเอง\n"
                         + "7. เปิดสิทธิ์เฉพาะ: server_info, domain_info, files_list, files_read, "
-                        + "files_upload_base64, files_decompress, files_rename, files_delete, "
+                        + "files_upload_base64, files_mkdir, files_decompress, files_rename, files_delete, "
                         + "files_write และ power_action\n"
                         + "8. กดสร้าง/ยืนยัน Key\n"
                         + "9. กดคัดลอก token ที่ขึ้นต้นด้วย mcsv_ — token จะแสดงครั้งเดียว\n"
