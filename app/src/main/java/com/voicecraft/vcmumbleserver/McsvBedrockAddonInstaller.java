@@ -62,31 +62,42 @@ final class McsvBedrockAddonInstaller {
             String levelName = parseLevelName(serverProperties);
             String worldPath = resolveWorldPath(client, levelName);
 
-            installPackFolder(
-                    client,
-                    behavior,
-                    "/behavior_packs/" + BP_FOLDER,
-                    "behavior_packs/" + BP_FOLDER
-            );
-            installPackFolder(
-                    client,
-                    resource,
-                    "/resource_packs/" + RP_FOLDER,
-                    "resource_packs/" + RP_FOLDER
-            );
+            PackSwap behaviorSwap = null;
+            PackSwap resourceSwap = null;
+            try {
+                behaviorSwap = installPackFolder(
+                        client,
+                        behavior,
+                        "/behavior_packs/" + BP_FOLDER,
+                        "behavior_packs/" + BP_FOLDER
+                );
+                resourceSwap = installPackFolder(
+                        client,
+                        resource,
+                        "/resource_packs/" + RP_FOLDER,
+                        "resource_packs/" + RP_FOLDER
+                );
 
-            updateWorldPackFile(
-                    client,
-                    worldPath,
-                    "world_behavior_packs.json",
-                    behavior
-            );
-            updateWorldPackFile(
-                    client,
-                    worldPath,
-                    "world_resource_packs.json",
-                    resource
-            );
+                updateWorldPackFile(
+                        client,
+                        worldPath,
+                        "world_behavior_packs.json",
+                        behavior
+                );
+                updateWorldPackFile(
+                        client,
+                        worldPath,
+                        "world_resource_packs.json",
+                        resource
+                );
+
+                cleanupPackBackup(client, behaviorSwap);
+                cleanupPackBackup(client, resourceSwap);
+            } catch (IOException error) {
+                rollbackPackSwap(client, resourceSwap);
+                rollbackPackSwap(client, behaviorSwap);
+                throw error;
+            }
 
             return new InstallResult(
                     release.addonName,
@@ -318,7 +329,7 @@ final class McsvBedrockAddonInstaller {
         );
     }
 
-    private static void installPackFolder(
+    private static PackSwap installPackFolder(
             McsvApiClient client,
             PackInfo pack,
             String destinationPath,
@@ -345,14 +356,39 @@ final class McsvBedrockAddonInstaller {
                     destinationRelative
             );
             movedNew = true;
+            return new PackSwap(
+                    destinationRelative,
+                    backupRelative,
+                    existing
+            );
         } finally {
             if (!movedNew && existing) {
                 bestEffortRename(client, backupRelative, destinationRelative);
             }
         }
+    }
 
-        if (existing) {
-            bestEffortDelete(client, "/", backupRelative);
+    private static void cleanupPackBackup(
+            McsvApiClient client,
+            PackSwap swap
+    ) {
+        if (swap != null && swap.hadExisting) {
+            bestEffortDelete(client, "/", swap.backupRelative);
+        }
+    }
+
+    private static void rollbackPackSwap(
+            McsvApiClient client,
+            PackSwap swap
+    ) {
+        if (swap == null) return;
+        bestEffortDelete(client, "/", swap.destinationRelative);
+        if (swap.hadExisting) {
+            bestEffortRename(
+                    client,
+                    swap.backupRelative,
+                    swap.destinationRelative
+            );
         }
     }
 
@@ -545,6 +581,22 @@ final class McsvBedrockAddonInstaller {
                 && !name.equals("..")
                 && !name.contains("/")
                 && !name.contains("\\");
+    }
+
+    private static final class PackSwap {
+        final String destinationRelative;
+        final String backupRelative;
+        final boolean hadExisting;
+
+        PackSwap(
+                String destinationRelative,
+                String backupRelative,
+                boolean hadExisting
+        ) {
+            this.destinationRelative = destinationRelative;
+            this.backupRelative = backupRelative;
+            this.hadExisting = hadExisting;
+        }
     }
 
     enum PackKind {
