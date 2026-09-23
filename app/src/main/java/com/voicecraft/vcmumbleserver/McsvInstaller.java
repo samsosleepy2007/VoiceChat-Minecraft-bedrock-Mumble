@@ -17,6 +17,7 @@ final class McsvInstaller {
     static InstallResult install(
             String apiKey,
             EndstoneReleaseResolver.ReleaseInfo release,
+            AddonReleaseResolver.ReleaseInfo addonRelease,
             String bridgeSecret,
             int preferredBridgePort,
             int voiceRange
@@ -98,6 +99,9 @@ final class McsvInstaller {
         }
         client.callTool("files_write", configArgs);
 
+        McsvBedrockAddonInstaller.InstallResult addon =
+                McsvBedrockAddonInstaller.install(client, addonRelease);
+
         client.callTool(
                 "power_action",
                 argument("action", "restart")
@@ -109,7 +113,10 @@ final class McsvInstaller {
                 bridgePort,
                 release.tagName,
                 release.wheelName,
-                plugin.sourceSha256
+                plugin.sourceSha256,
+                addon.addonName,
+                addon.sha256,
+                addon.levelName
         );
     }
 
@@ -231,6 +238,9 @@ final class McsvInstaller {
         final String releaseTag;
         final String wheelName;
         final String sourceSha256;
+        final String addonName;
+        final String addonSha256;
+        final String levelName;
 
         InstallResult(
                 String serverName,
@@ -238,7 +248,10 @@ final class McsvInstaller {
                 int bridgePort,
                 String releaseTag,
                 String wheelName,
-                String sourceSha256
+                String sourceSha256,
+                String addonName,
+                String addonSha256,
+                String levelName
         ) {
             this.serverName = serverName;
             this.bridgeHost = bridgeHost;
@@ -246,6 +259,9 @@ final class McsvInstaller {
             this.releaseTag = releaseTag;
             this.wheelName = wheelName;
             this.sourceSha256 = sourceSha256;
+            this.addonName = addonName;
+            this.addonSha256 = addonSha256;
+            this.levelName = levelName;
         }
     }
 }
