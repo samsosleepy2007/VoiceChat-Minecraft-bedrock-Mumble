@@ -1379,7 +1379,7 @@ public final class MainActivity extends Activity {
                         + "4. กดปุ่ม สร้าง key\n"
                         + "5. ตั้งชื่อ เช่น VC Mumble Server\n"
                         + "6. เลือกสิทธิ์ กำหนดเอง\n"
-                        + "7. เปิดสิทธิ์เฉพาะ: server_info, domain_info, files_list, files_read, "
+                        + "7. เปิดสิทธิ์เฉพาะ: server_info, server_resources, domain_info, files_list, files_read, "
                         + "files_upload_base64, files_mkdir, files_decompress, files_rename, files_delete, "
                         + "files_write และ power_action\n"
                         + "8. กดสร้าง/ยืนยัน Key\n"
@@ -1497,7 +1497,7 @@ public final class MainActivity extends Activity {
                         refreshLogView();
                         Toast.makeText(
                                 this,
-                                "ติดตั้ง Endstone Plugin + Item Mic Addon ผ่าน MCSV แล้ว และรีสตาร์ทเซิร์ฟเวอร์แล้ว",
+                                "ติดตั้ง Endstone Plugin + Item Mic Addon ผ่าน MCSV แล้ว",
                                 Toast.LENGTH_LONG
                         ).show();
                     } catch (Exception saveError) {
