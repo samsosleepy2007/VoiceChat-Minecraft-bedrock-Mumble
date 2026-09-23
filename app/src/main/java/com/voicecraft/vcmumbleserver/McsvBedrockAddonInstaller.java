@@ -62,6 +62,17 @@ final class McsvBedrockAddonInstaller {
             String levelName = parseLevelName(serverProperties);
             String worldPath = resolveWorldPath(client, levelName);
 
+            WorldPackState behaviorWorld = loadWorldPackState(
+                    client,
+                    worldPath,
+                    "world_behavior_packs.json"
+            );
+            WorldPackState resourceWorld = loadWorldPackState(
+                    client,
+                    worldPath,
+                    "world_resource_packs.json"
+            );
+
             PackSwap behaviorSwap = null;
             PackSwap resourceSwap = null;
             try {
@@ -78,22 +89,14 @@ final class McsvBedrockAddonInstaller {
                         "resource_packs/" + RP_FOLDER
                 );
 
-                updateWorldPackFile(
-                        client,
-                        worldPath,
-                        "world_behavior_packs.json",
-                        behavior
-                );
-                updateWorldPackFile(
-                        client,
-                        worldPath,
-                        "world_resource_packs.json",
-                        resource
-                );
+                writeWorldPackState(client, behaviorWorld, behavior);
+                writeWorldPackState(client, resourceWorld, resource);
 
                 cleanupPackBackup(client, behaviorSwap);
                 cleanupPackBackup(client, resourceSwap);
             } catch (IOException error) {
+                restoreWorldPackState(client, resourceWorld);
+                restoreWorldPackState(client, behaviorWorld);
                 rollbackPackSwap(client, resourceSwap);
                 rollbackPackSwap(client, behaviorSwap);
                 throw error;
@@ -392,19 +395,21 @@ final class McsvBedrockAddonInstaller {
         }
     }
 
-    private static void updateWorldPackFile(
+    private static WorldPackState loadWorldPackState(
             McsvApiClient client,
             String worldPath,
-            String fileName,
-            PackInfo pack
+            String fileName
     ) throws IOException {
-        boolean exists = pathExists(client, worldPath, fileName);
-        JSONArray current = new JSONArray();
-        if (exists) {
-            String text = readText(client, worldPath + "/" + fileName).trim();
-            if (!text.isEmpty()) {
+        boolean existed = pathExists(client, worldPath, fileName);
+        String content = "";
+        JSONArray entries = new JSONArray();
+
+        if (existed) {
+            content = readText(client, worldPath + "/" + fileName);
+            String trimmed = content.trim();
+            if (!trimmed.isEmpty()) {
                 try {
-                    current = new JSONArray(text);
+                    entries = new JSONArray(trimmed);
                 } catch (JSONException error) {
                     throw new IOException(
                             fileName + " ของ world มี JSON ไม่ถูกต้อง",
@@ -414,18 +419,52 @@ final class McsvBedrockAddonInstaller {
             }
         }
 
-        JSONArray merged = mergeWorldPackConfig(current, pack);
+        return new WorldPackState(
+                worldPath,
+                fileName,
+                existed,
+                content,
+                entries
+        );
+    }
+
+    private static void writeWorldPackState(
+            McsvApiClient client,
+            WorldPackState state,
+            PackInfo pack
+    ) throws IOException {
+        JSONArray merged = mergeWorldPackConfig(state.entries, pack);
         JSONObject args = new JSONObject();
         try {
-            args.put("path", worldPath + "/" + fileName);
+            args.put("path", state.path());
             args.put("content", merged.toString(2) + "\n");
-            if (!exists) {
+            if (!state.existed) {
                 args.put("force_new", true);
             }
         } catch (JSONException impossible) {
             throw new IOException("Could not prepare world pack config", impossible);
         }
         client.callTool("files_write", args);
+        state.changed = true;
+    }
+
+    private static void restoreWorldPackState(
+            McsvApiClient client,
+            WorldPackState state
+    ) {
+        if (state == null || !state.changed) return;
+        try {
+            if (state.existed) {
+                JSONObject args = new JSONObject();
+                args.put("path", state.path());
+                args.put("content", state.originalContent);
+                client.callTool("files_write", args);
+            } else {
+                bestEffortDelete(client, state.worldPath, state.fileName);
+            }
+        } catch (Exception ignored) {
+            // Best-effort transaction rollback. MCSV also versions text writes.
+        }
     }
 
     static JSONArray mergeWorldPackConfig(
@@ -581,6 +620,33 @@ final class McsvBedrockAddonInstaller {
                 && !name.equals("..")
                 && !name.contains("/")
                 && !name.contains("\\");
+    }
+
+    private static final class WorldPackState {
+        final String worldPath;
+        final String fileName;
+        final boolean existed;
+        final String originalContent;
+        final JSONArray entries;
+        boolean changed;
+
+        WorldPackState(
+                String worldPath,
+                String fileName,
+                boolean existed,
+                String originalContent,
+                JSONArray entries
+        ) {
+            this.worldPath = worldPath;
+            this.fileName = fileName;
+            this.existed = existed;
+            this.originalContent = originalContent;
+            this.entries = entries;
+        }
+
+        String path() {
+            return worldPath + "/" + fileName;
+        }
     }
 
     private static final class PackSwap {
