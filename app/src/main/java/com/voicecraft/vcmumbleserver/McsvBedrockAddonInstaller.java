@@ -37,6 +37,7 @@ final class McsvBedrockAddonInstaller {
                     "files_decompress",
                     object("root", stagePath, "file", "addon.zip")
             );
+            bestEffortDelete(client, stagePath, "addon.zip");
 
             List<PackInfo> packs = new ArrayList<>();
             discoverPacks(client, stagePath, stagePath, 0, packs);
@@ -180,6 +181,7 @@ final class McsvBedrockAddonInstaller {
                             "files_decompress",
                             object("root", unpackDir, "file", "pack.zip")
                     );
+                    bestEffortDelete(client, unpackDir, "pack.zip");
                     discoverPacks(
                             client,
                             stageRoot,
