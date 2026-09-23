@@ -55,6 +55,19 @@ final class McsvInstaller {
             throw new IOException("MCSV API ไม่ได้ส่ง Host สำหรับเชื่อมต่อกลับมา");
         }
 
+        JSONObject runtime = client.callTool("server_resources", new JSONObject());
+        String initialRuntimeState = runtime.optString("current_state", "");
+        boolean resumeServer = isRuntimeActive(initialRuntimeState);
+        if (resumeServer) {
+            client.callTool(
+                    "power_action",
+                    argument("action", "stop")
+            );
+            waitForServerStopped(client);
+        }
+
+        boolean serverResumed = false;
+        try {
         EndstonePluginPackage.ConfiguredPlugin plugin =
                 EndstonePluginPackage.downloadAndConfigure(release, bridgeSecret);
         if (plugin.bytes.length > MAX_MCSV_UPLOAD_BYTES) {
@@ -102,10 +115,13 @@ final class McsvInstaller {
         McsvBedrockAddonInstaller.InstallResult addon =
                 McsvBedrockAddonInstaller.install(client, addonRelease);
 
-        client.callTool(
-                "power_action",
-                argument("action", "restart")
-        );
+        if (resumeServer) {
+            client.callTool(
+                    "power_action",
+                    argument("action", "start")
+            );
+            serverResumed = true;
+        }
 
         return new InstallResult(
                 server.optString("name", "MCSV Server"),
@@ -116,8 +132,55 @@ final class McsvInstaller {
                 plugin.sourceSha256,
                 addon.addonName,
                 addon.sha256,
-                addon.levelName
+                addon.levelName,
+                resumeServer
         );
+        } finally {
+            if (resumeServer && !serverResumed) {
+                bestEffortStart(client);
+            }
+        }
+    }
+
+    static boolean isRuntimeActive(String state) {
+        return "running".equalsIgnoreCase(state)
+                || "starting".equalsIgnoreCase(state);
+    }
+
+    private static void waitForServerStopped(McsvApiClient client)
+            throws IOException {
+        for (int attempt = 0; attempt < 40; attempt++) {
+            JSONObject runtime =
+                    client.callTool("server_resources", new JSONObject());
+            String state = runtime.optString("current_state", "");
+            if ("offline".equalsIgnoreCase(state)
+                    || "stopped".equalsIgnoreCase(state)) {
+                return;
+            }
+            try {
+                Thread.sleep(500L);
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+                throw new IOException(
+                        "Interrupted while waiting for MCSV server to stop",
+                        error
+                );
+            }
+        }
+        throw new IOException(
+                "MCSV server ยังหยุดไม่เสร็จ กรุณารอสักครู่แล้วลองติดตั้งใหม่"
+        );
+    }
+
+    private static void bestEffortStart(McsvApiClient client) {
+        try {
+            client.callTool(
+                    "power_action",
+                    argument("action", "start")
+            );
+        } catch (Exception ignored) {
+            // Best effort only: preserve the user's previously-running server.
+        }
     }
 
     static int chooseBridgePort(
@@ -241,6 +304,7 @@ final class McsvInstaller {
         final String addonName;
         final String addonSha256;
         final String levelName;
+        final boolean serverWasRunning;
 
         InstallResult(
                 String serverName,
@@ -251,7 +315,8 @@ final class McsvInstaller {
                 String sourceSha256,
                 String addonName,
                 String addonSha256,
-                String levelName
+                String levelName,
+                boolean serverWasRunning
         ) {
             this.serverName = serverName;
             this.bridgeHost = bridgeHost;
@@ -262,6 +327,7 @@ final class McsvInstaller {
             this.addonName = addonName;
             this.addonSha256 = addonSha256;
             this.levelName = levelName;
+            this.serverWasRunning = serverWasRunning;
         }
     }
 }
