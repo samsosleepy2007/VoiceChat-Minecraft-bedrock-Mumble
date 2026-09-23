@@ -42,6 +42,14 @@ public final class McsvInstallerTest {
     }
 
     @Test
+    public void recognizesRuntimeStatesThatNeedSafeStop() {
+        org.junit.Assert.assertTrue(McsvInstaller.isRuntimeActive("running"));
+        org.junit.Assert.assertTrue(McsvInstaller.isRuntimeActive("starting"));
+        org.junit.Assert.assertFalse(McsvInstaller.isRuntimeActive("offline"));
+        org.junit.Assert.assertFalse(McsvInstaller.isRuntimeActive("stopped"));
+    }
+
+    @Test
     public void rejectsNonMcsvApiKeyBeforeNetworkCall() {
         try {
             new McsvApiClient("not-a-key");
