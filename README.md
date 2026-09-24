@@ -2,7 +2,7 @@
 
 Android-hosted Mumble server for Minecraft Bedrock voice chat.
 
-> Release line: **v0.6.0-beta.7**  
+> Release line: **v0.6.0-beta.9**  
 > Embedded server: **Mumble 1.6.870**  
 > Qt: **6.8.3**  
 > OpenSSL: **3.6.3**  
@@ -23,7 +23,7 @@ The Android Mumble core has passed the physical-device startup gate:
 - Stop -> Start works repeatedly by restarting the isolated Mumble process cleanly
 - stock Mumble/Mumla clients can use the normal Mumble protocol path
 
-The Minecraft/Endstone proximity bridge now supports the /vcb control panel, per-player attenuation levels, heartbeat-backed state freshness, and Mic ON/OFF synchronization. Endstone plugin v0.4.1 feeds the native proximity routing layer, while VC Mumla v0.4 Stable Gain applies per-listener distance volume.
+The Minecraft/Endstone proximity bridge now supports the /vcb control panel, per-player attenuation levels, heartbeat-backed state freshness, and Mic ON/OFF synchronization. Endstone plugin v0.4.1 feeds the native proximity routing layer, while VC Mumla v0.5 AEC applies per-listener distance volume and enables Android system acoustic echo cancellation by default.
 
 ## How the system works
 
