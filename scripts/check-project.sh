@@ -20,6 +20,9 @@ for f in \
   app/src/smoke/java/com/voicecraft/vcmumbleserver/MumbleServerService.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/MumbleConfigWriter.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/VCMumbleBridgeClient.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/McsvBedrockAddonInstaller.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/McsvLogoAsset.java \
+  app/src/main/java/com/voicecraft/vcmumbleserver/EndstoneLogoAsset.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/SecretStore.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerConfig.java \
   app/src/main/java/com/voicecraft/vcmumbleserver/ServerLog.java \
@@ -44,6 +47,7 @@ python3 tests/test_vc_mumble_bridge_contract.py
 python3 tests/test_android_start_bridge_independence.py
 python3 tests/test_endstone_plugin_contract.py
 python3 tests/test_endstone_bridge_integration.py
+python3 tests/test_embedded_ui_assets.py
 
 python3 - <<'PY'
 from pathlib import Path
@@ -203,8 +207,8 @@ grep -Fq 'android.permission.WAKE_LOCK' app/src/main/AndroidManifest.xml
 grep -Fq 'android:stopWithTask="false"' app/src/main/AndroidManifest.xml
 grep -Fq 'android:icon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
 grep -Fq 'android:roundIcon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
-grep -Fq 'versionCode = 12' app/build.gradle.kts
-grep -Fq 'versionName = "0.6.0-beta.7"' app/build.gradle.kts
+grep -Fq 'versionCode = 13' app/build.gradle.kts
+grep -Fq 'versionName = "0.6.0-beta.8"' app/build.gradle.kts
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher.png
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher_sleepy.png
 grep -Fq 'PowerManager.PARTIAL_WAKE_LOCK' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
@@ -222,6 +226,16 @@ grep -Fq 'Settings.ACTION_APPLICATION_DETAILS_SETTINGS' app/src/main/java/com/vo
 grep -Fq 'REQUEST_IGNORE_BATTERY_OPTIMIZATIONS' app/src/main/AndroidManifest.xml
 grep -Fq 'isIgnoringBatteryOptimizations' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'buildProximityCard()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'McsvLogoAsset.bitmap()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"ติดตั้ง VC Mumble ผ่าน MCSV"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'McsvBedrockAddonInstaller.install(client, addonRelease)' app/src/main/java/com/voicecraft/vcmumbleserver/McsvInstaller.java
+grep -Fq '"world_behavior_packs.json"' app/src/main/java/com/voicecraft/vcmumbleserver/McsvBedrockAddonInstaller.java
+grep -Fq '"world_resource_packs.json"' app/src/main/java/com/voicecraft/vcmumbleserver/McsvBedrockAddonInstaller.java
+grep -Fq 'EndstoneLogoAsset.bitmap()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'PREF_ENDSTONE_NOTICE_ACK' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"ต้องใช้เซิร์ฟเวอร์ Endstone เท่านั้น"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"คู่มือ Endstone / MCSV"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+test ! -e app/src/main/res/drawable-nodpi/mcsv_logo.png
 grep -Fq '"Minecraft Proximity"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"เปิดตลอด"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"สุ่มใหม่"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java

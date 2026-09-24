@@ -281,14 +281,52 @@ Native Mumble proximity routing
 Commands:
 
 ```text
-/vcmumble
-/vcmumble status
-/vcmumble pair <mumble_name>
-/vcmumble unpair
-/vcmumble range <blocks>
+/vcb
 ```
 
 The bridge tracks Minecraft identity, dimension, XYZ position, Mic ON/OFF state, voice range, and attenuation level and maps those players to Mumble usernames. All Mumble users may stay in the Root channel; proximity routing and smooth distance-based attenuation are handled by the server together with VC Mumla v0.4 Stable Gain.
+
+### In-app Endstone plugin and Minecraft Addon downloads
+
+VC Mumble Server can prepare the Endstone plugin and download the matching Item Mic Addon directly from this repository's GitHub Releases.
+
+When the user presses **Download Plugin (.whl)**, the app:
+
+1. requests the current Releases list from GitHub instead of using a hard-coded tag;
+2. ignores drafts, includes stable and prerelease releases, and selects the most recently published release that contains an `endstone_vc_mumble-*.whl` asset;
+3. downloads that wheel together with `SHA256SUMS.txt` from the same release;
+4. verifies the original wheel SHA-256 before modifying it;
+5. writes the Android device's encrypted-at-rest Bridge Secret into `endstone_vc_mumble/config.toml`;
+6. rebuilds the wheel `.dist-info/RECORD` hashes and sizes; and
+7. saves the configured wheel under its original valid wheel filename.
+
+**Download Addon (.mcaddon)** performs a separate fresh release lookup and selects the newest published release containing a `VC_Mumble_ItemMic_*.mcaddon` asset. The original Addon is downloaded unchanged after its SHA-256 is verified against `SHA256SUMS.txt` from the same release.
+
+Both download actions resolve GitHub Releases again every time they are pressed, so newer beta or stable assets can be picked up without shipping a new Android APK just to change a download URL. A separate **Download config.toml** action is available for servers where the plugin is already installed and its existing data-folder config must be replaced manually.
+
+The configured wheel and exported config contain the Bridge Secret in plaintext by necessity. Treat those exported files as private server credentials. The Addon download does not contain the Bridge Secret.
+
+### Endstone compatibility notice
+
+On the first app launch, VC Mumble Server shows a red compatibility notice explaining that Minecraft proximity integration requires a **Minecraft Bedrock server running Endstone**. The notice includes the Endstone artwork supplied for the app and a short MCSV setup guide. Once acknowledged, it is not shown automatically again; it can be reopened from **Settings → Endstone / MCSV guide**.
+
+The app uses validated embedded WebP artwork for both the MCSV logo and Endstone notice instead of relying on a binary drawable upload. Project contract checks verify the expected dimensions and SHA-256 of both embedded assets before Android builds.
+
+### Optional MCSV one-click install
+
+For MCSV-hosted Bedrock/Endstone servers, the Android app also has an optional green **MCSV** card. The user only pastes an MCSV API key and presses **Install via MCSV**.
+
+The app validates the key, confirms the bound server is Minecraft Bedrock + Endstone, selects an allocated non-game port for the VC Mumble bridge, then installs the complete VC Mumble server-side setup in one action:
+
+1. resolve + SHA-verify the newest Endstone wheel;
+2. inject the Android Bridge Secret, upload the wheel to `/plugins`, and write `/plugins/vc_mumble/config.toml`;
+3. resolve + SHA-verify the newest `VC_Mumble_ItemMic_*.mcaddon`;
+4. stage/decompress the `.mcaddon` and its nested `.mcpack` files through MCSV file tools, detect the Behavior/Resource manifests, install the packs to `/behavior_packs` and `/resource_packs`, and merge the pack UUID/version into the active world's `world_behavior_packs.json` and `world_resource_packs.json` without removing unrelated packs;
+5. restore the server's previously-running state and fill the Android Bridge host/port automatically.
+
+The installer checks the remote runtime state first. If the server is running, it stops and waits for it to be offline before changing Bedrock world pack files, then starts it again after a successful install; on failure it makes a best-effort attempt to restore the previously running state.
+
+The MCSV API key is used only for that install request and is not persisted by VC Mumble Server. For a custom-permission key, enable only: `server_info`, `server_resources`, `domain_info`, `files_list`, `files_read`, `files_upload_base64`, `files_mkdir`, `files_decompress`, `files_rename`, `files_delete`, `files_write`, and `power_action`.
 
 ## Building the Android Mumble core
 

@@ -29,6 +29,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -39,10 +40,16 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 
 public final class MainActivity extends Activity {
     private static final int REQUEST_EXPORT_LOG = 4201;
+    private static final int REQUEST_EXPORT_ENDSTONE_PLUGIN = 4202;
+    private static final int REQUEST_EXPORT_ENDSTONE_CONFIG = 4203;
+    private static final int REQUEST_EXPORT_MINECRAFT_ADDON = 4204;
+    private static final String UI_PREFS = "vc_mumble_ui";
+    private static final String PREF_ENDSTONE_NOTICE_ACK = "endstone_notice_ack_v1";
     private static final int PAGE_HOME = 0;
     private static final int PAGE_LOG = 1;
     private static final int PAGE_SETTINGS = 2;
@@ -52,6 +59,9 @@ public final class MainActivity extends Activity {
     private TextView bridgeStatus;
     private LinearLayout statusCard;
     private TextView portWarpTarget;
+    private TextView endstonePluginStatus;
+    private TextView minecraftAddonStatus;
+    private TextView mcsvInstallStatus;
 
     private EditText serverName;
     private EditText port;
@@ -61,8 +71,10 @@ public final class MainActivity extends Activity {
     private EditText bridgeHost;
     private EditText bridgePort;
     private EditText bridgeSecret;
+    private EditText mcsvApiKey;
 
     private Button startStop;
+    private Button mcsvInstallButton;
     private TextView logView;
     private ScrollView logScroll;
 
@@ -76,6 +88,10 @@ public final class MainActivity extends Activity {
     private boolean running;
     private int currentPage = -1;
     private ObjectAnimator statusPulse;
+    private EndstoneReleaseResolver.ReleaseInfo pendingEndstoneRelease;
+    private AddonReleaseResolver.ReleaseInfo pendingAddonRelease;
+    private String pendingEndstoneBridgeSecret = "";
+    private String pendingEndstoneConfig = "";
 
     private final BroadcastReceiver stateReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
@@ -99,8 +115,12 @@ public final class MainActivity extends Activity {
         fillConfig(ServerConfig.load(this));
         updateState(false, "พร้อมเริ่มเซิร์ฟเวอร์", "Minecraft: ยังไม่ได้เชื่อมต่อ", 0);
         showPage(PAGE_HOME);
+        refreshEndstoneReleaseStatus();
+        refreshAddonReleaseStatus();
         if (savedInstanceState == null) {
-            showBatteryAccessPromptIfNeeded();
+            if (!showEndstoneFirstRunNoticeIfNeeded()) {
+                showBatteryAccessPromptIfNeeded();
+            }
         }
     }
 
@@ -187,6 +207,8 @@ public final class MainActivity extends Activity {
         root.addView(quick, marginTop(8));
 
         root.addView(buildProximityCard(), marginTop(14));
+        root.addView(buildEndstonePluginCard(), marginTop(14));
+        root.addView(buildMcsvCard(), marginTop(14));
 
         LinearLayout publicCard = card();
         publicCard.addView(eyebrow("ใช้งานผ่านอินเทอร์เน็ต"));
@@ -292,6 +314,126 @@ public final class MainActivity extends Activity {
         proximityCard.addView(saveProximity, marginTop(10));
 
         return proximityCard;
+    }
+
+    private View buildEndstonePluginCard() {
+        LinearLayout pluginCard = card();
+        pluginCard.addView(eyebrow("Endstone & Minecraft Addon"));
+
+        endstonePluginStatus = text("Plugin ล่าสุด: กำลังตรวจสอบ...", 12, true);
+        endstonePluginStatus.setTextColor(c(R.color.cyber_neon));
+        endstonePluginStatus.setTextIsSelectable(true);
+        pluginCard.addView(endstonePluginStatus, marginTop(9));
+
+        Button downloadPlugin = primaryButton("ดาวน์โหลด Plugin (.whl)");
+        downloadPlugin.setOnClickListener(v -> prepareEndstonePluginDownload());
+        pluginCard.addView(downloadPlugin, marginTop(10));
+
+        minecraftAddonStatus = text("Addon ล่าสุด: กำลังตรวจสอบ...", 12, true);
+        minecraftAddonStatus.setTextColor(c(R.color.cyber_neon));
+        minecraftAddonStatus.setTextIsSelectable(true);
+        pluginCard.addView(minecraftAddonStatus, marginTop(12));
+
+        Button downloadAddon = secondaryButton("ดาวน์โหลด Addon (.mcaddon)");
+        downloadAddon.setOnClickListener(v -> prepareMinecraftAddonDownload());
+        pluginCard.addView(downloadAddon, marginTop(8));
+
+        Button downloadConfig = secondaryButton("ดาวน์โหลด config.toml");
+        downloadConfig.setOnClickListener(v -> prepareEndstoneConfigExport());
+        pluginCard.addView(downloadConfig, marginTop(8));
+        return pluginCard;
+    }
+
+    private View buildMcsvCard() {
+        LinearLayout mcsvCard = card();
+        mcsvCard.setBackground(rounded(
+                c(R.color.mcsv_surface),
+                c(R.color.mcsv_green),
+                18,
+                2
+        ));
+        mcsvCard.setElevation(dp(12));
+        if (Build.VERSION.SDK_INT >= 28) {
+            mcsvCard.setOutlineAmbientShadowColor(c(R.color.mcsv_green_soft));
+            mcsvCard.setOutlineSpotShadowColor(c(R.color.mcsv_green_soft));
+        }
+
+        ImageView logo = new ImageView(this);
+        logo.setImageBitmap(McsvLogoAsset.bitmap());
+        logo.setAdjustViewBounds(true);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(82)
+        );
+        mcsvCard.addView(logo, logoParams);
+
+        TextView title = text("ใช้ MCSV อยู่รึเปล่า?", 18, true);
+        title.setTextColor(c(R.color.mcsv_text));
+        title.setGravity(Gravity.CENTER);
+        mcsvCard.addView(title, marginTop(7));
+
+        TextView optional = text(
+                "ฟังก์ชันเสริม • ใส่ API Key แล้วกดติดตั้ง",
+                12,
+                false
+        );
+        optional.setTextColor(c(R.color.mcsv_green_soft));
+        optional.setGravity(Gravity.CENTER);
+        mcsvCard.addView(optional, marginTop(4));
+
+        mcsvApiKey = field(
+                "mcsv_...",
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
+        );
+        mcsvApiKey.setTextColor(c(R.color.mcsv_text));
+        mcsvApiKey.setHintTextColor(c(R.color.mcsv_green_dim));
+        mcsvApiKey.setBackground(rounded(
+                c(R.color.mcsv_surface),
+                c(R.color.mcsv_green),
+                12,
+                1
+        ));
+        addMcsvLabeledField(mcsvCard, "MCSV API Key", mcsvApiKey);
+
+        mcsvInstallButton = buttonBase("ติดตั้ง VC Mumble ผ่าน MCSV");
+        mcsvInstallButton.setTextColor(Color.WHITE);
+        mcsvInstallButton.setBackground(rounded(
+                c(R.color.mcsv_green),
+                c(R.color.mcsv_green_soft),
+                12,
+                1
+        ));
+        mcsvInstallButton.setOnClickListener(v -> installWithMcsv());
+        mcsvCard.addView(mcsvInstallButton, marginTop(10));
+
+        Button guide = buttonBase("วิธีเอา API Key");
+        guide.setTextColor(c(R.color.mcsv_green_soft));
+        guide.setBackground(rounded(
+                c(R.color.mcsv_surface),
+                c(R.color.mcsv_green),
+                12,
+                1
+        ));
+        guide.setOnClickListener(v -> showMcsvApiKeyGuide());
+        mcsvCard.addView(guide, marginTop(8));
+
+        mcsvInstallStatus = text("ไม่บังคับ • API Key จะไม่ถูกบันทึก", 11, false);
+        mcsvInstallStatus.setTextColor(c(R.color.mcsv_green_soft));
+        mcsvInstallStatus.setGravity(Gravity.CENTER);
+        mcsvCard.addView(mcsvInstallStatus, marginTop(8));
+        return mcsvCard;
+    }
+
+    private void addMcsvLabeledField(
+            LinearLayout parent,
+            String label,
+            EditText input
+    ) {
+        TextView caption = text(label, 12, true);
+        caption.setTextColor(c(R.color.mcsv_green_soft));
+        parent.addView(caption, marginTop(12));
+        parent.addView(input, marginTop(5));
     }
 
     private View buildLogPage() {
@@ -410,6 +552,10 @@ public final class MainActivity extends Activity {
         );
         stopHint.setTextColor(c(R.color.cyber_text_secondary));
         root.addView(stopHint, marginTop(8));
+
+        Button endstoneGuide = secondaryButton("คู่มือ Endstone / MCSV");
+        endstoneGuide.setOnClickListener(v -> showEndstoneCompatibilityNotice(false));
+        root.addView(endstoneGuide, marginTop(14));
 
         return wrapScroll(root);
     }
@@ -757,12 +903,7 @@ public final class MainActivity extends Activity {
     }
 
     private void generateBridgeSecret() {
-        byte[] bytes = new byte[32];
-        new SecureRandom().nextBytes(bytes);
-        String secret = Base64.encodeToString(
-                bytes,
-                Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING
-        );
+        String secret = newBridgeSecret();
         bridgeSecret.setText(secret);
         bridgeSecret.setSelection(secret.length());
         Toast.makeText(this, "สุ่ม Secret แล้ว", Toast.LENGTH_SHORT).show();
@@ -778,6 +919,659 @@ public final class MainActivity extends Activity {
                 (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         clipboard.setPrimaryClip(ClipData.newPlainText("VC Mumble Bridge Secret", secret));
         Toast.makeText(this, "คัดลอกแล้ว", Toast.LENGTH_SHORT).show();
+    }
+
+    private void refreshEndstoneReleaseStatus() {
+        if (endstonePluginStatus == null) return;
+        endstonePluginStatus.setText("Plugin ล่าสุด: กำลังตรวจสอบ...");
+        new Thread(() -> {
+            try {
+                EndstoneReleaseResolver.ReleaseInfo release = EndstoneReleaseResolver.resolveLatest();
+                runOnUiThread(() -> endstonePluginStatus.setText(
+                        "Plugin ล่าสุด: " + endstoneVersion(release.wheelName)
+                ));
+            } catch (Exception error) {
+                runOnUiThread(() -> endstonePluginStatus.setText(
+                        "Plugin ล่าสุด: ตรวจสอบไม่สำเร็จ"
+                ));
+            }
+        }, "VCMumble-Endstone-Version").start();
+    }
+
+    private void refreshAddonReleaseStatus() {
+        if (minecraftAddonStatus == null) return;
+        minecraftAddonStatus.setText("Addon ล่าสุด: กำลังตรวจสอบ...");
+        new Thread(() -> {
+            try {
+                AddonReleaseResolver.ReleaseInfo release = AddonReleaseResolver.resolveLatest();
+                runOnUiThread(() -> minecraftAddonStatus.setText(
+                        "Addon ล่าสุด: " + addonVersion(release.addonName)
+                ));
+            } catch (Exception error) {
+                runOnUiThread(() -> minecraftAddonStatus.setText(
+                        "Addon ล่าสุด: ตรวจสอบไม่สำเร็จ"
+                ));
+            }
+        }, "VCMumble-Addon-Version").start();
+    }
+
+    private void prepareMinecraftAddonDownload() {
+        if (minecraftAddonStatus != null) {
+            minecraftAddonStatus.setText("Addon ล่าสุด: กำลังตรวจสอบ...");
+        }
+        new Thread(() -> {
+            try {
+                AddonReleaseResolver.ReleaseInfo release = AddonReleaseResolver.resolveLatest();
+                if (!release.hasChecksumAsset()) {
+                    throw new IOException("Release " + release.tagName + " ไม่มี SHA256SUMS.txt");
+                }
+                runOnUiThread(() -> {
+                    pendingAddonRelease = release;
+                    minecraftAddonStatus.setText(
+                            "Addon ล่าสุด: " + addonVersion(release.addonName)
+                    );
+
+                    Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.setType("application/octet-stream");
+                    intent.putExtra(Intent.EXTRA_TITLE, release.addonName);
+                    startActivityForResult(intent, REQUEST_EXPORT_MINECRAFT_ADDON);
+                });
+            } catch (Exception error) {
+                ServerLog.append(
+                        this,
+                        "ADDON",
+                        "Release lookup failed: " + error.getClass().getSimpleName()
+                                + ": " + String.valueOf(error.getMessage())
+                );
+                runOnUiThread(() -> {
+                    if (minecraftAddonStatus != null) {
+                        minecraftAddonStatus.setText("ตรวจสอบ Addon Release ไม่สำเร็จ");
+                    }
+                    refreshLogView();
+                    Toast.makeText(
+                            this,
+                            "หา Minecraft Addon ล่าสุดไม่สำเร็จ: " + error.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+            }
+        }, "VCMumble-Addon-Release").start();
+    }
+
+    private void downloadMinecraftAddon(Uri destination) {
+        final AddonReleaseResolver.ReleaseInfo release = pendingAddonRelease;
+        pendingAddonRelease = null;
+        if (release == null) {
+            Toast.makeText(
+                    this,
+                    "ข้อมูลการดาวน์โหลด Addon หมดอายุ กรุณากดดาวน์โหลดใหม่",
+                    Toast.LENGTH_LONG
+            ).show();
+            return;
+        }
+
+        if (minecraftAddonStatus != null) {
+            minecraftAddonStatus.setText("กำลังดาวน์โหลดและตรวจ SHA-256...");
+        }
+        new Thread(() -> {
+            try {
+                VerifiedAddonPackage.DownloadedAddon addon =
+                        VerifiedAddonPackage.downloadAndVerify(release);
+
+                try (OutputStream output =
+                             getContentResolver().openOutputStream(destination, "w")) {
+                    if (output == null) {
+                        throw new IOException("Unable to open selected destination");
+                    }
+                    output.write(addon.bytes);
+                    output.flush();
+                }
+
+                ServerLog.append(
+                        this,
+                        "ADDON",
+                        "Addon saved; release=" + release.tagName
+                                + ", asset=" + release.addonName
+                                + ", sha256=" + addon.sha256
+                );
+                runOnUiThread(() -> {
+                    if (minecraftAddonStatus != null) {
+                        minecraftAddonStatus.setText(
+                                "Addon ล่าสุด: " + addonVersion(release.addonName)
+                        );
+                    }
+                    refreshLogView();
+                    Toast.makeText(
+                            this,
+                            "ดาวน์โหลด Minecraft Addon ล่าสุดแล้ว",
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+            } catch (Exception error) {
+                ServerLog.append(
+                        this,
+                        "ADDON",
+                        "Addon download failed: " + error.getClass().getSimpleName()
+                                + ": " + String.valueOf(error.getMessage())
+                );
+                runOnUiThread(() -> {
+                    if (minecraftAddonStatus != null) {
+                        minecraftAddonStatus.setText("ดาวน์โหลด Addon ไม่สำเร็จ");
+                    }
+                    refreshLogView();
+                    Toast.makeText(
+                            this,
+                            "ดาวน์โหลด Minecraft Addon ไม่สำเร็จ: " + error.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+            }
+        }, "VCMumble-Addon-Download").start();
+    }
+
+    private void prepareEndstonePluginDownload() {
+        final String secret;
+        try {
+            secret = ensureBridgeSecretForExport();
+        } catch (Exception error) {
+            Toast.makeText(this, "เตรียม Bridge Secret ไม่สำเร็จ: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        endstonePluginStatus.setText("Plugin ล่าสุด: กำลังตรวจสอบ...");
+        new Thread(() -> {
+            try {
+                EndstoneReleaseResolver.ReleaseInfo release = EndstoneReleaseResolver.resolveLatest();
+                if (!release.hasChecksumAsset()) {
+                    throw new IOException("Release " + release.tagName + " ไม่มี SHA256SUMS.txt");
+                }
+                runOnUiThread(() -> {
+                    pendingEndstoneRelease = release;
+                    pendingEndstoneBridgeSecret = secret;
+                    endstonePluginStatus.setText(
+                            "Plugin ล่าสุด: " + endstoneVersion(release.wheelName)
+                    );
+
+                    Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.setType("application/octet-stream");
+                    intent.putExtra(Intent.EXTRA_TITLE, release.wheelName);
+                    startActivityForResult(intent, REQUEST_EXPORT_ENDSTONE_PLUGIN);
+                });
+            } catch (Exception error) {
+                ServerLog.append(
+                        this,
+                        "ENDSTONE",
+                        "Release lookup failed: " + error.getClass().getSimpleName()
+                                + ": " + String.valueOf(error.getMessage())
+                );
+                runOnUiThread(() -> {
+                    endstonePluginStatus.setText("ตรวจสอบ Release ไม่สำเร็จ");
+                    refreshLogView();
+                    Toast.makeText(
+                            this,
+                            "หา Endstone Plugin ล่าสุดไม่สำเร็จ: " + error.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+            }
+        }, "VCMumble-Endstone-Release").start();
+    }
+
+    private String ensureBridgeSecretForExport() {
+        String secret = bridgeSecret.getText().toString().trim();
+        if (secret.isEmpty()) {
+            secret = newBridgeSecret();
+            bridgeSecret.setText(secret);
+            bridgeSecret.setSelection(secret.length());
+        }
+        SecretStore.save(this, secret);
+        ServerLog.append(this, "ENDSTONE", "Bridge Secret prepared for configured plugin export");
+        return secret;
+    }
+
+    private String newBridgeSecret() {
+        byte[] bytes = new byte[32];
+        new SecureRandom().nextBytes(bytes);
+        return Base64.encodeToString(
+                bytes,
+                Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING
+        );
+    }
+
+    private void downloadConfiguredEndstonePlugin(Uri destination) {
+        final EndstoneReleaseResolver.ReleaseInfo release = pendingEndstoneRelease;
+        final String secret = pendingEndstoneBridgeSecret;
+        pendingEndstoneRelease = null;
+        pendingEndstoneBridgeSecret = "";
+
+        if (release == null || secret.isEmpty()) {
+            Toast.makeText(this, "ข้อมูลการดาวน์โหลดหมดอายุ กรุณากดดาวน์โหลดใหม่", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        endstonePluginStatus.setText("กำลังดาวน์โหลดและตรวจ SHA-256...");
+        new Thread(() -> {
+            try {
+                EndstonePluginPackage.ConfiguredPlugin plugin =
+                        EndstonePluginPackage.downloadAndConfigure(release, secret);
+
+                try (OutputStream output = getContentResolver().openOutputStream(destination, "w")) {
+                    if (output == null) throw new IOException("Unable to open selected destination");
+                    output.write(plugin.bytes);
+                    output.flush();
+                }
+
+                ServerLog.append(
+                        this,
+                        "ENDSTONE",
+                        "Configured plugin saved; release=" + release.tagName
+                                + ", asset=" + release.wheelName
+                                + ", sourceSha256=" + plugin.sourceSha256
+                                + ", configuredSha256=" + plugin.configuredSha256
+                );
+                runOnUiThread(() -> {
+                    endstonePluginStatus.setText(
+                            "Plugin ล่าสุด: " + endstoneVersion(release.wheelName)
+                    );
+                    refreshLogView();
+                    Toast.makeText(this, "ดาวน์โหลด Endstone Plugin พร้อม Bridge Secret แล้ว", Toast.LENGTH_LONG).show();
+                });
+            } catch (Exception error) {
+                ServerLog.append(
+                        this,
+                        "ENDSTONE",
+                        "Plugin download failed: " + error.getClass().getSimpleName()
+                                + ": " + String.valueOf(error.getMessage())
+                );
+                runOnUiThread(() -> {
+                    endstonePluginStatus.setText("ดาวน์โหลด Plugin ไม่สำเร็จ");
+                    refreshLogView();
+                    Toast.makeText(
+                            this,
+                            "ดาวน์โหลด Endstone Plugin ไม่สำเร็จ: " + error.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+            }
+        }, "VCMumble-Endstone-Download").start();
+    }
+
+    private void prepareEndstoneConfigExport() {
+        try {
+            String secret = ensureBridgeSecretForExport();
+            int bridgePortValue = parseInt(bridgePort, "Bridge Port", 1, 65535);
+            int rangeValue = parseInt(voiceRange, "ระยะเสียง", 1, 1000);
+            pendingEndstoneConfig = EndstonePluginPackage.buildConfigToml(
+                    secret,
+                    bridgePortValue,
+                    rangeValue
+            );
+
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("text/plain");
+            intent.putExtra(Intent.EXTRA_TITLE, "config.toml");
+            startActivityForResult(intent, REQUEST_EXPORT_ENDSTONE_CONFIG);
+        } catch (Exception error) {
+            Toast.makeText(this, "เตรียม config.toml ไม่สำเร็จ: " + error.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void writeEndstoneConfig(Uri destination) {
+        String config = pendingEndstoneConfig;
+        pendingEndstoneConfig = "";
+        if (config.isEmpty()) {
+            Toast.makeText(this, "ข้อมูล config หมดอายุ กรุณากดดาวน์โหลดใหม่", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        try (OutputStream output = getContentResolver().openOutputStream(destination, "w")) {
+            if (output == null) throw new IOException("Unable to open selected destination");
+            output.write(config.getBytes(StandardCharsets.UTF_8));
+            output.flush();
+            ServerLog.append(this, "ENDSTONE", "Configured Endstone config.toml saved");
+            refreshLogView();
+            Toast.makeText(this, "บันทึก config.toml แล้ว", Toast.LENGTH_SHORT).show();
+        } catch (IOException error) {
+            ServerLog.append(
+                    this,
+                    "ENDSTONE",
+                    "Config export failed: " + error.getClass().getSimpleName()
+                            + ": " + String.valueOf(error.getMessage())
+            );
+            refreshLogView();
+            Toast.makeText(this, "บันทึก config.toml ไม่สำเร็จ: " + error.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private boolean showEndstoneFirstRunNoticeIfNeeded() {
+        boolean acknowledged = getSharedPreferences(UI_PREFS, MODE_PRIVATE)
+                .getBoolean(PREF_ENDSTONE_NOTICE_ACK, false);
+        if (acknowledged) return false;
+        showEndstoneCompatibilityNotice(true);
+        return true;
+    }
+
+    private void showEndstoneCompatibilityNotice(boolean firstRun) {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setGravity(Gravity.CENTER_HORIZONTAL);
+        content.setPadding(dp(20), dp(18), dp(20), dp(18));
+        content.setBackground(rounded(
+                Color.rgb(55, 8, 13),
+                Color.rgb(248, 70, 70),
+                18,
+                2
+        ));
+        content.setElevation(dp(12));
+
+        ImageView endstoneLogo = new ImageView(this);
+        endstoneLogo.setImageBitmap(EndstoneLogoAsset.bitmap());
+        endstoneLogo.setAdjustViewBounds(true);
+        endstoneLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        LinearLayout.LayoutParams imageParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(122)
+        );
+        content.addView(endstoneLogo, imageParams);
+
+        TextView title = text("ต้องใช้เซิร์ฟเวอร์ Endstone เท่านั้น", 19, true);
+        title.setTextColor(Color.WHITE);
+        title.setGravity(Gravity.CENTER);
+        content.addView(title, marginTop(10));
+
+        TextView warning = text(
+                "Minecraft Proximity ของ VC Mumble ใช้ Endstone Plugin "
+                        + "เซิร์ฟเวอร์ Minecraft Bedrock จึงต้องรันด้วย Endstone ก่อนใช้งาน",
+                13,
+                false
+        );
+        warning.setTextColor(Color.rgb(255, 215, 215));
+        warning.setGravity(Gravity.CENTER);
+        content.addView(warning, marginTop(8));
+
+        TextView stepsTitle = text("ติดตั้ง Endstone บน MCSV", 14, true);
+        stepsTitle.setTextColor(Color.WHITE);
+        content.addView(stepsTitle, marginTop(14));
+
+        TextView steps = text(
+                "1. เข้า mcsv.me → Dashboard → เลือกหรือสร้างเซิร์ฟเวอร์ Bedrock\n"
+                        + "2. ไปที่ ตั้งค่า แล้วเลือกเปลี่ยน Build / Reinstall\n"
+                        + "3. เลือก Endstone หากมีอยู่ในรายการ Build ปัจจุบันของ MCSV\n"
+                        + "4. ถ้าใช้ Reinstall ให้สำรองโลก/ไฟล์ก่อน เพราะข้อมูลเซิร์ฟเวอร์เดิมจะถูกลบ\n"
+                        + "5. รอให้ติดตั้งเสร็จและเซิร์ฟเวอร์อยู่ในสถานะพร้อมใช้งาน\n"
+                        + "6. ไปที่ ระบบ → API / MCP → สร้าง key\n"
+                        + "7. กลับมา VC Mumble Server → ใส่ mcsv_ API Key → กด ติดตั้ง VC Mumble ผ่าน MCSV\n\n"
+                        + "ถ้า MCSV ไม่มี Endstone ในรายการ Build ฟังก์ชันติดตั้งอัตโนมัติจะใช้ไม่ได้",
+                12,
+                false
+        );
+        steps.setTextColor(Color.rgb(255, 230, 230));
+        content.addView(steps, marginTop(7));
+
+        Button openGuide = buttonBase("เปิดคู่มือ MCSV");
+        openGuide.setTextColor(Color.rgb(255, 220, 220));
+        openGuide.setBackground(rounded(
+                Color.rgb(83, 17, 24),
+                Color.rgb(248, 113, 113),
+                12,
+                1
+        ));
+        content.addView(openGuide, marginTop(14));
+
+        Button acknowledge = buttonBase("เข้าใจแล้ว");
+        acknowledge.setTextColor(Color.WHITE);
+        acknowledge.setBackground(rounded(
+                Color.rgb(220, 38, 38),
+                Color.rgb(248, 113, 113),
+                12,
+                1
+        ));
+        content.addView(acknowledge, marginTop(8));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(content)
+                .create();
+        dialog.setCancelable(!firstRun);
+        dialog.setCanceledOnTouchOutside(!firstRun);
+
+        openGuide.setOnClickListener(v -> {
+            acknowledgeEndstoneNotice();
+            dialog.dismiss();
+            openUrl(
+                    "https://mcsv.me/docs/bedrock-server",
+                    "MCSV Bedrock Guide"
+            );
+        });
+        acknowledge.setOnClickListener(v -> {
+            acknowledgeEndstoneNotice();
+            dialog.dismiss();
+            if (firstRun) {
+                showBatteryAccessPromptIfNeeded();
+            }
+        });
+
+        dialog.setOnShowListener(ignored -> {
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawableResource(
+                        android.R.color.transparent
+                );
+            }
+        });
+        dialog.show();
+    }
+
+    private void acknowledgeEndstoneNotice() {
+        getSharedPreferences(UI_PREFS, MODE_PRIVATE)
+                .edit()
+                .putBoolean(PREF_ENDSTONE_NOTICE_ACK, true)
+                .apply();
+    }
+
+    private void showMcsvApiKeyGuide() {
+        String message =
+                "วิธีสร้าง MCSV API Key สำหรับ VC Mumble Server\n\n"
+                        + "1. เปิดเว็บไซต์ mcsv.me แล้วเข้าสู่ระบบ\n"
+                        + "2. ที่ Dashboard กดเซิร์ฟเวอร์ Minecraft Bedrock / Endstone ที่ต้องการใช้\n"
+                        + "3. เมนูด้านข้าง ไปที่ ระบบ → API / MCP\n"
+                        + "4. กดปุ่ม สร้าง key\n"
+                        + "5. ตั้งชื่อ เช่น VC Mumble Server\n"
+                        + "6. เลือกสิทธิ์ กำหนดเอง\n"
+                        + "7. เปิดสิทธิ์เฉพาะ: server_info, server_resources, domain_info, files_list, files_read, "
+                        + "files_upload_base64, files_mkdir, files_decompress, files_rename, files_delete, "
+                        + "files_write และ power_action\n"
+                        + "8. กดสร้าง/ยืนยัน Key\n"
+                        + "9. กดคัดลอก token ที่ขึ้นต้นด้วย mcsv_ — token จะแสดงครั้งเดียว\n"
+                        + "10. กลับมาที่แอปนี้ วางในช่อง MCSV API Key แล้วกด ติดตั้ง VC Mumble ผ่าน MCSV\n\n"
+                        + "API Key เป็นเหมือนรหัสผ่าน หากหลุดให้กลับไปหน้า API / MCP "
+                        + "แล้ว revoke Key นั้นทันที";
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("วิธีเอา MCSV API Key")
+                .setMessage(message)
+                .setPositiveButton("เข้าใจแล้ว", null)
+                .setNeutralButton(
+                        "เปิดคู่มือ MCSV",
+                        (d, which) -> openUrl(
+                                "https://mcsv.me/docs/api",
+                                "MCSV API Guide"
+                        )
+                )
+                .create();
+        dialog.setOnShowListener(ignored -> {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
+                    .setTextColor(c(R.color.mcsv_green));
+        });
+        dialog.show();
+    }
+
+    private void installWithMcsv() {
+        if (running) {
+            Toast.makeText(
+                    this,
+                    "กรุณาปิด VC Mumble Server ก่อนติดตั้งผ่าน MCSV",
+                    Toast.LENGTH_LONG
+            ).show();
+            return;
+        }
+
+        String apiKey = mcsvApiKey.getText().toString().trim();
+        if (apiKey.isEmpty()) {
+            Toast.makeText(this, "กรุณาใส่ MCSV API Key", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        final String secret;
+        final int preferredPort;
+        final int rangeValue;
+        try {
+            new McsvApiClient(apiKey);
+            secret = ensureBridgeSecretForExport();
+            preferredPort = parseInt(bridgePort, "Bridge Port", 1, 65535);
+            rangeValue = parseInt(voiceRange, "ระยะเสียง", 1, 1000);
+        } catch (Exception error) {
+            Toast.makeText(this, error.getMessage(), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        mcsvInstallButton.setEnabled(false);
+        mcsvInstallStatus.setText("กำลังติดตั้ง Plugin + Addon ผ่าน MCSV...");
+        final String keyForRequest = apiKey;
+
+        new Thread(() -> {
+            try {
+                EndstoneReleaseResolver.ReleaseInfo release =
+                        EndstoneReleaseResolver.resolveLatest();
+                if (!release.hasChecksumAsset()) {
+                    throw new IOException(
+                            "Release " + release.tagName + " ไม่มี SHA256SUMS.txt"
+                    );
+                }
+
+                AddonReleaseResolver.ReleaseInfo addonRelease =
+                        AddonReleaseResolver.resolveLatest();
+                if (!addonRelease.hasChecksumAsset()) {
+                    throw new IOException(
+                            "Release " + addonRelease.tagName + " ของ Addon ไม่มี SHA256SUMS.txt"
+                    );
+                }
+
+                McsvInstaller.InstallResult result = McsvInstaller.install(
+                        keyForRequest,
+                        release,
+                        addonRelease,
+                        secret,
+                        preferredPort,
+                        rangeValue
+                );
+
+                runOnUiThread(() -> {
+                    bridgeHost.setText(result.bridgeHost);
+                    bridgePort.setText(String.valueOf(result.bridgePort));
+                    bridgeSecret.setText(secret);
+                    minecraftAddonStatus.setText(
+                            "Addon ล่าสุด: " + addonVersion(result.addonName)
+                    );
+
+                    try {
+                        saveSettings(false);
+                        mcsvApiKey.setText("");
+                        mcsvInstallStatus.setText(
+                                "ติดตั้งแล้ว • " + result.serverName
+                                        + " • Bridge " + result.bridgeHost
+                                        + ":" + result.bridgePort
+                        );
+                        ServerLog.append(
+                                this,
+                                "MCSV",
+                                "Install complete; server=" + result.serverName
+                                        + ", release=" + result.releaseTag
+                                        + ", asset=" + result.wheelName
+                                        + ", addon=" + result.addonName
+                                        + ", world=" + result.levelName
+                                        + ", bridge=" + result.bridgeHost
+                                        + ":" + result.bridgePort
+                        );
+                        refreshLogView();
+                        Toast.makeText(
+                                this,
+                                "ติดตั้ง Endstone Plugin + Item Mic Addon ผ่าน MCSV แล้ว",
+                                Toast.LENGTH_LONG
+                        ).show();
+                    } catch (Exception saveError) {
+                        mcsvInstallStatus.setText(
+                                "ติดตั้งบน MCSV แล้ว แต่บันทึกค่าฝั่งแอปไม่สำเร็จ"
+                        );
+                        Toast.makeText(
+                                this,
+                                "ติดตั้งบน MCSV สำเร็จ แต่บันทึกค่าในแอปไม่สำเร็จ: "
+                                        + saveError.getMessage(),
+                                Toast.LENGTH_LONG
+                        ).show();
+                    } finally {
+                        mcsvInstallButton.setEnabled(true);
+                    }
+                });
+            } catch (Exception error) {
+                String message = describeMcsvError(error);
+                ServerLog.append(
+                        this,
+                        "MCSV",
+                        "Install failed: " + error.getClass().getSimpleName()
+                                + ": " + String.valueOf(error.getMessage())
+                );
+                runOnUiThread(() -> {
+                    mcsvInstallButton.setEnabled(true);
+                    mcsvInstallStatus.setText(message);
+                    refreshLogView();
+                    Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                });
+            }
+        }, "VCMumble-MCSV-Install").start();
+    }
+
+    private String describeMcsvError(Exception error) {
+        if (error instanceof McsvApiClient.ApiException) {
+            McsvApiClient.ApiException apiError =
+                    (McsvApiClient.ApiException) error;
+            if (apiError.statusCode == 401) {
+                return "MCSV API Key ไม่ถูกต้องหรือถูก revoke";
+            }
+            if (apiError.statusCode == 403) {
+                return "MCSV API Key ไม่มีสิทธิ์ที่จำเป็น • กด วิธีเอา API Key";
+            }
+            if (apiError.statusCode == 409) {
+                return "เซิร์ฟเวอร์ MCSV กำลังติดตั้ง/ทำงานอื่นอยู่ กรุณาลองใหม่";
+            }
+            if (apiError.statusCode == 429) {
+                return "MCSV API ถูกเรียกถี่เกินไป กรุณารอสักครู่แล้วลองใหม่";
+            }
+        }
+        String detail = error.getMessage();
+        return detail == null || detail.trim().isEmpty()
+                ? "ติดตั้งผ่าน MCSV ไม่สำเร็จ"
+                : detail;
+    }
+
+    private static String endstoneVersion(String wheelName) {
+        String prefix = "endstone_vc_mumble-";
+        if (wheelName == null || !wheelName.startsWith(prefix)) return "?";
+        String value = wheelName.substring(prefix.length());
+        int separator = value.indexOf('-');
+        return separator > 0 ? value.substring(0, separator) : value;
+    }
+
+    private static String addonVersion(String addonName) {
+        String prefix = "VC_Mumble_ItemMic_v";
+        String suffix = ".mcaddon";
+        if (addonName == null || !addonName.startsWith(prefix)) return "?";
+        String value = addonName.substring(prefix.length());
+        if (value.endsWith(suffix)) {
+            value = value.substring(0, value.length() - suffix.length());
+        }
+        return value;
     }
 
     private void showBatteryAccessPromptIfNeeded() {
@@ -869,21 +1663,37 @@ public final class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQUEST_EXPORT_LOG || resultCode != RESULT_OK
-                || data == null || data.getData() == null) {
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) {
             return;
         }
 
-        try (OutputStream output = getContentResolver().openOutputStream(data.getData(), "w")) {
-            if (output == null) throw new IOException("Unable to open selected destination");
-            output.write(ServerLog.readAllBytes(this));
-            output.flush();
-            Toast.makeText(this, "บันทึก log.txt แล้ว", Toast.LENGTH_SHORT).show();
-        } catch (IOException error) {
-            ServerLog.append(this, "ERROR", "Log export failed: " + error.getClass().getSimpleName()
-                    + ": " + String.valueOf(error.getMessage()));
-            refreshLogView();
-            Toast.makeText(this, "บันทึก log.txt ไม่สำเร็จ: " + error.getMessage(), Toast.LENGTH_LONG).show();
+        if (requestCode == REQUEST_EXPORT_LOG) {
+            try (OutputStream output = getContentResolver().openOutputStream(data.getData(), "w")) {
+                if (output == null) throw new IOException("Unable to open selected destination");
+                output.write(ServerLog.readAllBytes(this));
+                output.flush();
+                Toast.makeText(this, "บันทึก log.txt แล้ว", Toast.LENGTH_SHORT).show();
+            } catch (IOException error) {
+                ServerLog.append(this, "ERROR", "Log export failed: " + error.getClass().getSimpleName()
+                        + ": " + String.valueOf(error.getMessage()));
+                refreshLogView();
+                Toast.makeText(this, "บันทึก log.txt ไม่สำเร็จ: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+
+        if (requestCode == REQUEST_EXPORT_ENDSTONE_PLUGIN) {
+            downloadConfiguredEndstonePlugin(data.getData());
+            return;
+        }
+
+        if (requestCode == REQUEST_EXPORT_ENDSTONE_CONFIG) {
+            writeEndstoneConfig(data.getData());
+            return;
+        }
+
+        if (requestCode == REQUEST_EXPORT_MINECRAFT_ADDON) {
+            downloadMinecraftAddon(data.getData());
         }
     }
 

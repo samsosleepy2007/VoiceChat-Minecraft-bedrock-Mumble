@@ -43,6 +43,10 @@ jobs:
         shell: bash
         run: bash ./scripts/check-project.sh
 
+      - name: Run Android unit tests
+        shell: bash
+        run: gradle :app:testDebugUnitTest --stacktrace
+
       - name: Build debug smoke APK
         shell: bash
         run: gradle :app:assembleDebug --stacktrace

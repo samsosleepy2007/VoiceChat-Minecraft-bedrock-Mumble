@@ -3,10 +3,10 @@ package com.voicecraft.vcmumbleserver;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -81,7 +81,7 @@ final class VCMumbleBridgeClient {
         s.connect(new InetSocketAddress(config.bridgeHost.trim(), config.bridgePort), 8000);
         s.setSoTimeout(1000);
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
+        TimeoutSafeNdjsonReader reader = new TimeoutSafeNdjsonReader(s.getInputStream());
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(s.getOutputStream(), StandardCharsets.UTF_8));
 
         JSONObject hello = new JSONObject();
@@ -196,6 +196,57 @@ final class VCMumbleBridgeClient {
     private void sleepReconnect() {
         for (int i = 0; i < 50 && !stopped.get(); i++) {
             try { Thread.sleep(100L); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
+        }
+    }
+
+    static final class TimeoutSafeNdjsonReader {
+        private static final int MAX_LINE_BYTES = 262_144;
+        private final InputStream input;
+        private final byte[] readBuffer = new byte[8192];
+        private final ByteArrayOutputStream pending = new ByteArrayOutputStream(512);
+        private int readOffset;
+        private int readLimit;
+
+        TimeoutSafeNdjsonReader(InputStream input) {
+            if (input == null) throw new IllegalArgumentException("input == null");
+            this.input = input;
+        }
+
+        String readLine() throws IOException {
+            while (true) {
+                while (readOffset < readLimit) {
+                    int value = readBuffer[readOffset++] & 0xff;
+                    if (value == '\n') {
+                        byte[] lineBytes = pending.toByteArray();
+                        pending.reset();
+                        int length = lineBytes.length;
+                        if (length > 0 && lineBytes[length - 1] == '\r') {
+                            length--;
+                        }
+                        return new String(lineBytes, 0, length, StandardCharsets.UTF_8);
+                    }
+                    pending.write(value);
+                    if (pending.size() > MAX_LINE_BYTES) {
+                        pending.reset();
+                        throw new IOException("bridge frame exceeded " + MAX_LINE_BYTES + " bytes");
+                    }
+                }
+
+                readOffset = 0;
+                readLimit = 0;
+                int count = input.read(readBuffer);
+                readLimit = count;
+                if (readLimit < 0) {
+                    if (pending.size() > 0) {
+                        pending.reset();
+                        throw new IOException("bridge closed mid-frame");
+                    }
+                    return null;
+                }
+                if (readLimit == 0) {
+                    continue;
+                }
+            }
         }
     }
 

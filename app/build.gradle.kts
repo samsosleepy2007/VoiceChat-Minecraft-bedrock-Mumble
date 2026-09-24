@@ -13,8 +13,8 @@ android {
         applicationId = "com.voicecraft.vcmumbleserver"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.6.0-beta.7"
+        versionCode = 13
+        versionName = "0.6.0-beta.8"
 
         buildConfigField("boolean", "VC_MUMBLE_CORE", vcMumbleCore.toString())
 
@@ -66,6 +66,9 @@ if (vcMumbleCore && !vcMumbleRuntimeAar.isFile) {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
+
     if (vcMumbleCore) {
         implementation(files(vcMumbleRuntimeAar))
     }
