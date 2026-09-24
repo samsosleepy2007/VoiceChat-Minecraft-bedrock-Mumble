@@ -226,6 +226,11 @@ grep -Fq 'Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS' app/src/main/jav
 grep -Fq 'Settings.ACTION_APPLICATION_DETAILS_SETTINGS' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'REQUEST_IGNORE_BATTERY_OPTIMIZATIONS' app/src/main/AndroidManifest.xml
 grep -Fq 'isIgnoringBatteryOptimizations' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"อนุญาตแบตเตอรี่ไม่จำกัด"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq '"ไม่จำกัด • พร้อมทำงานเบื้องหลัง"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
+grep -Fq 'refreshBatteryAccessStatus();' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'buildProximityCard()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq 'McsvLogoAsset.bitmap()' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
 grep -Fq '"ติดตั้ง VC Mumble ผ่าน MCSV"' app/src/main/java/com/voicecraft/vcmumbleserver/MainActivity.java
