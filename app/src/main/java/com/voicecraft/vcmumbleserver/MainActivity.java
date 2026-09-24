@@ -62,6 +62,7 @@ public final class MainActivity extends Activity {
     private TextView endstonePluginStatus;
     private TextView minecraftAddonStatus;
     private TextView mcsvInstallStatus;
+    private TextView batteryAccessStatus;
 
     private EditText serverName;
     private EditText port;
@@ -134,6 +135,11 @@ public final class MainActivity extends Activity {
             registerReceiver(stateReceiver, filter);
         }
         refreshServerStateFromTcp();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        refreshBatteryAccessStatus();
     }
 
     @Override protected void onStop() {
@@ -552,6 +558,32 @@ public final class MainActivity extends Activity {
         );
         stopHint.setTextColor(c(R.color.cyber_text_secondary));
         root.addView(stopHint, marginTop(8));
+
+        LinearLayout batteryCard = card();
+        batteryCard.addView(eyebrow("แบตเตอรี่ / ทำงานเบื้องหลัง"));
+
+        batteryAccessStatus = text("", 14, true);
+        batteryCard.addView(batteryAccessStatus, marginTop(8));
+
+        TextView batteryNote = text(
+                "แนะนำให้ตั้ง VC Mumble Server เป็น ไม่จำกัด เพื่อให้ Android "
+                        + "ไม่หยุดเซิร์ฟเวอร์เมื่อปิดหน้าจอหรือสลับไปแอปอื่น",
+                12,
+                false
+        );
+        batteryNote.setTextColor(c(R.color.cyber_text_secondary));
+        batteryCard.addView(batteryNote, marginTop(6));
+
+        Button allowUnlimitedBattery = primaryButton("อนุญาตแบตเตอรี่ไม่จำกัด");
+        allowUnlimitedBattery.setOnClickListener(v -> requestUnlimitedBatteryAccess());
+        batteryCard.addView(allowUnlimitedBattery, marginTop(12));
+
+        Button batterySettings = secondaryButton("เปิดการตั้งค่า Battery Optimization");
+        batterySettings.setOnClickListener(v -> openBatteryOptimizationSettings());
+        batteryCard.addView(batterySettings, marginTop(8));
+
+        root.addView(batteryCard, marginTop(16));
+        refreshBatteryAccessStatus();
 
         Button endstoneGuide = secondaryButton("คู่มือ Endstone / MCSV");
         endstoneGuide.setOnClickListener(v -> showEndstoneCompatibilityNotice(false));
@@ -1574,36 +1606,100 @@ public final class MainActivity extends Activity {
         return value;
     }
 
-    private void showBatteryAccessPromptIfNeeded() {
+    private boolean isBatteryUnrestricted() {
         PowerManager powerManager = getSystemService(PowerManager.class);
-        if (powerManager == null
-                || powerManager.isIgnoringBatteryOptimizations(getPackageName())) {
+        return powerManager != null
+                && powerManager.isIgnoringBatteryOptimizations(getPackageName());
+    }
+
+    private void refreshBatteryAccessStatus() {
+        if (batteryAccessStatus == null) return;
+
+        if (isBatteryUnrestricted()) {
+            batteryAccessStatus.setText("ไม่จำกัด • พร้อมทำงานเบื้องหลัง");
+            batteryAccessStatus.setTextColor(c(R.color.cyber_success));
+        } else {
+            batteryAccessStatus.setText("ยังถูกจำกัด • แนะนำให้อนุญาตไม่จำกัด");
+            batteryAccessStatus.setTextColor(c(R.color.cyber_warning));
+        }
+    }
+
+    private void showBatteryAccessPromptIfNeeded() {
+        if (isBatteryUnrestricted()) {
+            refreshBatteryAccessStatus();
             return;
         }
 
         new AlertDialog.Builder(this)
-                .setTitle("อนุญาตการใช้แบต")
-                .setMessage("เพื่อให้เซิร์ฟเวอร์ทำงานต่อเมื่อออกจากแอปหรือปิดหน้าจอ กรุณาอนุญาตการใช้แบตแบบไม่จำกัด")
-                .setPositiveButton("เปิด", (dialog, which) -> requestUnlimitedBatteryAccess())
+                .setTitle("อนุญาตแบตเตอรี่ไม่จำกัด")
+                .setMessage(
+                        "เพื่อป้องกัน Android หยุด VC Mumble Server เมื่อปิดหน้าจอ "
+                                + "หรือใช้งานแอปอื่น กรุณายกเว้นแอปจาก Battery Optimization "
+                                + "และเลือกการใช้แบตแบบไม่จำกัดหากเครื่องแสดงตัวเลือกนี้"
+                )
+                .setPositiveButton(
+                        "อนุญาตไม่จำกัด",
+                        (dialog, which) -> requestUnlimitedBatteryAccess()
+                )
+                .setNeutralButton(
+                        "เปิดการตั้งค่า",
+                        (dialog, which) -> openBatteryOptimizationSettings()
+                )
                 .setNegativeButton("เปิดภายหลัง", null)
                 .show();
     }
 
     private void requestUnlimitedBatteryAccess() {
+        if (isBatteryUnrestricted()) {
+            refreshBatteryAccessStatus();
+            Toast.makeText(
+                    this,
+                    "แบตเตอรี่ถูกตั้งเป็นไม่จำกัดแล้ว",
+                    Toast.LENGTH_SHORT
+            ).show();
+            return;
+        }
+
         try {
-            startActivity(new Intent(
+            Intent request = new Intent(
                     Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                     Uri.parse("package:" + getPackageName())
-            ));
+            );
+            startActivity(request);
+            ServerLog.append(
+                    this,
+                    "UI",
+                    "Requested unrestricted battery / ignore optimizations"
+            );
+        } catch (Exception error) {
+            ServerLog.append(
+                    this,
+                    "UI",
+                    "Direct battery exemption screen unavailable; opening battery settings"
+            );
+            openBatteryOptimizationSettings();
+        }
+    }
+
+    private void openBatteryOptimizationSettings() {
+        try {
+            startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            return;
         } catch (Exception ignored) {
-            try {
-                startActivity(new Intent(
-                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.parse("package:" + getPackageName())
-                ));
-            } catch (Exception error) {
-                Toast.makeText(this, "ไม่สามารถเปิดการตั้งค่าแบตเตอรี่ได้", Toast.LENGTH_LONG).show();
-            }
+            // Some OEM ROMs do not expose the standard optimization list.
+        }
+
+        try {
+            startActivity(new Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + getPackageName())
+            ));
+        } catch (Exception error) {
+            Toast.makeText(
+                    this,
+                    "ไม่สามารถเปิดการตั้งค่าแบตเตอรี่ได้",
+                    Toast.LENGTH_LONG
+            ).show();
         }
     }
 
