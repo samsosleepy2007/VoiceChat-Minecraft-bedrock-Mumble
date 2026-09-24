@@ -404,7 +404,7 @@ def patch_stable_transport(service_path: pathlib.Path) -> None:
         service = replace_once(
             service,
             "        version.setRelease(mClientName);\n",
-            '        version.setRelease("VC Mumla v0.4 Stable Gain"); // VC_CLIENT_RELEASE_ID\n',
+            '        version.setRelease("VC Mumla v0.5 AEC Test"); // VC_CLIENT_RELEASE_ID\n',
             "Mumble release string",
         )
     service_path.write_text(service, encoding="utf-8")
