@@ -48,6 +48,7 @@ python3 tests/test_android_start_bridge_independence.py
 python3 tests/test_endstone_plugin_contract.py
 python3 tests/test_endstone_bridge_integration.py
 python3 tests/test_embedded_ui_assets.py
+python3 tests/test_patch_mumla_vc_client.py
 
 python3 - <<'PY'
 from pathlib import Path
@@ -207,8 +208,8 @@ grep -Fq 'android.permission.WAKE_LOCK' app/src/main/AndroidManifest.xml
 grep -Fq 'android:stopWithTask="false"' app/src/main/AndroidManifest.xml
 grep -Fq 'android:icon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
 grep -Fq 'android:roundIcon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
-grep -Fq 'versionCode = 13' app/build.gradle.kts
-grep -Fq 'versionName = "0.6.0-beta.8"' app/build.gradle.kts
+grep -Fq 'versionCode = 14' app/build.gradle.kts
+grep -Fq 'versionName = "0.6.0-beta.9"' app/build.gradle.kts
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher.png
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher_sleepy.png
 grep -Fq 'PowerManager.PARTIAL_WAKE_LOCK' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
