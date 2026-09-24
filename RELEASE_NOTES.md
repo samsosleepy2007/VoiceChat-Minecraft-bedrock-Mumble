@@ -1,45 +1,37 @@
-# VC Mumble Server v0.6.0-beta.8
+# VC Mumble Server v0.6.0-beta.9
 
-This beta adds the in-app setup flow for Endstone/MCSV while keeping the tested Minecraft proximity voice stack from beta.7.
+This is a minor update focused on VC Mumla audio echo handling. The server, Endstone plugin, Minecraft Addon, MCSV installer, and proximity routing behavior remain compatible with beta.8.
 
 ## Highlights
 
-- Android app version 0.6.0-beta.8 (versionCode 13)
-- VC Mumla client v0.4 Stable Gain
+- Android app version 0.6.0-beta.9 (versionCode 14)
+- VC Mumla client v0.5 AEC
 - Endstone plugin version 0.4.1
 - Minecraft Item Mic addon version 2.7.6
-- In-app latest Endstone Plugin download with SHA-256 verification and Bridge Secret injection
-- In-app latest Item Mic Addon download with SHA-256 verification
-- Optional MCSV one-click setup now installs the complete VC Mumble server-side stack:
-  - configured Endstone wheel + `plugins/vc_mumble/config.toml`
-  - latest Item Mic `.mcaddon`
-  - nested Behavior Pack + Resource Pack
-  - active-world `world_behavior_packs.json` and `world_resource_packs.json` references
-- MCSV installer preserves unrelated Bedrock packs and adds rollback for managed pack folders/world pack JSON
-- If the MCSV server is running, setup stops it before modifying Bedrock world files and restores the previous running state afterward
-- MCSV API key is used only for the install request and is not persisted
-- First launch shows a red Endstone requirement notice with MCSV setup steps; the guide remains available from Settings
-- MCSV and Endstone artwork are embedded as validated WebP assets with SHA-256/dimension contract checks
-- Android bridge fragmented-NDJSON handling remains protected by regression tests
-- Existing proximity features remain: Mic ON/OFF sync, dimension isolation, range filtering, per-listener attenuation and VC Mumla gain support
+- Android System Acoustic Echo Cancellation is enabled by default in VC Mumla when the device supports it
+- Existing VC Mumla installs receive a one-time migration from the old default `none` to `system` AEC when Android reports AEC support
+- System AEC uses `MODE_IN_COMMUNICATION` with `VOICE_COMMUNICATION` microphone input
+- VC Mumla logs AEC availability, creation, enabled state, control state, status, audio session and input source for diagnostics
+- AudioManager mode is restored when disconnecting and also if microphone initialization fails
+- Devices without Android AcousticEchoCanceler support safely fall back to no system AEC
+- Existing VC per-listener distance gain and forced-TCP transport behavior are preserved
+- Existing MCSV one-click Plugin + Addon installation from beta.8 is unchanged
 
 ## Release assets
 
-- `VC-Mumble-Server-v0.6.0-beta.8-arm64-v8a.apk`
-- `VC-Mumla-v0.4-stable-gain-debug.apk`
+- `VC-Mumble-Server-v0.6.0-beta.9-arm64-v8a.apk`
+- `VC-Mumla-v0.5-aec-debug.apk`
 - `endstone_vc_mumble-0.4.1-py3-none-any.whl`
 - `VC_Mumble_ItemMic_v2.7.6.mcaddon`
 - `SHA256SUMS.txt` containing SHA-256 checksums for all four release binaries
 
-## MCSV one-click install
+## VC Mumla AEC behavior
 
-For an MCSV-hosted Minecraft Bedrock server running Endstone, paste an MCSV API key in the green MCSV card and press **ติดตั้ง VC Mumble ผ่าน MCSV**.
+When System AEC is selected and supported by Android, VC Mumla switches the capture path to `MediaRecorder.AudioSource.VOICE_COMMUNICATION` and places Android audio in `MODE_IN_COMMUNICATION` while voice is active. The Android `AcousticEchoCanceler` is attached to the active AudioRecord session.
 
-The app validates the server type, selects an allocated non-game bridge port, resolves the newest compatible Plugin and Addon from GitHub Releases, verifies both against `SHA256SUMS.txt`, installs the Plugin/Addon configuration, updates the active world pack references, and restores the server runtime state.
+The previous Android audio mode is restored when the voice stack shuts down. If microphone creation fails after communication mode has been entered, VC Mumla also restores the previous mode before propagating the error.
 
-For a custom-permission MCSV key, enable:
-
-`server_info`, `server_resources`, `domain_info`, `files_list`, `files_read`, `files_upload_base64`, `files_mkdir`, `files_decompress`, `files_rename`, `files_delete`, `files_write`, `power_action`.
+If a device reports that `AcousticEchoCanceler` is unavailable, VC Mumla falls back to the non-AEC path instead of failing voice capture.
 
 ## Minecraft proximity bridge
 
@@ -54,7 +46,9 @@ Default ports:
 
 ## Compatibility note
 
-Smooth distance volume requires VC Mumla v0.4 Stable Gain. Unmodified legacy Mumble clients do not consume the VC per-listener gain metadata.
+Smooth distance volume and the VC per-listener gain trailer require VC Mumla. Unmodified legacy Mumble clients do not consume the VC gain metadata.
+
+AEC quality still depends on the Android device/OEM audio implementation. VC Mumla v0.5 AEC keeps the manual Echo Cancellation setting available for devices where system AEC behaves poorly.
 
 The Minecraft proximity integration requires a Bedrock server running Endstone.
 
