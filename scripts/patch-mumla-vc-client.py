@@ -545,7 +545,7 @@ def patch_battery_unrestricted(
     private void requestVcBatteryUnrestricted() {
         try {
             Intent request = new Intent(
-                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    android.provider.android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                     Uri.parse("package:" + getPackageName())
             );
             startActivity(request);
@@ -556,10 +556,10 @@ def patch_battery_unrestricted(
 
     private void openVcBatteryOptimizationSettings() {
         try {
-            startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            startActivity(new Intent(android.provider.android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
         } catch (Exception error) {
             startActivity(new Intent(
-                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.provider.android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                     Uri.parse("package:" + getPackageName())
             ));
         }
@@ -644,16 +644,16 @@ def patch_battery_unrestricted(
         }
         try {
             Intent request = new Intent(
-                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    android.provider.android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                     Uri.parse("package:" + requireContext().getPackageName())
             );
             startActivity(request);
         } catch (Exception error) {
             try {
-                startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+                startActivity(new Intent(android.provider.android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
             } catch (Exception ignored) {
                 startActivity(new Intent(
-                        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.provider.android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                         Uri.parse("package:" + requireContext().getPackageName())
                 ));
             }
@@ -763,8 +763,8 @@ def validate(root: pathlib.Path) -> None:
         "audio mode restore": "restoreAudioMode" in audio_handler,
         "custom app label": "VC Mumla" in beta_strings,
         "battery permission": "VC_BATTERY_UNRESTRICTED_PERMISSION" in manifest and "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" in manifest,
-        "battery startup prompt": "VC_BATTERY_UNRESTRICTED_PROMPT" in mumla_activity and "ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" in mumla_activity,
-        "battery settings control": "VC_BATTERY_UNRESTRICTED_SETTINGS" in general_fragment and "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS" in general_fragment,
+        "battery startup prompt": "VC_BATTERY_UNRESTRICTED_PROMPT" in mumla_activity and "android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" in mumla_activity,
+        "battery settings control": "VC_BATTERY_UNRESTRICTED_SETTINGS" in general_fragment and "android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS" in general_fragment,
         "battery settings preference": 'android:key="vc_battery_unrestricted"' in general_xml,
         "battery strings": 'name="vc_battery_unrestricted_title"' in strings,
     }
