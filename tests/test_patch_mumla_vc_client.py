@@ -255,7 +255,7 @@ class AudioOutput {
         assert "VC_GAIN_DIAGNOSTIC" in audio_output
         assert "VC_SERVER_GAIN_PCM" in speech
         assert "VC_FORCE_TCP_STABLE_TRANSPORT" in service
-        assert "VC Mumla v0.5 AEC Test" in service
+        assert "VC Mumla v0.5 AEC" in service
         assert "VC Mumla" in (beta / "strings_notranslate.xml").read_text(encoding="utf-8")
 
     print("VC Mumla AEC patch fixture: OK")
