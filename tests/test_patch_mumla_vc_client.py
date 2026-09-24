@@ -13,14 +13,124 @@ def main() -> int:
         audio = humla_root / "audio"
         protocol = humla_root / "protocol"
         app_java = root / "app/src/main/java/se/lublin/mumla"
+        app_app = app_java / "app"
+        app_pref = app_java / "preference"
         app_xml = root / "app/src/main/res/xml"
+        app_values = root / "app/src/main/res/values"
         beta = root / "app/src/beta/res/values"
 
         audio.mkdir(parents=True)
         protocol.mkdir(parents=True)
         app_java.mkdir(parents=True)
+        app_app.mkdir(parents=True)
+        app_pref.mkdir(parents=True)
         app_xml.mkdir(parents=True)
+        app_values.mkdir(parents=True)
         beta.mkdir(parents=True)
+
+
+        (root / "app/src/main/AndroidManifest.xml").parent.mkdir(parents=True, exist_ok=True)
+        (root / "app/src/main/AndroidManifest.xml").write_text(
+            """<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <application />
+</manifest>
+""",
+            encoding="utf-8",
+        )
+
+        (app_app / "MumlaActivity.java").write_text(
+            """import android.content.Intent;
+import android.content.SharedPreferences;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.IBinder;
+
+class MumlaActivity {
+    private Settings mSettings;
+    private static final int PERMISSIONS_REQUEST_POST_NOTIFICATIONS = 2;
+
+    void onCreate(Bundle savedInstanceState) {
+        if (savedInstanceState == null) {
+            if (mSettings.isFirstRun()) {
+                showFirstRunGuide();
+            } else {
+                new StartupAction().execute(this);
+            }
+        }
+    }
+
+    private void showFirstRunGuide() {
+        if (mSettings.isUsingCertificate()) {
+            mSettings.setFirstRun(false);
+            return;
+        }
+        new MaterialAlertDialogBuilder(this)
+                .setPositiveButton(R.string.generate, (DialogInterface dialog, int which) -> {
+                    MumlaCertificateGenerateTask generateTask = new MumlaCertificateGenerateTask(MumlaActivity.this) {};
+                    generateTask.execute();
+                    mSettings.setFirstRun(false);
+                })
+                .show();
+    }
+
+    /**
+     * Loads a fragment from the drawer.
+     */
+    private void loadDrawerFragment(int fragmentId) {
+    }
+}
+""",
+            encoding="utf-8",
+        )
+
+        (app_pref / "GeneralSettingsFragment.java").write_text(
+            """package se.lublin.mumla.preference;
+
+import static java.util.Objects.requireNonNull;
+
+import android.os.Bundle;
+
+import androidx.preference.Preference;
+
+import info.guardianproject.netcipher.proxy.OrbotHelper;
+import se.lublin.mumla.R;
+
+public class GeneralSettingsFragment extends MumlaPreferenceFragment {
+    private static final String USE_TOR_KEY = "useTor";
+
+    @Override
+    public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
+        setPreferencesFromResource(R.xml.settings_general, rootKey);
+
+        Preference useOrbotPreference = getPreferenceScreen().findPreference(USE_TOR_KEY);
+        requireNonNull(useOrbotPreference).setEnabled(OrbotHelper.isOrbotInstalled(requireContext()));
+    }
+}
+""",
+            encoding="utf-8",
+        )
+
+        (app_xml / "settings_general.xml").write_text(
+            """<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <CheckBoxPreference
+        android:key="stay_awake"
+        android:title="@string/stay_awake"
+        app:iconSpaceReserved="false" />
+</PreferenceScreen>
+""",
+            encoding="utf-8",
+        )
+
+        (app_values / "strings.xml").write_text(
+            """<resources>
+    <string name="general">General</string>
+</resources>
+""",
+            encoding="utf-8",
+        )
 
         (app_java / "Settings.java").write_text(
             """import android.content.Context;
@@ -227,6 +337,11 @@ class AudioOutput {
             )
             assert result.returncode == 0, f"run {run + 1}: {result.stderr}"
 
+        manifest = (root / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+        mumla_activity = (app_app / "MumlaActivity.java").read_text(encoding="utf-8")
+        general_fragment = (app_pref / "GeneralSettingsFragment.java").read_text(encoding="utf-8")
+        general_xml = (app_xml / "settings_general.xml").read_text(encoding="utf-8")
+        strings = (app_values / "strings.xml").read_text(encoding="utf-8")
         settings = (app_java / "Settings.java").read_text(encoding="utf-8")
         settings_audio = (app_xml / "settings_audio.xml").read_text(encoding="utf-8")
         audio_input = (audio / "AudioInput.java").read_text(encoding="utf-8")
@@ -234,6 +349,17 @@ class AudioOutput {
         audio_output = (audio / "AudioOutput.java").read_text(encoding="utf-8")
         speech = (audio / "AudioOutputSpeech.java").read_text(encoding="utf-8")
         service = (humla_root / "HumlaService.java").read_text(encoding="utf-8")
+
+        assert "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" in manifest
+        assert "VC_BATTERY_UNRESTRICTED_PERMISSION" in manifest
+        assert "VC_BATTERY_UNRESTRICTED_PROMPT" in mumla_activity
+        assert "ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" in mumla_activity
+        assert "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS" in mumla_activity
+        assert "PREF_VC_BATTERY_PROMPTED" in mumla_activity
+        assert "VC_BATTERY_UNRESTRICTED_SETTINGS" in general_fragment
+        assert "isIgnoringBatteryOptimizations" in general_fragment
+        assert 'android:key="vc_battery_unrestricted"' in general_xml
+        assert 'name="vc_battery_unrestricted_title"' in strings
 
         assert 'DEFAULT_ECHO_CANCELLATION_METHOD = "system"' in settings
         assert "PREF_VC_AEC_MIGRATED" in settings
