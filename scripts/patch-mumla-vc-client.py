@@ -545,7 +545,7 @@ def patch_battery_unrestricted(
     private void requestVcBatteryUnrestricted() {
         try {
             Intent request = new Intent(
-                    android.provider.android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                     Uri.parse("package:" + getPackageName())
             );
             startActivity(request);
@@ -556,10 +556,10 @@ def patch_battery_unrestricted(
 
     private void openVcBatteryOptimizationSettings() {
         try {
-            startActivity(new Intent(android.provider.android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
         } catch (Exception error) {
             startActivity(new Intent(
-                    android.provider.android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                     Uri.parse("package:" + getPackageName())
             ));
         }
@@ -644,16 +644,16 @@ def patch_battery_unrestricted(
         }
         try {
             Intent request = new Intent(
-                    android.provider.android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                     Uri.parse("package:" + requireContext().getPackageName())
             );
             startActivity(request);
         } catch (Exception error) {
             try {
-                startActivity(new Intent(android.provider.android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+                startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
             } catch (Exception ignored) {
                 startActivity(new Intent(
-                        android.provider.android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                         Uri.parse("package:" + requireContext().getPackageName())
                 ));
             }
