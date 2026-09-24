@@ -365,6 +365,46 @@ def patch_audio_handler_aec(path: pathlib.Path) -> None:
 """
     text = replace_once(text, old_ctor, new_ctor, "AudioHandler communication audio mode")
 
+    text = replace_once(
+        text,
+        """        mInput = new AudioInput(this, mAudioSource, mSampleRate, mEchoCancellationMethod);
+        mOutput = new AudioOutput(mOutputListener);
+""",
+        """        try {
+            mInput = new AudioInput(this, mAudioSource, mSampleRate, mEchoCancellationMethod);
+        } catch (AudioInitializationException | NativeAudioException error) {
+            restoreVcAudioMode();
+            throw error;
+        }
+        mOutput = new AudioOutput(mOutputListener);
+""",
+        "AudioHandler input init rollback",
+    )
+
+    text = replace_once(
+        text,
+        """    /**
+     * Shuts down the audio handler, halting input and output.
+""",
+        """    private void restoreVcAudioMode() {
+        if (!mVcCommunicationModeActive) {
+            return;
+        }
+        int currentMode = mAudioManager.getMode();
+        if (currentMode == AudioManager.MODE_IN_COMMUNICATION) {
+            mAudioManager.setMode(mVcPreviousAudioMode);
+        }
+        Log.i(TAG, "VC-AEC restoreAudioMode current=" + currentMode
+                + " restored=" + mVcPreviousAudioMode);
+        mVcCommunicationModeActive = false;
+    }
+
+    /**
+     * Shuts down the audio handler, halting input and output.
+""",
+        "AudioHandler AEC restore helper",
+    )
+
     old_shutdown = """        mInitialized = false;
         mBluetoothOn = false;
 
@@ -373,15 +413,7 @@ def patch_audio_handler_aec(path: pathlib.Path) -> None:
     new_shutdown = """        mInitialized = false;
         mBluetoothOn = false;
 
-        if (mVcCommunicationModeActive) {
-            int currentMode = mAudioManager.getMode();
-            if (currentMode == AudioManager.MODE_IN_COMMUNICATION) {
-                mAudioManager.setMode(mVcPreviousAudioMode);
-            }
-            Log.i(TAG, "VC-AEC restoreAudioMode current=" + currentMode
-                    + " restored=" + mVcPreviousAudioMode);
-            mVcCommunicationModeActive = false;
-        }
+        restoreVcAudioMode();
 
         mEncodeListener.onTalkingStateChanged(false);
 """
