@@ -194,6 +194,17 @@ Useful log components include:
 [BRIDGE]
 ```
 
+## Background battery protection
+
+VC Mumble Server uses a foreground service plus wake/Wi-Fi locks while the server is running. The Android app also requests exemption from Battery Optimization so Android is less likely to stop the server when the screen is off or the user switches apps.
+
+A persistent **Battery / Background** card in Settings shows whether the app is currently exempt. It provides:
+
+- **Allow unrestricted battery** — opens Android's direct ignore-optimization request for VC Mumble Server.
+- **Open Battery Optimization settings** — opens the system optimization list, with app-details fallback on ROMs that do not expose the standard screen.
+
+The status refreshes whenever the app resumes after the user changes system settings.
+
 ## Default topology
 
 ```text
