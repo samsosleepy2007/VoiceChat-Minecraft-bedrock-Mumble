@@ -62,7 +62,7 @@ jobs:
           grep -F "VC_SERVER_GAIN_PCM" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutputSpeech.java
           grep -F "VC Mumla" .build/mumla/app/src/beta/res/values/strings_notranslate.xml
           grep -F "VC_FORCE_TCP_STABLE_TRANSPORT" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/HumlaService.java
-          grep -F "VC Mumla v0.5 AEC Test" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/HumlaService.java
+          grep -F "VC Mumla v0.5 AEC" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/HumlaService.java
           grep -F "VC_GAIN_DIAGNOSTIC" .build/mumla/libraries/humla/src/main/java/se/lublin/humla/audio/AudioOutput.java
           grep -F "VC_AEC_DEFAULT_SYSTEM" .build/mumla/app/src/main/java/se/lublin/mumla/Settings.java
           grep -F 'android:defaultValue="system"' .build/mumla/app/src/main/res/xml/settings_audio.xml
@@ -86,16 +86,16 @@ jobs:
         run: |
           APK="$(find .build/mumla/app/build/outputs/apk -type f -name '*beta*debug*.apk' -print -quit)"
           test -n "${APK}" && test -f "${APK}"
-          cp "${APK}" VC-Mumla-v0.5-aec-test-debug.apk
-          unzip -t VC-Mumla-v0.5-aec-test-debug.apk >/dev/null
-          sha256sum VC-Mumla-v0.5-aec-test-debug.apk > VC-Mumla-v0.5-aec-test-debug.apk.sha256
-          cat VC-Mumla-v0.5-aec-test-debug.apk.sha256
+          cp "${APK}" VC-Mumla-v0.5-aec-debug.apk
+          unzip -t VC-Mumla-v0.5-aec-debug.apk >/dev/null
+          sha256sum VC-Mumla-v0.5-aec-debug.apk > VC-Mumla-v0.5-aec-debug.apk.sha256
+          cat VC-Mumla-v0.5-aec-debug.apk.sha256
 
       - name: Upload VC Mumla APK
         uses: actions/upload-artifact@v7
         with:
-          name: vc-mumla-v0.5-aec-test-debug
+          name: vc-mumla-v0.5-aec-debug
           path: |
-            VC-Mumla-v0.5-aec-test-debug.apk
-            VC-Mumla-v0.5-aec-test-debug.apk.sha256
+            VC-Mumla-v0.5-aec-debug.apk
+            VC-Mumla-v0.5-aec-debug.apk.sha256
           if-no-files-found: error
