@@ -436,7 +436,7 @@ def patch_stable_transport(service_path: pathlib.Path) -> None:
         service = replace_once(
             service,
             "        version.setRelease(mClientName);\n",
-            '        version.setRelease("VC Mumla v0.5 AEC Test"); // VC_CLIENT_RELEASE_ID\n',
+            '        version.setRelease("VC Mumla v0.5 AEC"); // VC_CLIENT_RELEASE_ID\n',
             "Mumble release string",
         )
     service_path.write_text(service, encoding="utf-8")
@@ -469,7 +469,7 @@ def validate(root: pathlib.Path) -> None:
         "per-packet gain": "vcGainByte" in speech and "vcUserData" in speech,
         "PCM multiply": "mOut[i] *= mServerVolumeFactor" in speech,
         "stable TCP tunnel": "VC_FORCE_TCP_STABLE_TRANSPORT" in service and "setForceTCP(true)" in service,
-        "client release id": "VC Mumla v0.5 AEC Test" in service,
+        "client release id": "VC Mumla v0.5 AEC" in service,
         "AEC default": "VC_AEC_DEFAULT_SYSTEM" in settings and 'DEFAULT_ECHO_CANCELLATION_METHOD = "system"' in settings,
         "AEC migration": "PREF_VC_AEC_MIGRATED" in settings,
         "AEC XML default": 'android:defaultValue="system"' in settings_audio,
