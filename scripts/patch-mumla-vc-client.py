@@ -421,6 +421,287 @@ def patch_audio_handler_aec(path: pathlib.Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+
+def patch_battery_unrestricted(
+    manifest_path: pathlib.Path,
+    activity_path: pathlib.Path,
+    general_fragment_path: pathlib.Path,
+    general_xml_path: pathlib.Path,
+    strings_path: pathlib.Path,
+) -> None:
+    manifest = manifest_path.read_text(encoding="utf-8")
+    permission = '    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />\n'
+    if "VC_BATTERY_UNRESTRICTED_PERMISSION" not in manifest:
+        marker = '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n'
+        manifest = replace_once(
+            manifest,
+            marker,
+            marker + permission.replace("/>", '/> <!-- VC_BATTERY_UNRESTRICTED_PERMISSION -->'),
+            "VC Mumla battery permission",
+        )
+        manifest_path.write_text(manifest, encoding="utf-8")
+
+    activity = activity_path.read_text(encoding="utf-8")
+    if "VC_BATTERY_UNRESTRICTED_PROMPT" not in activity:
+        activity = replace_once(
+            activity,
+            "import android.os.IBinder;\n",
+            "import android.os.IBinder;\n"
+            "import android.os.PowerManager;\n"
+            "import android.provider.Settings;\n",
+            "MumlaActivity battery imports",
+        )
+        activity = replace_once(
+            activity,
+            "    private static final int PERMISSIONS_REQUEST_POST_NOTIFICATIONS = 2;\n",
+            "    private static final int PERMISSIONS_REQUEST_POST_NOTIFICATIONS = 2;\n"
+            '    private static final String PREF_VC_BATTERY_PROMPTED = "vc_battery_prompted_v1"; // VC_BATTERY_UNRESTRICTED_PROMPT\n',
+            "MumlaActivity battery preference",
+        )
+        activity = replace_once(
+            activity,
+            """            if (mSettings.isFirstRun()) {
+                showFirstRunGuide();
+            } else {
+                new StartupAction().execute(this);
+            }
+""",
+            """            if (mSettings.isFirstRun()) {
+                showFirstRunGuide();
+            } else {
+                new StartupAction().execute(this);
+                maybeShowVcBatteryPrompt();
+            }
+""",
+            "MumlaActivity startup battery prompt",
+        )
+        activity = replace_once(
+            activity,
+            """        if (mSettings.isUsingCertificate()) {
+            mSettings.setFirstRun(false);
+            return;
+        }
+""",
+            """        if (mSettings.isUsingCertificate()) {
+            mSettings.setFirstRun(false);
+            maybeShowVcBatteryPrompt();
+            return;
+        }
+""",
+            "MumlaActivity certificate battery prompt",
+        )
+        activity = replace_once(
+            activity,
+            """                    generateTask.execute();
+                    mSettings.setFirstRun(false);
+                })
+                .show();
+    }
+
+    /**
+     * Loads a fragment from the drawer.
+""",
+            """                    generateTask.execute();
+                    mSettings.setFirstRun(false);
+                    getWindow().getDecorView().post(this::maybeShowVcBatteryPrompt);
+                })
+                .show();
+    }
+
+    private boolean isVcBatteryUnrestricted() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        return powerManager != null
+                && powerManager.isIgnoringBatteryOptimizations(getPackageName());
+    }
+
+    private void maybeShowVcBatteryPrompt() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isVcBatteryUnrestricted()) {
+            return;
+        }
+        SharedPreferences preferences =
+                PreferenceManager.getDefaultSharedPreferences(this);
+        if (preferences.getBoolean(PREF_VC_BATTERY_PROMPTED, false)) {
+            return;
+        }
+        preferences.edit().putBoolean(PREF_VC_BATTERY_PROMPTED, true).apply();
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.vc_battery_unrestricted_title)
+                .setMessage(R.string.vc_battery_unrestricted_message)
+                .setPositiveButton(
+                        R.string.vc_battery_unrestricted_allow,
+                        (dialog, which) -> requestVcBatteryUnrestricted()
+                )
+                .setNeutralButton(
+                        R.string.vc_battery_unrestricted_settings,
+                        (dialog, which) -> openVcBatteryOptimizationSettings()
+                )
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void requestVcBatteryUnrestricted() {
+        try {
+            Intent request = new Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:" + getPackageName())
+            );
+            startActivity(request);
+        } catch (Exception error) {
+            openVcBatteryOptimizationSettings();
+        }
+    }
+
+    private void openVcBatteryOptimizationSettings() {
+        try {
+            startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+        } catch (Exception error) {
+            startActivity(new Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + getPackageName())
+            ));
+        }
+    }
+
+    /**
+     * Loads a fragment from the drawer.
+""",
+            "MumlaActivity battery methods",
+        )
+        activity_path.write_text(activity, encoding="utf-8")
+
+    fragment = general_fragment_path.read_text(encoding="utf-8")
+    if "VC_BATTERY_UNRESTRICTED_SETTINGS" not in fragment:
+        fragment = replace_once(
+            fragment,
+            "import android.os.Bundle;\n",
+            "import android.content.Intent;\n"
+            "import android.net.Uri;\n"
+            "import android.os.Build;\n"
+            "import android.os.Bundle;\n"
+            "import android.os.PowerManager;\n"
+            "import android.provider.Settings;\n",
+            "GeneralSettingsFragment battery imports",
+        )
+        fragment = replace_once(
+            fragment,
+            '    private static final String USE_TOR_KEY = "useTor";\n',
+            '    private static final String USE_TOR_KEY = "useTor";\n'
+            '    private static final String VC_BATTERY_KEY = "vc_battery_unrestricted"; // VC_BATTERY_UNRESTRICTED_SETTINGS\n',
+            "GeneralSettingsFragment battery key",
+        )
+        fragment = replace_once(
+            fragment,
+            """        Preference useOrbotPreference = getPreferenceScreen().findPreference(USE_TOR_KEY);
+        requireNonNull(useOrbotPreference).setEnabled(OrbotHelper.isOrbotInstalled(requireContext()));
+    }
+}
+""",
+            """        Preference useOrbotPreference = getPreferenceScreen().findPreference(USE_TOR_KEY);
+        requireNonNull(useOrbotPreference).setEnabled(OrbotHelper.isOrbotInstalled(requireContext()));
+
+        Preference batteryPreference = getPreferenceScreen().findPreference(VC_BATTERY_KEY);
+        requireNonNull(batteryPreference).setOnPreferenceClickListener(preference -> {
+            requestVcBatteryUnrestricted();
+            return true;
+        });
+        updateVcBatteryPreference();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        updateVcBatteryPreference();
+    }
+
+    private boolean isVcBatteryUnrestricted() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        PowerManager powerManager =
+                (PowerManager) requireContext().getSystemService(android.content.Context.POWER_SERVICE);
+        return powerManager != null
+                && powerManager.isIgnoringBatteryOptimizations(requireContext().getPackageName());
+    }
+
+    private void updateVcBatteryPreference() {
+        Preference preference = getPreferenceScreen().findPreference(VC_BATTERY_KEY);
+        if (preference == null) {
+            return;
+        }
+        preference.setSummary(
+                isVcBatteryUnrestricted()
+                        ? R.string.vc_battery_unrestricted_enabled
+                        : R.string.vc_battery_unrestricted_disabled
+        );
+    }
+
+    private void requestVcBatteryUnrestricted() {
+        if (isVcBatteryUnrestricted()) {
+            updateVcBatteryPreference();
+            return;
+        }
+        try {
+            Intent request = new Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:" + requireContext().getPackageName())
+            );
+            startActivity(request);
+        } catch (Exception error) {
+            try {
+                startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            } catch (Exception ignored) {
+                startActivity(new Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + requireContext().getPackageName())
+                ));
+            }
+        }
+    }
+}
+""",
+            "GeneralSettingsFragment battery controls",
+        )
+        general_fragment_path.write_text(fragment, encoding="utf-8")
+
+    general_xml = general_xml_path.read_text(encoding="utf-8")
+    if 'android:key="vc_battery_unrestricted"' not in general_xml:
+        general_xml = replace_once(
+            general_xml,
+            "</PreferenceScreen>\n",
+            """    <Preference
+        android:key="vc_battery_unrestricted"
+        android:title="@string/vc_battery_unrestricted_title"
+        android:summary="@string/vc_battery_unrestricted_disabled"
+        app:iconSpaceReserved="false" />
+
+</PreferenceScreen>
+""",
+            "General settings battery preference",
+        )
+        general_xml_path.write_text(general_xml, encoding="utf-8")
+
+    strings = strings_path.read_text(encoding="utf-8")
+    if 'name="vc_battery_unrestricted_title"' not in strings:
+        strings = replace_once(
+            strings,
+            "</resources>\n",
+            """    <string name="vc_battery_unrestricted_title">Unrestricted battery</string>
+    <string name="vc_battery_unrestricted_message">Allow VC Mumla to ignore Android battery optimizations so voice can keep running when the screen is off or another app is open.</string>
+    <string name="vc_battery_unrestricted_allow">Allow unrestricted</string>
+    <string name="vc_battery_unrestricted_settings">Battery settings</string>
+    <string name="vc_battery_unrestricted_enabled">Unrestricted — background voice protection is enabled</string>
+    <string name="vc_battery_unrestricted_disabled">Limited — tap to allow unrestricted battery</string>
+</resources>
+""",
+            "VC Mumla battery strings",
+        )
+        strings_path.write_text(strings, encoding="utf-8")
+
+
 def patch_stable_transport(service_path: pathlib.Path) -> None:
     """Use the v0.2 transport behavior: force TCP on the active connection only."""
     service = service_path.read_text(encoding="utf-8")
@@ -460,6 +741,11 @@ def validate(root: pathlib.Path) -> None:
     settings_audio = (root / "app/src/main/res/xml/settings_audio.xml").read_text(encoding="utf-8")
     audio_input = (root / "libraries/humla/src/main/java/se/lublin/humla/audio/AudioInput.java").read_text(encoding="utf-8")
     audio_handler = (root / "libraries/humla/src/main/java/se/lublin/humla/protocol/AudioHandler.java").read_text(encoding="utf-8")
+    manifest = (root / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+    mumla_activity = (root / "app/src/main/java/se/lublin/mumla/app/MumlaActivity.java").read_text(encoding="utf-8")
+    general_fragment = (root / "app/src/main/java/se/lublin/mumla/preference/GeneralSettingsFragment.java").read_text(encoding="utf-8")
+    general_xml = (root / "app/src/main/res/xml/settings_general.xml").read_text(encoding="utf-8")
+    strings = (root / "app/src/main/res/values/strings.xml").read_text(encoding="utf-8")
 
     checks = {
         "gain trailer parser": "VC_GAIN_TRAILER" in audio_output,
@@ -478,6 +764,11 @@ def validate(root: pathlib.Path) -> None:
         "communication source": "VOICE_COMMUNICATION" in audio_handler,
         "audio mode restore": "restoreAudioMode" in audio_handler,
         "custom app label": "VC Mumla" in beta_strings,
+        "battery permission": "VC_BATTERY_UNRESTRICTED_PERMISSION" in manifest and "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" in manifest,
+        "battery startup prompt": "VC_BATTERY_UNRESTRICTED_PROMPT" in mumla_activity and "ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" in mumla_activity,
+        "battery settings control": "VC_BATTERY_UNRESTRICTED_SETTINGS" in general_fragment and "ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS" in general_fragment,
+        "battery settings preference": 'android:key="vc_battery_unrestricted"' in general_xml,
+        "battery strings": 'name="vc_battery_unrestricted_title"' in strings,
     }
     missing = [name for name, ok in checks.items() if not ok]
     if missing:
@@ -491,6 +782,13 @@ def main() -> int:
     root = args.root.resolve()
 
     try:
+        patch_battery_unrestricted(
+            root / "app/src/main/AndroidManifest.xml",
+            root / "app/src/main/java/se/lublin/mumla/app/MumlaActivity.java",
+            root / "app/src/main/java/se/lublin/mumla/preference/GeneralSettingsFragment.java",
+            root / "app/src/main/res/xml/settings_general.xml",
+            root / "app/src/main/res/values/strings.xml",
+        )
         patch_aec_settings(
             root / "app/src/main/java/se/lublin/mumla/Settings.java",
             root / "app/src/main/res/xml/settings_audio.xml",
