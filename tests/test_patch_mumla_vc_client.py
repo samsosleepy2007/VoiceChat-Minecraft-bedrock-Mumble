@@ -160,6 +160,9 @@ class AudioInput {
         mOutput = new AudioOutput(mOutputListener);
     }
 
+    /**
+     * Shuts down the audio handler, halting input and output.
+     */
     public synchronized void shutdown() {
         mInitialized = false;
         mBluetoothOn = false;
