@@ -515,6 +515,7 @@ class HumlaService {
         mCallbacks.onConnected();
     }
 
+    @Override
     public void onConnectionHandshakeFailed(X509Certificate[] chain) {
     }
 
