@@ -1,56 +1,71 @@
-# VC Mumble Server v0.6.0-beta.9
+# VC Mumble Server v0.6.0-beta.10
 
-This is a minor update focused on VC Mumla audio echo handling. The server, Endstone plugin, Minecraft Addon, MCSV installer, and proximity routing behavior remain compatible with beta.8.
+This release focuses on making VC Mumla faster and easier to join while keeping the beta.9 AEC, proximity, Endstone, Addon, and MCSV behavior compatible.
 
 ## Highlights
 
-- Android app version 0.6.0-beta.9 (versionCode 14)
-- VC Mumla client v0.5 AEC
+- Android app version 0.6.0-beta.10 (versionCode 15)
+- VC Mumla client v0.5 AEC with Quick Join improvements
 - Endstone plugin version 0.4.1
 - Minecraft Item Mic addon version 2.7.6
-- Android System Acoustic Echo Cancellation is enabled by default in VC Mumla when the device supports it
-- Existing VC Mumla installs receive a one-time migration from the old default `none` to `system` AEC when Android reports AEC support
-- System AEC uses `MODE_IN_COMMUNICATION` with `VOICE_COMMUNICATION` microphone input
-- VC Mumla logs AEC availability, creation, enabled state, control state, status, audio session and input source for diagnostics
-- AudioManager mode is restored when disconnecting and also if microphone initialization fails
-- Devices without Android AcousticEchoCanceler support safely fall back to no system AEC
-- Existing VC per-listener distance gain and forced-TCP transport behavior are preserved
-- Existing MCSV one-click Plugin + Addon installation from beta.8 is unchanged
+- Quick Join accepts a single `host:port` value such as `4dqruj3i.free.pwrp.cc:10027` and splits host/port automatically
+- Xbox username is required in Quick Join and is clearly highlighted because it must match the Minecraft/Xbox identity used by the proximity bridge
+- Server password is hidden initially; VC Mumla prompts for it only when the Mumble server rejects the connection with a password error
+- Successful Quick Join servers are saved automatically so the user does not need to enter the same connection again
+- Saved server data keeps host, port, Xbox username, server password when required, and the server name learned from VC Mumble Server
+- VC Mumla learns the configured VC Mumble Server name from the server welcome text after connection
+- Unrestricted-battery guidance is localized to Thai and remains available in VC Mumla settings
+- Android System Acoustic Echo Cancellation remains enabled by default when supported
+- Existing per-listener distance gain and forced-TCP behavior are preserved
 
 ## Release assets
 
-- `VC-Mumble-Server-v0.6.0-beta.9-arm64-v8a.apk`
+- `VC-Mumble-Server-v0.6.0-beta.10-arm64-v8a.apk`
 - `VC-Mumla-v0.5-aec-debug.apk`
 - `endstone_vc_mumble-0.4.1-py3-none-any.whl`
 - `VC_Mumble_ItemMic_v2.7.6.mcaddon`
-- `SHA256SUMS.txt` containing SHA-256 checksums for all four release binaries
+- `SHA256SUMS.txt`
 
-## VC Mumla AEC behavior
+## VC Mumla Quick Join
 
-When System AEC is selected and supported by Android, VC Mumla switches the capture path to `MediaRecorder.AudioSource.VOICE_COMMUNICATION` and places Android audio in `MODE_IN_COMMUNICATION` while voice is active. The Android `AcousticEchoCanceler` is attached to the active AudioRecord session.
+Quick Join is intended for tunnel addresses commonly shared as one value:
 
-The previous Android audio mode is restored when the voice stack shuts down. If microphone creation fails after communication mode has been entered, VC Mumla also restores the previous mode before propagating the error.
+```text
+4dqruj3i.free.pwrp.cc:10027
+```
 
-If a device reports that `AcousticEchoCanceler` is unavailable, VC Mumla falls back to the non-AEC path instead of failing voice capture.
+VC Mumla parses the hostname and port automatically. The Xbox username field is mandatory because the proximity bridge maps Minecraft players to Mumble users by identity.
+
+The password field is not shown before the first connection attempt. If the target Mumble server does not require a password, the connection proceeds normally. If the server returns `WrongServerPW` or `WrongUserPW`, VC Mumla opens a Thai password prompt and reconnects using the same host, port, and Xbox username.
+
+After a successful connection, the server is added to the saved server list. Reconnecting from the saved entry no longer requires entering the same connection information again.
+
+## VC Mumla background audio and AEC
+
+VC Mumla can request Android's unrestricted-battery / ignore battery optimizations permission so voice is less likely to be stopped while Minecraft is in the foreground or the screen is off.
+
+The app-owned battery guidance is localized to Thai. Android's own exemption confirmation remains controlled by the device/system language.
+
+When System AEC is selected and supported, VC Mumla uses `MODE_IN_COMMUNICATION`, `VOICE_COMMUNICATION`, and Android's `AcousticEchoCanceler`. Devices without system AEC support continue to fall back safely.
 
 ## Minecraft proximity bridge
 
-Endstone sends Mumble identity, dimension, XYZ position, speaker-owned voice range, Mic ON/OFF state, and attenuation level to the Android server over the authenticated NDJSON bridge.
+Endstone sends Mumble identity, dimension, XYZ position, speaker-owned voice range, Mic ON/OFF state, and attenuation level to VC Mumble Server over the authenticated NDJSON bridge.
 
-The native Mumble routing layer resolves the speaker/listener pair, checks dimension/range/mic state, calculates the attenuation factor, and sends it to VC Mumla using the backward-compatible VC gain trailer.
+The native Mumble routing layer resolves speaker/listener pairs, checks dimension/range/mic state, calculates attenuation, and sends the per-listener gain to VC Mumla.
 
 Default ports:
 
 - Mumble TCP+UDP: 64738
 - Endstone bridge TCP: 27220
 
-## Compatibility note
-
-Smooth distance volume and the VC per-listener gain trailer require VC Mumla. Unmodified legacy Mumble clients do not consume the VC gain metadata.
-
-AEC quality still depends on the Android device/OEM audio implementation. VC Mumla v0.5 AEC keeps the manual Echo Cancellation setting available for devices where system AEC behaves poorly.
-
 The Minecraft proximity integration requires a Bedrock server running Endstone.
+
+## Compatibility
+
+- VC Mumble Server beta.10 remains compatible with Endstone plugin 0.4.1 and Item Mic addon 2.7.6.
+- Smooth distance volume requires VC Mumla because unmodified legacy Mumble clients do not consume the VC gain trailer.
+- AEC quality depends on the Android device/OEM audio implementation.
 
 ## Build provenance
 
