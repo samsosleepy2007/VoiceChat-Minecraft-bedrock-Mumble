@@ -1149,6 +1149,30 @@ def patch_quick_join(
         service_path.write_text(service, encoding="utf-8")
 
     activity = activity_path.read_text(encoding="utf-8")
+    if "VC_QUICK_JOIN_SAVE_SERVER" not in activity:
+        activity = replace_once(
+            activity,
+            """        @Override
+        public void onConnected() {
+            if (mSettings.shouldStartUpInPinnedMode()) {
+""",
+            """        @Override
+        public void onConnected() {
+            Server connectedServer = mService != null ? mService.getTargetServer() : null;
+            if (connectedServer != null) {
+                if (connectedServer.isSaved()) {
+                    mDatabase.updateServer(connectedServer);
+                } else {
+                    mDatabase.addServer(connectedServer); // VC_QUICK_JOIN_SAVE_SERVER
+                }
+            }
+
+            if (mSettings.shouldStartUpInPinnedMode()) {
+""",
+            "Quick Join save connected server",
+        )
+
+    activity = activity_path.read_text(encoding="utf-8")
     if "VC_QUICK_JOIN_PASSWORD_CHALLENGE" not in activity:
         activity = replace_once(
             activity,
@@ -1251,6 +1275,7 @@ def validate(root: pathlib.Path) -> None:
         "Quick Join Xbox required": "vc_xbox_username_required" in server_edit and "vc_xbox_username_warning" in strings,
         "Quick Join password hidden": "VC_QUICK_JOIN_HIDE_PASSWORD" in server_edit and 'android:id="@+id/server_edit_password_box"' in server_edit_layout,
         "Quick Join password challenge": "VC_QUICK_JOIN_PASSWORD_CHALLENGE" in mumla_activity and "vc_server_password_title" in strings,
+        "Quick Join saved server": "VC_QUICK_JOIN_SAVE_SERVER" in mumla_activity and "mDatabase.addServer(connectedServer)" in mumla_activity,
         "Quick Join welcome capture": "VC_QUICK_JOIN_SERVER_NAME" in model_handler and "getVcWelcomeText" in model_handler,
         "Quick Join server name": "VC_QUICK_JOIN_AUTO_SERVER_NAME" in service and "Hosted by VC Mumble Server" in service,
     }
