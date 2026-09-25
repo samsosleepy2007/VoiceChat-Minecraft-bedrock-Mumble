@@ -23,7 +23,7 @@ The Android Mumble core has passed the physical-device startup gate:
 - Stop -> Start works repeatedly by restarting the isolated Mumble process cleanly
 - stock Mumble/Mumla clients can use the normal Mumble protocol path
 
-The Minecraft/Endstone proximity bridge now supports the /vcb control panel, per-player attenuation levels, heartbeat-backed state freshness, and Mic ON/OFF synchronization. Endstone plugin v0.4.1 feeds the native proximity routing layer, while VC Mumla v0.5 AEC applies per-listener distance volume and enables Android system acoustic echo cancellation by default.
+The Minecraft/Endstone proximity bridge now supports the /vcb control panel, per-player attenuation levels, heartbeat-backed state freshness, and Mic ON/OFF synchronization. Endstone plugin v0.4.1 feeds the native proximity routing layer, while VC Mumla v0.5 AEC applies per-listener distance volume, enables Android system acoustic echo cancellation by default, and can request unrestricted battery / Battery Optimization exemption so background voice is less likely to be stopped by Android.
 
 ## How the system works
 

@@ -421,6 +421,786 @@ def patch_audio_handler_aec(path: pathlib.Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+
+def patch_battery_unrestricted(
+    manifest_path: pathlib.Path,
+    activity_path: pathlib.Path,
+    general_fragment_path: pathlib.Path,
+    general_xml_path: pathlib.Path,
+    strings_path: pathlib.Path,
+) -> None:
+    manifest = manifest_path.read_text(encoding="utf-8")
+    permission = '    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />\n'
+    if "VC_BATTERY_UNRESTRICTED_PERMISSION" not in manifest:
+        marker = '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n'
+        manifest = replace_once(
+            manifest,
+            marker,
+            marker + permission.replace("/>", '/> <!-- VC_BATTERY_UNRESTRICTED_PERMISSION -->'),
+            "VC Mumla battery permission",
+        )
+        manifest_path.write_text(manifest, encoding="utf-8")
+
+    activity = activity_path.read_text(encoding="utf-8")
+    if "VC_BATTERY_UNRESTRICTED_PROMPT" not in activity:
+        activity = replace_once(
+            activity,
+            "import android.os.IBinder;\n",
+            "import android.os.IBinder;\n"
+            "import android.os.PowerManager;\n",
+            "MumlaActivity battery imports",
+        )
+        activity = replace_once(
+            activity,
+            "    private static final int PERMISSIONS_REQUEST_POST_NOTIFICATIONS = 2;\n",
+            "    private static final int PERMISSIONS_REQUEST_POST_NOTIFICATIONS = 2;\n"
+            '    private static final String PREF_VC_BATTERY_PROMPTED = "vc_battery_prompted_v1"; // VC_BATTERY_UNRESTRICTED_PROMPT\n',
+            "MumlaActivity battery preference",
+        )
+        activity = replace_once(
+            activity,
+            """            if (mSettings.isFirstRun()) {
+                showFirstRunGuide();
+            } else {
+                new StartupAction().execute(this);
+            }
+""",
+            """            if (mSettings.isFirstRun()) {
+                showFirstRunGuide();
+            } else {
+                new StartupAction().execute(this);
+                maybeShowVcBatteryPrompt();
+            }
+""",
+            "MumlaActivity startup battery prompt",
+        )
+        activity = replace_once(
+            activity,
+            """        if (mSettings.isUsingCertificate()) {
+            mSettings.setFirstRun(false);
+            return;
+        }
+""",
+            """        if (mSettings.isUsingCertificate()) {
+            mSettings.setFirstRun(false);
+            maybeShowVcBatteryPrompt();
+            return;
+        }
+""",
+            "MumlaActivity certificate battery prompt",
+        )
+        activity = replace_once(
+            activity,
+            """                    generateTask.execute();
+                    mSettings.setFirstRun(false);
+                })
+                .show();
+    }
+
+    /**
+     * Loads a fragment from the drawer.
+""",
+            """                    generateTask.execute();
+                    mSettings.setFirstRun(false);
+                    getWindow().getDecorView().post(this::maybeShowVcBatteryPrompt);
+                })
+                .show();
+    }
+
+    private boolean isVcBatteryUnrestricted() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        return powerManager != null
+                && powerManager.isIgnoringBatteryOptimizations(getPackageName());
+    }
+
+    private void maybeShowVcBatteryPrompt() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isVcBatteryUnrestricted()) {
+            return;
+        }
+        SharedPreferences preferences =
+                PreferenceManager.getDefaultSharedPreferences(this);
+        if (preferences.getBoolean(PREF_VC_BATTERY_PROMPTED, false)) {
+            return;
+        }
+        preferences.edit().putBoolean(PREF_VC_BATTERY_PROMPTED, true).apply();
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.vc_battery_unrestricted_title)
+                .setMessage(R.string.vc_battery_unrestricted_message)
+                .setPositiveButton(
+                        R.string.vc_battery_unrestricted_allow,
+                        (dialog, which) -> requestVcBatteryUnrestricted()
+                )
+                .setNeutralButton(
+                        R.string.vc_battery_unrestricted_settings,
+                        (dialog, which) -> openVcBatteryOptimizationSettings()
+                )
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void requestVcBatteryUnrestricted() {
+        try {
+            Intent request = new Intent(
+                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:" + getPackageName())
+            );
+            startActivity(request);
+        } catch (Exception error) {
+            openVcBatteryOptimizationSettings();
+        }
+    }
+
+    private void openVcBatteryOptimizationSettings() {
+        try {
+            startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+        } catch (Exception error) {
+            startActivity(new Intent(
+                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + getPackageName())
+            ));
+        }
+    }
+
+    /**
+     * Loads a fragment from the drawer.
+""",
+            "MumlaActivity battery methods",
+        )
+        activity_path.write_text(activity, encoding="utf-8")
+
+    fragment = general_fragment_path.read_text(encoding="utf-8")
+    if "VC_BATTERY_UNRESTRICTED_SETTINGS" not in fragment:
+        fragment = replace_once(
+            fragment,
+            "import android.os.Bundle;\n",
+            "import android.content.Intent;\n"
+            "import android.net.Uri;\n"
+            "import android.os.Build;\n"
+            "import android.os.Bundle;\n"
+            "import android.os.PowerManager;\n",
+            "GeneralSettingsFragment battery imports",
+        )
+        fragment = replace_once(
+            fragment,
+            '    private static final String USE_TOR_KEY = "useTor";\n',
+            '    private static final String USE_TOR_KEY = "useTor";\n'
+            '    private static final String VC_BATTERY_KEY = "vc_battery_unrestricted"; // VC_BATTERY_UNRESTRICTED_SETTINGS\n',
+            "GeneralSettingsFragment battery key",
+        )
+        fragment = replace_once(
+            fragment,
+            """        Preference useOrbotPreference = getPreferenceScreen().findPreference(USE_TOR_KEY);
+        requireNonNull(useOrbotPreference).setEnabled(OrbotHelper.isOrbotInstalled(requireContext()));
+    }
+}
+""",
+            """        Preference useOrbotPreference = getPreferenceScreen().findPreference(USE_TOR_KEY);
+        requireNonNull(useOrbotPreference).setEnabled(OrbotHelper.isOrbotInstalled(requireContext()));
+
+        Preference batteryPreference = getPreferenceScreen().findPreference(VC_BATTERY_KEY);
+        requireNonNull(batteryPreference).setOnPreferenceClickListener(preference -> {
+            requestVcBatteryUnrestricted();
+            return true;
+        });
+        updateVcBatteryPreference();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        updateVcBatteryPreference();
+    }
+
+    private boolean isVcBatteryUnrestricted() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        PowerManager powerManager =
+                (PowerManager) requireContext().getSystemService(android.content.Context.POWER_SERVICE);
+        return powerManager != null
+                && powerManager.isIgnoringBatteryOptimizations(requireContext().getPackageName());
+    }
+
+    private void updateVcBatteryPreference() {
+        Preference preference = getPreferenceScreen().findPreference(VC_BATTERY_KEY);
+        if (preference == null) {
+            return;
+        }
+        preference.setSummary(
+                isVcBatteryUnrestricted()
+                        ? R.string.vc_battery_unrestricted_enabled
+                        : R.string.vc_battery_unrestricted_disabled
+        );
+    }
+
+    private void requestVcBatteryUnrestricted() {
+        if (isVcBatteryUnrestricted()) {
+            updateVcBatteryPreference();
+            return;
+        }
+        try {
+            Intent request = new Intent(
+                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:" + requireContext().getPackageName())
+            );
+            startActivity(request);
+        } catch (Exception error) {
+            try {
+                startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            } catch (Exception ignored) {
+                startActivity(new Intent(
+                        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + requireContext().getPackageName())
+                ));
+            }
+        }
+    }
+}
+""",
+            "GeneralSettingsFragment battery controls",
+        )
+        general_fragment_path.write_text(fragment, encoding="utf-8")
+
+    general_xml = general_xml_path.read_text(encoding="utf-8")
+    if 'android:key="vc_battery_unrestricted"' not in general_xml:
+        general_xml = replace_once(
+            general_xml,
+            "</PreferenceScreen>\n",
+            """    <Preference
+        android:key="vc_battery_unrestricted"
+        android:title="@string/vc_battery_unrestricted_title"
+        android:summary="@string/vc_battery_unrestricted_disabled"
+        app:iconSpaceReserved="false" />
+
+</PreferenceScreen>
+""",
+            "General settings battery preference",
+        )
+        general_xml_path.write_text(general_xml, encoding="utf-8")
+
+    strings = strings_path.read_text(encoding="utf-8")
+    if 'name="vc_battery_unrestricted_title"' not in strings:
+        strings = replace_once(
+            strings,
+            "</resources>\n",
+            """    <string name="vc_battery_unrestricted_title">อนุญาตให้ทำงานเบื้องหลัง</string>
+    <string name="vc_battery_unrestricted_message">อนุญาตให้ VC Mumla ไม่ถูกจำกัดโดยระบบประหยัดแบตเตอรี่ของ Android เพื่อให้ระบบเสียงยังทำงานต่อได้เมื่อปิดหน้าจอหรือเปิดแอปอื่น</string>
+    <string name="vc_battery_unrestricted_allow">อนุญาต</string>
+    <string name="vc_battery_unrestricted_settings">การตั้งค่าแบตเตอรี่</string>
+    <string name="vc_battery_unrestricted_enabled">อนุญาตแล้ว — ระบบเสียงสามารถทำงานเบื้องหลังได้</string>
+    <string name="vc_battery_unrestricted_disabled">ยังถูกจำกัด — แตะเพื่ออนุญาตให้ทำงานเบื้องหลัง</string>
+</resources>
+""",
+            "VC Mumla battery strings",
+        )
+        strings_path.write_text(strings, encoding="utf-8")
+
+
+
+def patch_quick_join(
+    server_edit_path: pathlib.Path,
+    dialog_layout_path: pathlib.Path,
+    strings_path: pathlib.Path,
+    model_handler_path: pathlib.Path,
+    service_path: pathlib.Path,
+    activity_path: pathlib.Path,
+) -> None:
+    server_edit = server_edit_path.read_text(encoding="utf-8")
+    if "VC_QUICK_JOIN_DIALOG" not in server_edit:
+        server_edit = replace_once(
+            server_edit,
+            "import android.os.Bundle;\n",
+            "import android.os.Bundle;\n"
+            "import android.graphics.drawable.GradientDrawable;\n",
+            "Quick Join drawable import",
+        )
+        server_edit = replace_once(
+            server_edit,
+            "    private EditText mPasswordEdit;\n",
+            "    private EditText mPasswordEdit;\n"
+            "    private EditText mQuickJoinEdit; // VC_QUICK_JOIN_DIALOG\n",
+            "Quick Join field",
+        )
+        server_edit = replace_once(
+            server_edit,
+            """        TextView titleLabel = view.findViewById(R.id.server_edit_name_title);
+        mNameEdit = view.findViewById(R.id.server_edit_name);
+        mHostEdit = view.findViewById(R.id.server_edit_host);
+        mPortEdit = view.findViewById(R.id.server_edit_port);
+        mUsernameEdit = view.findViewById(R.id.server_edit_username);
+        mUsernameEdit.setHint(settings.getDefaultUsername());
+        mPasswordEdit = view.findViewById(R.id.server_edit_password);
+""",
+            """        TextView titleLabel = view.findViewById(R.id.server_edit_name_title);
+        mNameEdit = view.findViewById(R.id.server_edit_name);
+        TextView quickJoinTitle = view.findViewById(R.id.server_edit_quick_join_title);
+        mQuickJoinEdit = view.findViewById(R.id.server_edit_quick_join);
+        View hostPortLabels = view.findViewById(R.id.server_edit_host_port_labels);
+        View hostPortFields = view.findViewById(R.id.server_edit_host_port_fields);
+        View usernameBox = view.findViewById(R.id.server_edit_username_box);
+        TextView usernameTitle = view.findViewById(R.id.server_edit_username_title);
+        TextView usernameWarning = view.findViewById(R.id.server_edit_username_warning);
+        View passwordBox = view.findViewById(R.id.server_edit_password_box);
+        mHostEdit = view.findViewById(R.id.server_edit_host);
+        mPortEdit = view.findViewById(R.id.server_edit_port);
+        mUsernameEdit = view.findViewById(R.id.server_edit_username);
+        mUsernameEdit.setHint(settings.getDefaultUsername());
+        mPasswordEdit = view.findViewById(R.id.server_edit_password);
+""",
+            "Quick Join view binding",
+        )
+        server_edit = replace_once(
+            server_edit,
+            """        if (shouldIgnoreTitle()) {
+            titleLabel.setVisibility(View.GONE);
+            mNameEdit.setVisibility(View.GONE);
+        }
+""",
+            """        if (shouldIgnoreTitle()) {
+            titleLabel.setVisibility(View.GONE);
+            mNameEdit.setVisibility(View.GONE);
+
+            quickJoinTitle.setVisibility(View.VISIBLE);
+            mQuickJoinEdit.setVisibility(View.VISIBLE);
+            hostPortLabels.setVisibility(View.GONE);
+            hostPortFields.setVisibility(View.GONE);
+            passwordBox.setVisibility(View.GONE); // VC_QUICK_JOIN_HIDE_PASSWORD
+            mPasswordEdit.setText("");
+
+            usernameTitle.setText(R.string.vc_xbox_username_title);
+            usernameWarning.setText(R.string.vc_xbox_username_warning);
+            usernameWarning.setVisibility(View.VISIBLE);
+            mUsernameEdit.setHint(R.string.vc_xbox_username_hint);
+
+            float density = getResources().getDisplayMetrics().density;
+            GradientDrawable warningBackground = new GradientDrawable();
+            warningBackground.setColor(0x18FF0000);
+            warningBackground.setStroke(Math.max(2, Math.round(2f * density)), 0xFFE53935);
+            warningBackground.setCornerRadius(12f * density);
+            usernameBox.setBackground(warningBackground);
+            int warningPadding = Math.round(12f * density);
+            usernameBox.setPadding(warningPadding, warningPadding, warningPadding, warningPadding);
+
+            if (oldServer != null) {
+                int quickPort = oldServer.getPort() == 0 ? 64738 : oldServer.getPort();
+                mQuickJoinEdit.setText(oldServer.getHost() + ":" + quickPort);
+            }
+        }
+""",
+            "Quick Join mode UI",
+        )
+        server_edit = replace_once(
+            server_edit,
+            """    public boolean validate() {
+        if (mHostEdit.getText().length() == 0) {
+""",
+            """    public boolean validate() {
+        if (shouldIgnoreTitle()) {
+            if (!parseQuickJoinAddress()) {
+                return false;
+            }
+            if (mUsernameEdit.getText().toString().trim().isEmpty()) {
+                mUsernameEdit.setError(getString(R.string.vc_xbox_username_required));
+                mUsernameEdit.requestFocus();
+                return false;
+            }
+        }
+
+        if (mHostEdit.getText().length() == 0) {
+""",
+            "Quick Join validation",
+        )
+        server_edit = replace_once(
+            server_edit,
+            """    private Server getServer() {
+""",
+            """    private boolean parseQuickJoinAddress() {
+        String value = mQuickJoinEdit.getText().toString().trim();
+        if (value.startsWith("mumble://")) {
+            value = value.substring("mumble://".length());
+        }
+        while (value.endsWith("/")) {
+            value = value.substring(0, value.length() - 1).trim();
+        }
+
+        int separator = value.lastIndexOf(':');
+        if (separator <= 0 || separator >= value.length() - 1) {
+            mQuickJoinEdit.setError(getString(R.string.vc_quick_join_invalid));
+            mQuickJoinEdit.requestFocus();
+            return false;
+        }
+
+        String host = value.substring(0, separator).trim();
+        String portText = value.substring(separator + 1).trim();
+        if (host.startsWith("[") && host.endsWith("]") && host.length() > 2) {
+            host = host.substring(1, host.length() - 1);
+        }
+
+        int port;
+        try {
+            port = Integer.parseInt(portText);
+        } catch (NumberFormatException error) {
+            mQuickJoinEdit.setError(getString(R.string.vc_quick_join_invalid));
+            mQuickJoinEdit.requestFocus();
+            return false;
+        }
+
+        if (host.isEmpty() || port < 1 || port > 65535) {
+            mQuickJoinEdit.setError(getString(R.string.vc_quick_join_invalid));
+            mQuickJoinEdit.requestFocus();
+            return false;
+        }
+
+        mHostEdit.setText(host);
+        mPortEdit.setText(String.valueOf(port));
+        return true;
+    }
+
+    private Server getServer() {
+""",
+            "Quick Join address parser",
+        )
+        server_edit_path.write_text(server_edit, encoding="utf-8")
+
+    layout = dialog_layout_path.read_text(encoding="utf-8")
+    if 'android:id="@+id/server_edit_quick_join"' not in layout:
+        layout = replace_once(
+            layout,
+            """    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/server_host" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/server_port" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+""",
+            """    <TextView
+        android:id="@+id/server_edit_quick_join_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/vc_quick_join_title"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <EditText
+        android:id="@+id/server_edit_quick_join"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/vc_quick_join_hint"
+        android:inputType="textUri"
+        android:singleLine="true"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/server_edit_host_port_labels"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/server_host" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/server_port" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/server_edit_host_port_fields"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+""",
+            "Quick Join host/port layout",
+        )
+        layout = replace_once(
+            layout,
+            """    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/server_username" />
+
+    <EditText
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:id="@+id/server_edit_username"
+        android:inputType="text" />
+""",
+            """    <LinearLayout
+        android:id="@+id/server_edit_username_box"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/server_edit_username_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/server_username" />
+
+        <TextView
+            android:id="@+id/server_edit_username_warning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="4dp"
+            android:text="@string/vc_xbox_username_warning"
+            android:textColor="#E53935"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <EditText
+            android:id="@+id/server_edit_username"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:singleLine="true" />
+    </LinearLayout>
+""",
+            "Quick Join Xbox username box",
+        )
+        if 'android:id="@+id/server_edit_password_box"' not in layout:
+            layout = replace_once(
+                layout,
+                """    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/server_password" />
+
+    <EditText
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:id="@+id/server_edit_password"
+        android:inputType="textPassword" />
+""",
+                """    <LinearLayout
+        android:id="@+id/server_edit_password_box"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/server_password" />
+
+        <EditText
+            android:id="@+id/server_edit_password"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword" />
+    </LinearLayout>
+""",
+                "Quick Join password container",
+            )
+
+        dialog_layout_path.write_text(layout, encoding="utf-8")
+
+    strings = strings_path.read_text(encoding="utf-8")
+    if 'name="vc_quick_join_title"' not in strings:
+        strings = strings.replace(
+            '<string name="quickConnect">Quick Connect</string>',
+            '<string name="quickConnect">Quick Join</string>',
+            1,
+        )
+        strings = replace_once(
+            strings,
+            "</resources>\n",
+            """    <string name="vc_quick_join_title">Quick Join — IP:Port</string>
+    <string name="vc_quick_join_hint">เช่น 4dqruj3i.free.pwrp.cc:10027</string>
+    <string name="vc_quick_join_invalid">กรุณาใส่ที่อยู่ในรูปแบบ IP:Port เช่น 4dqruj3i.free.pwrp.cc:10027</string>
+    <string name="vc_xbox_username_title">ชื่อผู้ใช้ Xbox (จำเป็น)</string>
+    <string name="vc_xbox_username_hint">ใส่ชื่อ Xbox ของคุณให้ตรงกับใน Minecraft</string>
+    <string name="vc_xbox_username_warning">สำคัญ: ต้องใส่ชื่อ Xbox ให้ถูกต้องและตรงกับชื่อที่ใช้ใน Minecraft มิฉะนั้น Proximity Voice จะจับคู่ผู้เล่นไม่ได้</string>
+    <string name="vc_xbox_username_required">จำเป็นต้องใส่ชื่อ Xbox ให้ตรงกับชื่อใน Minecraft</string>
+    <string name="vc_server_password_title">เซิร์ฟเวอร์นี้มีรหัสผ่าน</string>
+    <string name="vc_server_password_message">กรุณาใส่รหัสผ่านของ VC Mumble Server เพื่อเชื่อมต่อ หากกรอกรหัสแล้วแต่ยังเข้าไม่ได้ แสดงว่ารหัสผ่านไม่ถูกต้อง</string>
+    <string name="vc_server_password_hint">รหัสผ่านเซิร์ฟเวอร์</string>
+    <string name="vc_server_password_connect">เชื่อมต่อ</string>
+</resources>
+""",
+            "Quick Join strings",
+        )
+        strings_path.write_text(strings, encoding="utf-8")
+
+    model = model_handler_path.read_text(encoding="utf-8")
+    if "VC_QUICK_JOIN_SERVER_NAME" not in model:
+        model = replace_once(
+            model,
+            "    private int mSession;\n",
+            "    private int mSession;\n"
+            "    private String mVcWelcomeText; // VC_QUICK_JOIN_SERVER_NAME\n",
+            "Quick Join welcome field",
+        )
+        model = replace_once(
+            model,
+            """    public ServerSettings getServerSettings() {
+        return mServerSettings;
+    }
+""",
+            """    public ServerSettings getServerSettings() {
+        return mServerSettings;
+    }
+
+    public String getVcWelcomeText() {
+        return mVcWelcomeText;
+    }
+""",
+            "Quick Join welcome getter",
+        )
+        model = replace_once(
+            model,
+            """    public void clear() {
+        mChannels.clear();
+        mUsers.clear();
+    }
+""",
+            """    public void clear() {
+        mChannels.clear();
+        mUsers.clear();
+        mVcWelcomeText = null;
+    }
+""",
+            "Quick Join welcome clear",
+        )
+        model = replace_once(
+            model,
+            """    public void messageServerSync(Mumble.ServerSync msg) {
+        mSession = msg.getSession();
+        mLogger.logInfo(msg.getWelcomeText());
+    }
+""",
+            """    public void messageServerSync(Mumble.ServerSync msg) {
+        mSession = msg.getSession();
+        mVcWelcomeText = msg.getWelcomeText();
+        mLogger.logInfo(msg.getWelcomeText());
+    }
+""",
+            "Quick Join welcome capture",
+        )
+        model_handler_path.write_text(model, encoding="utf-8")
+
+    service = service_path.read_text(encoding="utf-8")
+    if "VC_QUICK_JOIN_AUTO_SERVER_NAME" not in service:
+        service = replace_once(
+            service,
+            "import android.os.PowerManager;\n",
+            "import android.os.PowerManager;\n"
+            "import android.text.Html;\n",
+            "Quick Join Html import",
+        )
+        service = replace_once(
+            service,
+            """        mCallbacks.onConnected();
+    }
+
+    @Override
+    public void onConnectionHandshakeFailed(X509Certificate[] chain) {
+""",
+            """        applyVcServerNameFromWelcome(mModelHandler.getVcWelcomeText());
+        mCallbacks.onConnected();
+    }
+
+    private void applyVcServerNameFromWelcome(String welcome) {
+        if (mServer == null
+                || welcome == null
+                || !welcome.contains("Hosted by VC Mumble Server")) {
+            return;
+        }
+
+        CharSequence formatted;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            formatted = Html.fromHtml(welcome, Html.FROM_HTML_MODE_LEGACY);
+        } else {
+            formatted = Html.fromHtml(welcome);
+        }
+
+        String plain = formatted.toString().replace('\u00a0', ' ').trim();
+        int marker = plain.indexOf("Hosted by VC Mumble Server");
+        if (marker < 0) {
+            return;
+        }
+
+        String serverName = plain.substring(0, marker).trim();
+        if (!serverName.isEmpty()) {
+            mServer.setName(serverName); // VC_QUICK_JOIN_AUTO_SERVER_NAME
+            Log.i(TAG, "VC-QUICK-JOIN serverName=" + serverName);
+        }
+    }
+
+    @Override
+    public void onConnectionHandshakeFailed(X509Certificate[] chain) {
+""",
+            "Quick Join automatic server name",
+        )
+        service_path.write_text(service, encoding="utf-8")
+
+    activity = activity_path.read_text(encoding="utf-8")
+    if "VC_QUICK_JOIN_SAVE_SERVER" not in activity:
+        activity = replace_once(
+            activity,
+            """        @Override
+        public void onConnected() {
+            if (mSettings.shouldStartUpInPinnedMode()) {
+""",
+            """        @Override
+        public void onConnected() {
+            Server connectedServer = mService != null ? mService.getTargetServer() : null;
+            if (connectedServer != null) {
+                if (connectedServer.isSaved()) {
+                    mDatabase.updateServer(connectedServer);
+                } else {
+                    mDatabase.addServer(connectedServer); // VC_QUICK_JOIN_SAVE_SERVER
+                }
+            }
+
+            if (mSettings.shouldStartUpInPinnedMode()) {
+""",
+            "Quick Join save connected server",
+        )
+        activity_path.write_text(activity, encoding="utf-8")
+
+    activity = activity_path.read_text(encoding="utf-8")
+    if "VC_QUICK_JOIN_PASSWORD_CHALLENGE" not in activity:
+        activity = replace_once(
+            activity,
+            "passwordField.setHint(R.string.password);",
+            "passwordField.setHint(R.string.vc_server_password_hint);",
+            "Quick Join password hint",
+        )
+        activity = replace_once(
+            activity,
+            "builder.setTitle(R.string.invalid_password);",
+            "builder.setTitle(R.string.vc_server_password_title); // VC_QUICK_JOIN_PASSWORD_CHALLENGE",
+            "Quick Join password title",
+        )
+        activity = replace_once(
+            activity,
+            "builder.setMessage(error.getMessage());",
+            "builder.setMessage(R.string.vc_server_password_message);",
+            "Quick Join password message",
+        )
+        activity = replace_once(
+            activity,
+            "builder.setPositiveButton(R.string.reconnect, (dialog, which) -> {",
+            "builder.setPositiveButton(R.string.vc_server_password_connect, (dialog, which) -> {",
+            "Quick Join password reconnect button",
+        )
+        activity_path.write_text(activity, encoding="utf-8")
+
 def patch_stable_transport(service_path: pathlib.Path) -> None:
     """Use the v0.2 transport behavior: force TCP on the active connection only."""
     service = service_path.read_text(encoding="utf-8")
@@ -460,6 +1240,14 @@ def validate(root: pathlib.Path) -> None:
     settings_audio = (root / "app/src/main/res/xml/settings_audio.xml").read_text(encoding="utf-8")
     audio_input = (root / "libraries/humla/src/main/java/se/lublin/humla/audio/AudioInput.java").read_text(encoding="utf-8")
     audio_handler = (root / "libraries/humla/src/main/java/se/lublin/humla/protocol/AudioHandler.java").read_text(encoding="utf-8")
+    manifest = (root / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+    mumla_activity = (root / "app/src/main/java/se/lublin/mumla/app/MumlaActivity.java").read_text(encoding="utf-8")
+    general_fragment = (root / "app/src/main/java/se/lublin/mumla/preference/GeneralSettingsFragment.java").read_text(encoding="utf-8")
+    general_xml = (root / "app/src/main/res/xml/settings_general.xml").read_text(encoding="utf-8")
+    strings = (root / "app/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+    server_edit = (root / "app/src/main/java/se/lublin/mumla/servers/ServerEditFragment.java").read_text(encoding="utf-8")
+    server_edit_layout = (root / "app/src/main/res/layout/dialog_server_edit.xml").read_text(encoding="utf-8")
+    model_handler = (root / "libraries/humla/src/main/java/se/lublin/humla/protocol/ModelHandler.java").read_text(encoding="utf-8")
 
     checks = {
         "gain trailer parser": "VC_GAIN_TRAILER" in audio_output,
@@ -478,6 +1266,19 @@ def validate(root: pathlib.Path) -> None:
         "communication source": "VOICE_COMMUNICATION" in audio_handler,
         "audio mode restore": "restoreAudioMode" in audio_handler,
         "custom app label": "VC Mumla" in beta_strings,
+        "battery permission": "VC_BATTERY_UNRESTRICTED_PERMISSION" in manifest and "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" in manifest,
+        "battery startup prompt": "VC_BATTERY_UNRESTRICTED_PROMPT" in mumla_activity and "android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" in mumla_activity,
+        "battery settings control": "VC_BATTERY_UNRESTRICTED_SETTINGS" in general_fragment and "android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS" in general_fragment,
+        "battery settings preference": 'android:key="vc_battery_unrestricted"' in general_xml,
+        "battery strings": 'name="vc_battery_unrestricted_title"' in strings,
+        "Quick Join dialog": "VC_QUICK_JOIN_DIALOG" in server_edit and "parseQuickJoinAddress" in server_edit,
+        "Quick Join layout": 'android:id="@+id/server_edit_quick_join"' in server_edit_layout and 'android:id="@+id/server_edit_username_box"' in server_edit_layout,
+        "Quick Join Xbox required": "vc_xbox_username_required" in server_edit and "vc_xbox_username_warning" in strings,
+        "Quick Join password hidden": "VC_QUICK_JOIN_HIDE_PASSWORD" in server_edit and 'android:id="@+id/server_edit_password_box"' in server_edit_layout,
+        "Quick Join password challenge": "VC_QUICK_JOIN_PASSWORD_CHALLENGE" in mumla_activity and "vc_server_password_title" in strings,
+        "Quick Join saved server": "VC_QUICK_JOIN_SAVE_SERVER" in mumla_activity and "mDatabase.addServer(connectedServer)" in mumla_activity,
+        "Quick Join welcome capture": "VC_QUICK_JOIN_SERVER_NAME" in model_handler and "getVcWelcomeText" in model_handler,
+        "Quick Join server name": "VC_QUICK_JOIN_AUTO_SERVER_NAME" in service and "Hosted by VC Mumble Server" in service,
     }
     missing = [name for name, ok in checks.items() if not ok]
     if missing:
@@ -491,6 +1292,21 @@ def main() -> int:
     root = args.root.resolve()
 
     try:
+        patch_battery_unrestricted(
+            root / "app/src/main/AndroidManifest.xml",
+            root / "app/src/main/java/se/lublin/mumla/app/MumlaActivity.java",
+            root / "app/src/main/java/se/lublin/mumla/preference/GeneralSettingsFragment.java",
+            root / "app/src/main/res/xml/settings_general.xml",
+            root / "app/src/main/res/values/strings.xml",
+        )
+        patch_quick_join(
+            root / "app/src/main/java/se/lublin/mumla/servers/ServerEditFragment.java",
+            root / "app/src/main/res/layout/dialog_server_edit.xml",
+            root / "app/src/main/res/values/strings.xml",
+            root / "libraries/humla/src/main/java/se/lublin/humla/protocol/ModelHandler.java",
+            root / "libraries/humla/src/main/java/se/lublin/humla/HumlaService.java",
+            root / "app/src/main/java/se/lublin/mumla/app/MumlaActivity.java",
+        )
         patch_aec_settings(
             root / "app/src/main/java/se/lublin/mumla/Settings.java",
             root / "app/src/main/res/xml/settings_audio.xml",
