@@ -2,7 +2,7 @@
 
 Android-hosted Mumble server for Minecraft Bedrock voice chat.
 
-> Release line: **v0.6.0-beta.9**  
+> Release line: **v0.6.0-beta.10**  
 > Embedded server: **Mumble 1.6.870**  
 > Qt: **6.8.3**  
 > OpenSSL: **3.6.3**  
@@ -23,7 +23,7 @@ The Android Mumble core has passed the physical-device startup gate:
 - Stop -> Start works repeatedly by restarting the isolated Mumble process cleanly
 - stock Mumble/Mumla clients can use the normal Mumble protocol path
 
-The Minecraft/Endstone proximity bridge now supports the /vcb control panel, per-player attenuation levels, heartbeat-backed state freshness, and Mic ON/OFF synchronization. Endstone plugin v0.4.1 feeds the native proximity routing layer, while VC Mumla v0.5 AEC applies per-listener distance volume, enables Android system acoustic echo cancellation by default, and can request unrestricted battery / Battery Optimization exemption so background voice is less likely to be stopped by Android.
+The Minecraft/Endstone proximity bridge now supports the /vcb control panel, per-player attenuation levels, heartbeat-backed state freshness, and Mic ON/OFF synchronization. Endstone plugin v0.4.1 feeds the native proximity routing layer, while VC Mumla v0.5 AEC applies per-listener distance volume, enables Android system acoustic echo cancellation by default, can request unrestricted battery / Battery Optimization exemption, and includes Quick Join with `host:port`, required Xbox username validation, password-on-demand, automatic VC Mumble server naming, and saved successful servers.
 
 ## How the system works
 
@@ -284,7 +284,7 @@ Commands:
 /vcb
 ```
 
-The bridge tracks Minecraft identity, dimension, XYZ position, Mic ON/OFF state, voice range, and attenuation level and maps those players to Mumble usernames. All Mumble users may stay in the Root channel; proximity routing and smooth distance-based attenuation are handled by the server together with VC Mumla v0.4 Stable Gain.
+The bridge tracks Minecraft identity, dimension, XYZ position, Mic ON/OFF state, voice range, and attenuation level and maps those players to Mumble usernames. All Mumble users may stay in the Root channel; proximity routing and smooth distance-based attenuation are handled by the server together with VC Mumla v0.5 AEC.
 
 ### In-app Endstone plugin and Minecraft Addon downloads
 
