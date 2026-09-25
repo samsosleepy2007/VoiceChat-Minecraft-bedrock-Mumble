@@ -79,6 +79,34 @@ class MumlaActivity {
                 .show();
     }
 
+    private void updateConnectionState() {
+        HumlaException error = getService().getConnectionError();
+        if (error != null &&
+                error.getReason() == HumlaException.HumlaDisconnectReason.REJECT &&
+                (error.getReject().getType() == Mumble.Reject.RejectType.WrongUserPW ||
+                        error.getReject().getType() == Mumble.Reject.RejectType.WrongServerPW)) {
+            final EditText passwordField = new EditText(this);
+            passwordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            passwordField.setHint(R.string.password);
+            MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+            builder.setTitle(R.string.invalid_password);
+            builder.setMessage(error.getMessage());
+            builder.setView(passwordField);
+            builder.setPositiveButton(R.string.reconnect, (dialog, which) -> {
+                Server server1 = getService().getTargetServer();
+                if (server1 == null) {
+                    return;
+                }
+                String password = passwordField.getText().toString();
+                server1.setPassword(password);
+                if (server1.isSaved()) {
+                    mDatabase.updateServer(server1);
+                }
+                connectToServer(server1);
+            });
+        }
+    }
+
     /**
      * Loads a fragment from the drawer.
      */
@@ -582,6 +610,11 @@ class HumlaService {
         assert "getVcWelcomeText" in model_handler
         assert "VC_QUICK_JOIN_AUTO_SERVER_NAME" in service
         assert "Hosted by VC Mumble Server" in service
+        assert "VC_QUICK_JOIN_HIDE_PASSWORD" in server_edit
+        assert 'android:id="@+id/server_edit_password_box"' in server_edit_layout
+        assert "VC_QUICK_JOIN_PASSWORD_CHALLENGE" in mumla_activity
+        assert "vc_server_password_title" in strings
+        assert "เซิร์ฟเวอร์นี้มีรหัสผ่าน" in strings
 
         assert 'DEFAULT_ECHO_CANCELLATION_METHOD = "system"' in settings
         assert "PREF_VC_AEC_MIGRATED" in settings
