@@ -973,39 +973,39 @@ def patch_quick_join(
             "Quick Join Xbox username box",
         )
         if 'android:id="@+id/server_edit_password_box"' not in layout:
-        layout = replace_once(
-            layout,
-            """    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/server_password" />
-
-    <EditText
-        android:layout_height="wrap_content"
-        android:layout_width="match_parent"
-        android:id="@+id/server_edit_password"
-        android:inputType="textPassword" />
-""",
-            """    <LinearLayout
-        android:id="@+id/server_edit_password_box"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
-
-        <TextView
+            layout = replace_once(
+                layout,
+                """    <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/server_password" />
 
-        <EditText
+    <EditText
+            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
             android:id="@+id/server_edit_password"
+            android:inputType="textPassword" />
+""",
+                """    <LinearLayout
+            android:id="@+id/server_edit_password_box"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="textPassword" />
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/server_password" />
+
+            <EditText
+                android:id="@+id/server_edit_password"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPassword" />
     </LinearLayout>
 """,
-            "Quick Join password container",
-        )
+                "Quick Join password container",
+            )
 
         dialog_layout_path.write_text(layout, encoding="utf-8")
 
