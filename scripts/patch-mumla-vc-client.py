@@ -736,6 +736,7 @@ def patch_quick_join(
 """,
             """        TextView titleLabel = view.findViewById(R.id.server_edit_name_title);
         mNameEdit = view.findViewById(R.id.server_edit_name);
+        TextView quickJoinTitle = view.findViewById(R.id.server_edit_quick_join_title);
         mQuickJoinEdit = view.findViewById(R.id.server_edit_quick_join);
         View hostPortLabels = view.findViewById(R.id.server_edit_host_port_labels);
         View hostPortFields = view.findViewById(R.id.server_edit_host_port_fields);
@@ -761,6 +762,7 @@ def patch_quick_join(
             titleLabel.setVisibility(View.GONE);
             mNameEdit.setVisibility(View.GONE);
 
+            quickJoinTitle.setVisibility(View.VISIBLE);
             mQuickJoinEdit.setVisibility(View.VISIBLE);
             hostPortLabels.setVisibility(View.GONE);
             hostPortFields.setVisibility(View.GONE);
