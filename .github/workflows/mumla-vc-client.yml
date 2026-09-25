@@ -6,7 +6,6 @@ on:
     branches:
       - feature/mumla-volume-client-v1
       - fix/vc-mumla-echo-cancellation-v1
-      - fix/vc-mumla-battery-unrestricted-v1
     paths:
       - "scripts/patch-mumla-vc-client.py"
       - ".github/workflows/mumla-vc-client.yml"
