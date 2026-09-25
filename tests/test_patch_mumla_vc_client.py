@@ -79,6 +79,12 @@ class MumlaActivity {
                 .show();
     }
 
+    /**
+     * Loads a fragment from the drawer.
+     */
+    private void loadDrawerFragment(int fragmentId) {
+    }
+
     private void updateConnectionState() {
         HumlaException error = getService().getConnectionError();
         if (error != null &&
@@ -105,12 +111,6 @@ class MumlaActivity {
                 connectToServer(server1);
             });
         }
-    }
-
-    /**
-     * Loads a fragment from the drawer.
-     */
-    private void loadDrawerFragment(int fragmentId) {
     }
 }
 """,
