@@ -1152,19 +1152,27 @@ def patch_quick_join(
     if "VC_QUICK_JOIN_PASSWORD_CHALLENGE" not in activity:
         activity = replace_once(
             activity,
-            """                        passwordField.setHint(R.string.password);
-                        builder.setTitle(R.string.invalid_password);
-                        builder.setMessage(error.getMessage());
-                        builder.setView(passwordField);
-                        builder.setPositiveButton(R.string.reconnect, (dialog, which) -> {
-""",
-            """                        passwordField.setHint(R.string.vc_server_password_hint);
-                        builder.setTitle(R.string.vc_server_password_title); // VC_QUICK_JOIN_PASSWORD_CHALLENGE
-                        builder.setMessage(R.string.vc_server_password_message);
-                        builder.setView(passwordField);
-                        builder.setPositiveButton(R.string.vc_server_password_connect, (dialog, which) -> {
-""",
-            "Quick Join password challenge dialog",
+            "passwordField.setHint(R.string.password);",
+            "passwordField.setHint(R.string.vc_server_password_hint);",
+            "Quick Join password hint",
+        )
+        activity = replace_once(
+            activity,
+            "builder.setTitle(R.string.invalid_password);",
+            "builder.setTitle(R.string.vc_server_password_title); // VC_QUICK_JOIN_PASSWORD_CHALLENGE",
+            "Quick Join password title",
+        )
+        activity = replace_once(
+            activity,
+            "builder.setMessage(error.getMessage());",
+            "builder.setMessage(R.string.vc_server_password_message);",
+            "Quick Join password message",
+        )
+        activity = replace_once(
+            activity,
+            "builder.setPositiveButton(R.string.reconnect, (dialog, which) -> {",
+            "builder.setPositiveButton(R.string.vc_server_password_connect, (dialog, which) -> {",
+            "Quick Join password reconnect button",
         )
         activity_path.write_text(activity, encoding="utf-8")
 
