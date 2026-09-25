@@ -1171,6 +1171,7 @@ def patch_quick_join(
 """,
             "Quick Join save connected server",
         )
+        activity_path.write_text(activity, encoding="utf-8")
 
     activity = activity_path.read_text(encoding="utf-8")
     if "VC_QUICK_JOIN_PASSWORD_CHALLENGE" not in activity:
