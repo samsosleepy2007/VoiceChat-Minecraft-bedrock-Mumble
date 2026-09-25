@@ -707,6 +707,7 @@ def patch_quick_join(
     strings_path: pathlib.Path,
     model_handler_path: pathlib.Path,
     service_path: pathlib.Path,
+    activity_path: pathlib.Path,
 ) -> None:
     server_edit = server_edit_path.read_text(encoding="utf-8")
     if "VC_QUICK_JOIN_DIALOG" not in server_edit:
@@ -743,6 +744,7 @@ def patch_quick_join(
         View usernameBox = view.findViewById(R.id.server_edit_username_box);
         TextView usernameTitle = view.findViewById(R.id.server_edit_username_title);
         TextView usernameWarning = view.findViewById(R.id.server_edit_username_warning);
+        View passwordBox = view.findViewById(R.id.server_edit_password_box);
         mHostEdit = view.findViewById(R.id.server_edit_host);
         mPortEdit = view.findViewById(R.id.server_edit_port);
         mUsernameEdit = view.findViewById(R.id.server_edit_username);
@@ -766,6 +768,8 @@ def patch_quick_join(
             mQuickJoinEdit.setVisibility(View.VISIBLE);
             hostPortLabels.setVisibility(View.GONE);
             hostPortFields.setVisibility(View.GONE);
+            passwordBox.setVisibility(View.GONE); // VC_QUICK_JOIN_HIDE_PASSWORD
+            mPasswordEdit.setText("");
 
             usernameTitle.setText(R.string.vc_xbox_username_title);
             usernameWarning.setText(R.string.vc_xbox_username_warning);
@@ -968,6 +972,41 @@ def patch_quick_join(
 """,
             "Quick Join Xbox username box",
         )
+        if 'android:id="@+id/server_edit_password_box"' not in layout:
+        layout = replace_once(
+            layout,
+            """    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/server_password" />
+
+    <EditText
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:id="@+id/server_edit_password"
+        android:inputType="textPassword" />
+""",
+            """    <LinearLayout
+        android:id="@+id/server_edit_password_box"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/server_password" />
+
+        <EditText
+            android:id="@+id/server_edit_password"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword" />
+    </LinearLayout>
+""",
+            "Quick Join password container",
+        )
+
         dialog_layout_path.write_text(layout, encoding="utf-8")
 
     strings = strings_path.read_text(encoding="utf-8")
@@ -987,6 +1026,10 @@ def patch_quick_join(
     <string name="vc_xbox_username_hint">ใส่ชื่อ Xbox ของคุณให้ตรงกับใน Minecraft</string>
     <string name="vc_xbox_username_warning">สำคัญ: ต้องใส่ชื่อ Xbox ให้ถูกต้องและตรงกับชื่อที่ใช้ใน Minecraft มิฉะนั้น Proximity Voice จะจับคู่ผู้เล่นไม่ได้</string>
     <string name="vc_xbox_username_required">จำเป็นต้องใส่ชื่อ Xbox ให้ตรงกับชื่อใน Minecraft</string>
+    <string name="vc_server_password_title">เซิร์ฟเวอร์นี้มีรหัสผ่าน</string>
+    <string name="vc_server_password_message">กรุณาใส่รหัสผ่านของ VC Mumble Server เพื่อเชื่อมต่อ หากกรอกรหัสแล้วแต่ยังเข้าไม่ได้ แสดงว่ารหัสผ่านไม่ถูกต้อง</string>
+    <string name="vc_server_password_hint">รหัสผ่านเซิร์ฟเวอร์</string>
+    <string name="vc_server_password_connect">เชื่อมต่อ</string>
 </resources>
 """,
             "Quick Join strings",
@@ -1105,6 +1148,26 @@ def patch_quick_join(
         )
         service_path.write_text(service, encoding="utf-8")
 
+    activity = activity_path.read_text(encoding="utf-8")
+    if "VC_QUICK_JOIN_PASSWORD_CHALLENGE" not in activity:
+        activity = replace_once(
+            activity,
+            """                        passwordField.setHint(R.string.password);
+                        builder.setTitle(R.string.invalid_password);
+                        builder.setMessage(error.getMessage());
+                        builder.setView(passwordField);
+                        builder.setPositiveButton(R.string.reconnect, (dialog, which) -> {
+""",
+            """                        passwordField.setHint(R.string.vc_server_password_hint);
+                        builder.setTitle(R.string.vc_server_password_title); // VC_QUICK_JOIN_PASSWORD_CHALLENGE
+                        builder.setMessage(R.string.vc_server_password_message);
+                        builder.setView(passwordField);
+                        builder.setPositiveButton(R.string.vc_server_password_connect, (dialog, which) -> {
+""",
+            "Quick Join password challenge dialog",
+        )
+        activity_path.write_text(activity, encoding="utf-8")
+
 def patch_stable_transport(service_path: pathlib.Path) -> None:
     """Use the v0.2 transport behavior: force TCP on the active connection only."""
     service = service_path.read_text(encoding="utf-8")
@@ -1178,6 +1241,8 @@ def validate(root: pathlib.Path) -> None:
         "Quick Join dialog": "VC_QUICK_JOIN_DIALOG" in server_edit and "parseQuickJoinAddress" in server_edit,
         "Quick Join layout": 'android:id="@+id/server_edit_quick_join"' in server_edit_layout and 'android:id="@+id/server_edit_username_box"' in server_edit_layout,
         "Quick Join Xbox required": "vc_xbox_username_required" in server_edit and "vc_xbox_username_warning" in strings,
+        "Quick Join password hidden": "VC_QUICK_JOIN_HIDE_PASSWORD" in server_edit and 'android:id="@+id/server_edit_password_box"' in server_edit_layout,
+        "Quick Join password challenge": "VC_QUICK_JOIN_PASSWORD_CHALLENGE" in mumla_activity and "vc_server_password_title" in strings,
         "Quick Join welcome capture": "VC_QUICK_JOIN_SERVER_NAME" in model_handler and "getVcWelcomeText" in model_handler,
         "Quick Join server name": "VC_QUICK_JOIN_AUTO_SERVER_NAME" in service and "Hosted by VC Mumble Server" in service,
     }
@@ -1206,6 +1271,7 @@ def main() -> int:
             root / "app/src/main/res/values/strings.xml",
             root / "libraries/humla/src/main/java/se/lublin/humla/protocol/ModelHandler.java",
             root / "libraries/humla/src/main/java/se/lublin/humla/HumlaService.java",
+            root / "app/src/main/java/se/lublin/mumla/app/MumlaActivity.java",
         )
         patch_aec_settings(
             root / "app/src/main/java/se/lublin/mumla/Settings.java",
