@@ -976,32 +976,32 @@ def patch_quick_join(
             layout = replace_once(
                 layout,
                 """    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/server_password" />
+
+    <EditText
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:id="@+id/server_edit_password"
+        android:inputType="textPassword" />
+""",
+                """    <LinearLayout
+        android:id="@+id/server_edit_password_box"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/server_password" />
 
-    <EditText
-            android:layout_height="wrap_content"
-            android:layout_width="match_parent"
+        <EditText
             android:id="@+id/server_edit_password"
-            android:inputType="textPassword" />
-""",
-                """    <LinearLayout
-            android:id="@+id/server_edit_password_box"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/server_password" />
-
-            <EditText
-                android:id="@+id/server_edit_password"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textPassword" />
+            android:inputType="textPassword" />
     </LinearLayout>
 """,
                 "Quick Join password container",
