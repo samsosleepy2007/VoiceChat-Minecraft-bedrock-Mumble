@@ -700,6 +700,409 @@ def patch_battery_unrestricted(
         strings_path.write_text(strings, encoding="utf-8")
 
 
+
+def patch_quick_join(
+    server_edit_path: pathlib.Path,
+    dialog_layout_path: pathlib.Path,
+    strings_path: pathlib.Path,
+    model_handler_path: pathlib.Path,
+    service_path: pathlib.Path,
+) -> None:
+    server_edit = server_edit_path.read_text(encoding="utf-8")
+    if "VC_QUICK_JOIN_DIALOG" not in server_edit:
+        server_edit = replace_once(
+            server_edit,
+            "import android.os.Bundle;\n",
+            "import android.os.Bundle;\n"
+            "import android.graphics.drawable.GradientDrawable;\n",
+            "Quick Join drawable import",
+        )
+        server_edit = replace_once(
+            server_edit,
+            "    private EditText mPasswordEdit;\n",
+            "    private EditText mPasswordEdit;\n"
+            "    private EditText mQuickJoinEdit; // VC_QUICK_JOIN_DIALOG\n",
+            "Quick Join field",
+        )
+        server_edit = replace_once(
+            server_edit,
+            """        TextView titleLabel = view.findViewById(R.id.server_edit_name_title);
+        mNameEdit = view.findViewById(R.id.server_edit_name);
+        mHostEdit = view.findViewById(R.id.server_edit_host);
+        mPortEdit = view.findViewById(R.id.server_edit_port);
+        mUsernameEdit = view.findViewById(R.id.server_edit_username);
+        mUsernameEdit.setHint(settings.getDefaultUsername());
+        mPasswordEdit = view.findViewById(R.id.server_edit_password);
+""",
+            """        TextView titleLabel = view.findViewById(R.id.server_edit_name_title);
+        mNameEdit = view.findViewById(R.id.server_edit_name);
+        mQuickJoinEdit = view.findViewById(R.id.server_edit_quick_join);
+        View hostPortLabels = view.findViewById(R.id.server_edit_host_port_labels);
+        View hostPortFields = view.findViewById(R.id.server_edit_host_port_fields);
+        View usernameBox = view.findViewById(R.id.server_edit_username_box);
+        TextView usernameTitle = view.findViewById(R.id.server_edit_username_title);
+        TextView usernameWarning = view.findViewById(R.id.server_edit_username_warning);
+        mHostEdit = view.findViewById(R.id.server_edit_host);
+        mPortEdit = view.findViewById(R.id.server_edit_port);
+        mUsernameEdit = view.findViewById(R.id.server_edit_username);
+        mUsernameEdit.setHint(settings.getDefaultUsername());
+        mPasswordEdit = view.findViewById(R.id.server_edit_password);
+""",
+            "Quick Join view binding",
+        )
+        server_edit = replace_once(
+            server_edit,
+            """        if (shouldIgnoreTitle()) {
+            titleLabel.setVisibility(View.GONE);
+            mNameEdit.setVisibility(View.GONE);
+        }
+""",
+            """        if (shouldIgnoreTitle()) {
+            titleLabel.setVisibility(View.GONE);
+            mNameEdit.setVisibility(View.GONE);
+
+            mQuickJoinEdit.setVisibility(View.VISIBLE);
+            hostPortLabels.setVisibility(View.GONE);
+            hostPortFields.setVisibility(View.GONE);
+
+            usernameTitle.setText(R.string.vc_xbox_username_title);
+            usernameWarning.setText(R.string.vc_xbox_username_warning);
+            usernameWarning.setVisibility(View.VISIBLE);
+            mUsernameEdit.setHint(R.string.vc_xbox_username_hint);
+
+            float density = getResources().getDisplayMetrics().density;
+            GradientDrawable warningBackground = new GradientDrawable();
+            warningBackground.setColor(0x18FF0000);
+            warningBackground.setStroke(Math.max(2, Math.round(2f * density)), 0xFFE53935);
+            warningBackground.setCornerRadius(12f * density);
+            usernameBox.setBackground(warningBackground);
+            int warningPadding = Math.round(12f * density);
+            usernameBox.setPadding(warningPadding, warningPadding, warningPadding, warningPadding);
+
+            if (oldServer != null) {
+                int quickPort = oldServer.getPort() == 0 ? 64738 : oldServer.getPort();
+                mQuickJoinEdit.setText(oldServer.getHost() + ":" + quickPort);
+            }
+        }
+""",
+            "Quick Join mode UI",
+        )
+        server_edit = replace_once(
+            server_edit,
+            """    public boolean validate() {
+        if (mHostEdit.getText().length() == 0) {
+""",
+            """    public boolean validate() {
+        if (shouldIgnoreTitle()) {
+            if (!parseQuickJoinAddress()) {
+                return false;
+            }
+            if (mUsernameEdit.getText().toString().trim().isEmpty()) {
+                mUsernameEdit.setError(getString(R.string.vc_xbox_username_required));
+                mUsernameEdit.requestFocus();
+                return false;
+            }
+        }
+
+        if (mHostEdit.getText().length() == 0) {
+""",
+            "Quick Join validation",
+        )
+        server_edit = replace_once(
+            server_edit,
+            """    private Server getServer() {
+""",
+            """    private boolean parseQuickJoinAddress() {
+        String value = mQuickJoinEdit.getText().toString().trim();
+        if (value.startsWith("mumble://")) {
+            value = value.substring("mumble://".length());
+        }
+        while (value.endsWith("/")) {
+            value = value.substring(0, value.length() - 1).trim();
+        }
+
+        int separator = value.lastIndexOf(':');
+        if (separator <= 0 || separator >= value.length() - 1) {
+            mQuickJoinEdit.setError(getString(R.string.vc_quick_join_invalid));
+            mQuickJoinEdit.requestFocus();
+            return false;
+        }
+
+        String host = value.substring(0, separator).trim();
+        String portText = value.substring(separator + 1).trim();
+        if (host.startsWith("[") && host.endsWith("]") && host.length() > 2) {
+            host = host.substring(1, host.length() - 1);
+        }
+
+        int port;
+        try {
+            port = Integer.parseInt(portText);
+        } catch (NumberFormatException error) {
+            mQuickJoinEdit.setError(getString(R.string.vc_quick_join_invalid));
+            mQuickJoinEdit.requestFocus();
+            return false;
+        }
+
+        if (host.isEmpty() || port < 1 || port > 65535) {
+            mQuickJoinEdit.setError(getString(R.string.vc_quick_join_invalid));
+            mQuickJoinEdit.requestFocus();
+            return false;
+        }
+
+        mHostEdit.setText(host);
+        mPortEdit.setText(String.valueOf(port));
+        return true;
+    }
+
+    private Server getServer() {
+""",
+            "Quick Join address parser",
+        )
+        server_edit_path.write_text(server_edit, encoding="utf-8")
+
+    layout = dialog_layout_path.read_text(encoding="utf-8")
+    if 'android:id="@+id/server_edit_quick_join"' not in layout:
+        layout = replace_once(
+            layout,
+            """    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/server_host" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/server_port" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+""",
+            """    <TextView
+        android:id="@+id/server_edit_quick_join_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/vc_quick_join_title"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <EditText
+        android:id="@+id/server_edit_quick_join"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/vc_quick_join_hint"
+        android:inputType="textUri"
+        android:singleLine="true"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/server_edit_host_port_labels"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/server_host" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/server_port" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/server_edit_host_port_fields"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+""",
+            "Quick Join host/port layout",
+        )
+        layout = replace_once(
+            layout,
+            """    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/server_username" />
+
+    <EditText
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:id="@+id/server_edit_username"
+        android:inputType="text" />
+""",
+            """    <LinearLayout
+        android:id="@+id/server_edit_username_box"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/server_edit_username_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/server_username" />
+
+        <TextView
+            android:id="@+id/server_edit_username_warning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="4dp"
+            android:text="@string/vc_xbox_username_warning"
+            android:textColor="#E53935"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <EditText
+            android:id="@+id/server_edit_username"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:singleLine="true" />
+    </LinearLayout>
+""",
+            "Quick Join Xbox username box",
+        )
+        dialog_layout_path.write_text(layout, encoding="utf-8")
+
+    strings = strings_path.read_text(encoding="utf-8")
+    if 'name="vc_quick_join_title"' not in strings:
+        strings = strings.replace(
+            '<string name="quickConnect">Quick Connect</string>',
+            '<string name="quickConnect">Quick Join</string>',
+            1,
+        )
+        strings = replace_once(
+            strings,
+            "</resources>\n",
+            """    <string name="vc_quick_join_title">Quick Join — IP:Port</string>
+    <string name="vc_quick_join_hint">เช่น 4dqruj3i.free.pwrp.cc:10027</string>
+    <string name="vc_quick_join_invalid">กรุณาใส่ที่อยู่ในรูปแบบ IP:Port เช่น 4dqruj3i.free.pwrp.cc:10027</string>
+    <string name="vc_xbox_username_title">ชื่อผู้ใช้ Xbox (จำเป็น)</string>
+    <string name="vc_xbox_username_hint">ใส่ชื่อ Xbox ของคุณให้ตรงกับใน Minecraft</string>
+    <string name="vc_xbox_username_warning">สำคัญ: ต้องใส่ชื่อ Xbox ให้ถูกต้องและตรงกับชื่อที่ใช้ใน Minecraft มิฉะนั้น Proximity Voice จะจับคู่ผู้เล่นไม่ได้</string>
+    <string name="vc_xbox_username_required">จำเป็นต้องใส่ชื่อ Xbox ให้ตรงกับชื่อใน Minecraft</string>
+</resources>
+""",
+            "Quick Join strings",
+        )
+        strings_path.write_text(strings, encoding="utf-8")
+
+    model = model_handler_path.read_text(encoding="utf-8")
+    if "VC_QUICK_JOIN_SERVER_NAME" not in model:
+        model = replace_once(
+            model,
+            "    private int mSession;\n",
+            "    private int mSession;\n"
+            "    private String mVcWelcomeText; // VC_QUICK_JOIN_SERVER_NAME\n",
+            "Quick Join welcome field",
+        )
+        model = replace_once(
+            model,
+            """    public ServerSettings getServerSettings() {
+        return mServerSettings;
+    }
+""",
+            """    public ServerSettings getServerSettings() {
+        return mServerSettings;
+    }
+
+    public String getVcWelcomeText() {
+        return mVcWelcomeText;
+    }
+""",
+            "Quick Join welcome getter",
+        )
+        model = replace_once(
+            model,
+            """    public void clear() {
+        mChannels.clear();
+        mUsers.clear();
+    }
+""",
+            """    public void clear() {
+        mChannels.clear();
+        mUsers.clear();
+        mVcWelcomeText = null;
+    }
+""",
+            "Quick Join welcome clear",
+        )
+        model = replace_once(
+            model,
+            """    public void messageServerSync(Mumble.ServerSync msg) {
+        mSession = msg.getSession();
+        mLogger.logInfo(msg.getWelcomeText());
+    }
+""",
+            """    public void messageServerSync(Mumble.ServerSync msg) {
+        mSession = msg.getSession();
+        mVcWelcomeText = msg.getWelcomeText();
+        mLogger.logInfo(msg.getWelcomeText());
+    }
+""",
+            "Quick Join welcome capture",
+        )
+        model_handler_path.write_text(model, encoding="utf-8")
+
+    service = service_path.read_text(encoding="utf-8")
+    if "VC_QUICK_JOIN_AUTO_SERVER_NAME" not in service:
+        service = replace_once(
+            service,
+            "import android.os.PowerManager;\n",
+            "import android.os.PowerManager;\n"
+            "import android.text.Html;\n",
+            "Quick Join Html import",
+        )
+        service = replace_once(
+            service,
+            """        mCallbacks.onConnected();
+    }
+
+    @Override
+    public void onConnectionHandshakeFailed(X509Certificate[] chain) {
+""",
+            """        applyVcServerNameFromWelcome(mModelHandler.getVcWelcomeText());
+        mCallbacks.onConnected();
+    }
+
+    private void applyVcServerNameFromWelcome(String welcome) {
+        if (mServer == null
+                || welcome == null
+                || !welcome.contains("Hosted by VC Mumble Server")) {
+            return;
+        }
+
+        CharSequence formatted;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            formatted = Html.fromHtml(welcome, Html.FROM_HTML_MODE_LEGACY);
+        } else {
+            formatted = Html.fromHtml(welcome);
+        }
+
+        String plain = formatted.toString().replace('\u00a0', ' ').trim();
+        int marker = plain.indexOf("Hosted by VC Mumble Server");
+        if (marker < 0) {
+            return;
+        }
+
+        String serverName = plain.substring(0, marker).trim();
+        if (!serverName.isEmpty()) {
+            mServer.setName(serverName); // VC_QUICK_JOIN_AUTO_SERVER_NAME
+            Log.i(TAG, "VC-QUICK-JOIN serverName=" + serverName);
+        }
+    }
+
+    @Override
+    public void onConnectionHandshakeFailed(X509Certificate[] chain) {
+""",
+            "Quick Join automatic server name",
+        )
+        service_path.write_text(service, encoding="utf-8")
+
 def patch_stable_transport(service_path: pathlib.Path) -> None:
     """Use the v0.2 transport behavior: force TCP on the active connection only."""
     service = service_path.read_text(encoding="utf-8")
@@ -744,6 +1147,9 @@ def validate(root: pathlib.Path) -> None:
     general_fragment = (root / "app/src/main/java/se/lublin/mumla/preference/GeneralSettingsFragment.java").read_text(encoding="utf-8")
     general_xml = (root / "app/src/main/res/xml/settings_general.xml").read_text(encoding="utf-8")
     strings = (root / "app/src/main/res/values/strings.xml").read_text(encoding="utf-8")
+    server_edit = (root / "app/src/main/java/se/lublin/mumla/servers/ServerEditFragment.java").read_text(encoding="utf-8")
+    server_edit_layout = (root / "app/src/main/res/layout/dialog_server_edit.xml").read_text(encoding="utf-8")
+    model_handler = (root / "libraries/humla/src/main/java/se/lublin/humla/protocol/ModelHandler.java").read_text(encoding="utf-8")
 
     checks = {
         "gain trailer parser": "VC_GAIN_TRAILER" in audio_output,
@@ -767,6 +1173,11 @@ def validate(root: pathlib.Path) -> None:
         "battery settings control": "VC_BATTERY_UNRESTRICTED_SETTINGS" in general_fragment and "android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS" in general_fragment,
         "battery settings preference": 'android:key="vc_battery_unrestricted"' in general_xml,
         "battery strings": 'name="vc_battery_unrestricted_title"' in strings,
+        "Quick Join dialog": "VC_QUICK_JOIN_DIALOG" in server_edit and "parseQuickJoinAddress" in server_edit,
+        "Quick Join layout": 'android:id="@+id/server_edit_quick_join"' in server_edit_layout and 'android:id="@+id/server_edit_username_box"' in server_edit_layout,
+        "Quick Join Xbox required": "vc_xbox_username_required" in server_edit and "vc_xbox_username_warning" in strings,
+        "Quick Join welcome capture": "VC_QUICK_JOIN_SERVER_NAME" in model_handler and "getVcWelcomeText" in model_handler,
+        "Quick Join server name": "VC_QUICK_JOIN_AUTO_SERVER_NAME" in service and "Hosted by VC Mumble Server" in service,
     }
     missing = [name for name, ok in checks.items() if not ok]
     if missing:
@@ -786,6 +1197,13 @@ def main() -> int:
             root / "app/src/main/java/se/lublin/mumla/preference/GeneralSettingsFragment.java",
             root / "app/src/main/res/xml/settings_general.xml",
             root / "app/src/main/res/values/strings.xml",
+        )
+        patch_quick_join(
+            root / "app/src/main/java/se/lublin/mumla/servers/ServerEditFragment.java",
+            root / "app/src/main/res/layout/dialog_server_edit.xml",
+            root / "app/src/main/res/values/strings.xml",
+            root / "libraries/humla/src/main/java/se/lublin/humla/protocol/ModelHandler.java",
+            root / "libraries/humla/src/main/java/se/lublin/humla/HumlaService.java",
         )
         patch_aec_settings(
             root / "app/src/main/java/se/lublin/mumla/Settings.java",
