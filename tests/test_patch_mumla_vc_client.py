@@ -55,6 +55,22 @@ class MumlaActivity {
     private Settings mSettings;
     private static final int PERMISSIONS_REQUEST_POST_NOTIFICATIONS = 2;
 
+    private final HumlaObserver mObserver = new HumlaObserver() {
+        @Override
+        public void onConnected() {
+            if (mSettings.shouldStartUpInPinnedMode()) {
+                loadDrawerFragment(DrawerAdapter.ITEM_PINNED_CHANNELS);
+            } else {
+                loadDrawerFragment(DrawerAdapter.ITEM_SERVER);
+            }
+
+            mDrawerAdapter.notifyDataSetChanged();
+            supportInvalidateOptionsMenu();
+
+            updateConnectionState(getService());
+        }
+    };
+
     void onCreate(Bundle savedInstanceState) {
         if (savedInstanceState == null) {
             if (mSettings.isFirstRun()) {
@@ -615,6 +631,9 @@ class HumlaService {
         assert "VC_QUICK_JOIN_PASSWORD_CHALLENGE" in mumla_activity
         assert "vc_server_password_title" in strings
         assert "เซิร์ฟเวอร์นี้มีรหัสผ่าน" in strings
+        assert "VC_QUICK_JOIN_SAVE_SERVER" in mumla_activity
+        assert "mDatabase.addServer(connectedServer)" in mumla_activity
+        assert "mDatabase.updateServer(connectedServer)" in mumla_activity
 
         assert 'DEFAULT_ECHO_CANCELLATION_METHOD = "system"' in settings
         assert "PREF_VC_AEC_MIGRATED" in settings
