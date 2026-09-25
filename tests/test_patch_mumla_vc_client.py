@@ -360,6 +360,9 @@ class AudioOutput {
         assert "isIgnoringBatteryOptimizations" in general_fragment
         assert 'android:key="vc_battery_unrestricted"' in general_xml
         assert 'name="vc_battery_unrestricted_title"' in strings
+        assert "อนุญาตให้ทำงานเบื้องหลัง" in strings
+        assert "อนุญาตให้ VC Mumla ไม่ถูกจำกัดโดยระบบประหยัดแบตเตอรี่ของ Android" in strings
+        assert "การตั้งค่าแบตเตอรี่" in strings
 
         assert 'DEFAULT_ECHO_CANCELLATION_METHOD = "system"' in settings
         assert "PREF_VC_AEC_MIGRATED" in settings
