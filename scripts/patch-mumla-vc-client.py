@@ -687,12 +687,12 @@ def patch_battery_unrestricted(
         strings = replace_once(
             strings,
             "</resources>\n",
-            """    <string name="vc_battery_unrestricted_title">Unrestricted battery</string>
-    <string name="vc_battery_unrestricted_message">Allow VC Mumla to ignore Android battery optimizations so voice can keep running when the screen is off or another app is open.</string>
-    <string name="vc_battery_unrestricted_allow">Allow unrestricted</string>
-    <string name="vc_battery_unrestricted_settings">Battery settings</string>
-    <string name="vc_battery_unrestricted_enabled">Unrestricted — background voice protection is enabled</string>
-    <string name="vc_battery_unrestricted_disabled">Limited — tap to allow unrestricted battery</string>
+            """    <string name="vc_battery_unrestricted_title">อนุญาตให้ทำงานเบื้องหลัง</string>
+    <string name="vc_battery_unrestricted_message">อนุญาตให้ VC Mumla ไม่ถูกจำกัดโดยระบบประหยัดแบตเตอรี่ของ Android เพื่อให้ระบบเสียงยังทำงานต่อได้เมื่อปิดหน้าจอหรือเปิดแอปอื่น</string>
+    <string name="vc_battery_unrestricted_allow">อนุญาต</string>
+    <string name="vc_battery_unrestricted_settings">การตั้งค่าแบตเตอรี่</string>
+    <string name="vc_battery_unrestricted_enabled">อนุญาตแล้ว — ระบบเสียงสามารถทำงานเบื้องหลังได้</string>
+    <string name="vc_battery_unrestricted_disabled">ยังถูกจำกัด — แตะเพื่ออนุญาตให้ทำงานเบื้องหลัง</string>
 </resources>
 """,
             "VC Mumla battery strings",
