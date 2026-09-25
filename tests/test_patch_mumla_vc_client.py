@@ -15,7 +15,9 @@ def main() -> int:
         app_java = root / "app/src/main/java/se/lublin/mumla"
         app_app = app_java / "app"
         app_pref = app_java / "preference"
+        app_servers = app_java / "servers"
         app_xml = root / "app/src/main/res/xml"
+        app_layout = root / "app/src/main/res/layout"
         app_values = root / "app/src/main/res/values"
         beta = root / "app/src/beta/res/values"
 
@@ -24,7 +26,9 @@ def main() -> int:
         app_java.mkdir(parents=True)
         app_app.mkdir(parents=True)
         app_pref.mkdir(parents=True)
+        app_servers.mkdir(parents=True)
         app_xml.mkdir(parents=True)
+        app_layout.mkdir(parents=True)
         app_values.mkdir(parents=True)
         beta.mkdir(parents=True)
 
@@ -127,7 +131,190 @@ public class GeneralSettingsFragment extends MumlaPreferenceFragment {
         (app_values / "strings.xml").write_text(
             """<resources>
     <string name="general">General</string>
+    <string name="quickConnect">Quick Connect</string>
 </resources>
+""",
+            encoding="utf-8",
+        )
+
+        (app_servers / "ServerEditFragment.java").write_text(
+            """package se.lublin.mumla.servers;
+
+import android.app.Activity;
+import android.app.Dialog;
+import android.content.Context;
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.TextView;
+
+class ServerEditFragment {
+    private EditText mNameEdit;
+    private EditText mHostEdit;
+    private EditText mPortEdit;
+    private EditText mUsernameEdit;
+    private EditText mPasswordEdit;
+
+    void onCreateDialog() {
+        Settings settings = Settings.getInstance(getActivity());
+        LayoutInflater inflater = LayoutInflater.from(getActivity());
+        View view = inflater.inflate(R.layout.dialog_server_edit, null, false);
+
+        TextView titleLabel = view.findViewById(R.id.server_edit_name_title);
+        mNameEdit = view.findViewById(R.id.server_edit_name);
+        mHostEdit = view.findViewById(R.id.server_edit_host);
+        mPortEdit = view.findViewById(R.id.server_edit_port);
+        mUsernameEdit = view.findViewById(R.id.server_edit_username);
+        mUsernameEdit.setHint(settings.getDefaultUsername());
+        mPasswordEdit = view.findViewById(R.id.server_edit_password);
+
+        Server oldServer = getServer();
+        if (oldServer != null) {
+            mNameEdit.setText(oldServer.getName());
+            mHostEdit.setText(oldServer.getHost());
+            if (oldServer.getPort() != 0) {
+                mPortEdit.setText(String.valueOf(oldServer.getPort()));
+            }
+            mUsernameEdit.setText(oldServer.getUsername());
+            mPasswordEdit.setText(oldServer.getPassword());
+        }
+
+        if (shouldIgnoreTitle()) {
+            titleLabel.setVisibility(View.GONE);
+            mNameEdit.setVisibility(View.GONE);
+        }
+    }
+
+    public boolean validate() {
+        if (mHostEdit.getText().length() == 0) {
+            mHostEdit.setError(getString(R.string.invalid_host));
+            return false;
+        } else if (mPortEdit.getText().length() > 0) {
+            try {
+                int port = Integer.parseInt(mPortEdit.getText().toString());
+                if (port < 1 || port > 65535) {
+                    mPortEdit.setError(getString(R.string.invalid_port_range));
+                    return false;
+                }
+            } catch (NumberFormatException nfe) {
+                mPortEdit.setError(getString(R.string.invalid_port_range));
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private Server getServer() {
+        return null;
+    }
+
+    private boolean shouldIgnoreTitle() {
+        return true;
+    }
+}
+""",
+            encoding="utf-8",
+        )
+
+        (app_layout / "dialog_server_edit.xml").write_text(
+            """<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/server_edit_name_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/server_label" />
+
+    <EditText
+        android:id="@+id/server_edit_name"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:inputType="text" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/server_host" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/server_port" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <EditText
+            android:id="@+id/server_edit_host"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:inputType="textUri" />
+        <EditText
+            android:id="@+id/server_edit_port"
+            android:layout_width="wrap_content"
+            android:maxEms="5"
+            android:layout_height="wrap_content"
+            android:hint="@string/default_"
+            android:inputType="number"
+            android:maxLength="5">
+        </EditText>
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/server_username" />
+
+    <EditText
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:id="@+id/server_edit_username"
+        android:inputType="text" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/server_password" />
+
+    <EditText
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:id="@+id/server_edit_password"
+        android:inputType="textPassword" />
+</LinearLayout>
+""",
+            encoding="utf-8",
+        )
+
+        (protocol / "ModelHandler.java").write_text(
+            """class ModelHandler {
+    private ServerSettings mServerSettings;
+    private int mPermissions;
+    private int mSession;
+
+    public ServerSettings getServerSettings() {
+        return mServerSettings;
+    }
+
+    public void clear() {
+        mChannels.clear();
+        mUsers.clear();
+    }
+
+    public void messageServerSync(Mumble.ServerSync msg) {
+        mSession = msg.getSession();
+        mLogger.logInfo(msg.getWelcomeText());
+    }
+}
 """,
             encoding="utf-8",
         )
@@ -311,10 +498,26 @@ class AudioOutput {
         )
 
         (humla_root / "HumlaService.java").write_text(
-            """class HumlaService {
+            """import android.os.Build;
+import android.os.PowerManager;
+import android.util.Log;
+
+class HumlaService {
+    private Server mServer;
+    private ModelHandler mModelHandler;
+    private HumlaCallbacks mCallbacks;
+
     void connect() {
             mConnection.setForceTCP(mForceTcp);
     }
+
+    public void onConnectionSynchronized() {
+        mCallbacks.onConnected();
+    }
+
+    public void onConnectionHandshakeFailed(X509Certificate[] chain) {
+    }
+
     void version() {
         version.setRelease(mClientName);
     }
@@ -349,6 +552,9 @@ class AudioOutput {
         audio_output = (audio / "AudioOutput.java").read_text(encoding="utf-8")
         speech = (audio / "AudioOutputSpeech.java").read_text(encoding="utf-8")
         service = (humla_root / "HumlaService.java").read_text(encoding="utf-8")
+        server_edit = (app_servers / "ServerEditFragment.java").read_text(encoding="utf-8")
+        server_edit_layout = (app_layout / "dialog_server_edit.xml").read_text(encoding="utf-8")
+        model_handler = (protocol / "ModelHandler.java").read_text(encoding="utf-8")
 
         assert "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" in manifest
         assert "VC_BATTERY_UNRESTRICTED_PERMISSION" in manifest
@@ -363,6 +569,18 @@ class AudioOutput {
         assert "อนุญาตให้ทำงานเบื้องหลัง" in strings
         assert "อนุญาตให้ VC Mumla ไม่ถูกจำกัดโดยระบบประหยัดแบตเตอรี่ของ Android" in strings
         assert "การตั้งค่าแบตเตอรี่" in strings
+        assert "VC_QUICK_JOIN_DIALOG" in server_edit
+        assert "parseQuickJoinAddress" in server_edit
+        assert "vc_xbox_username_required" in server_edit
+        assert 'android:id="@+id/server_edit_quick_join"' in server_edit_layout
+        assert 'android:id="@+id/server_edit_username_box"' in server_edit_layout
+        assert "Quick Join" in strings
+        assert "ชื่อผู้ใช้ Xbox (จำเป็น)" in strings
+        assert "Proximity Voice จะจับคู่ผู้เล่นไม่ได้" in strings
+        assert "VC_QUICK_JOIN_SERVER_NAME" in model_handler
+        assert "getVcWelcomeText" in model_handler
+        assert "VC_QUICK_JOIN_AUTO_SERVER_NAME" in service
+        assert "Hosted by VC Mumble Server" in service
 
         assert 'DEFAULT_ECHO_CANCELLATION_METHOD = "system"' in settings
         assert "PREF_VC_AEC_MIGRATED" in settings
