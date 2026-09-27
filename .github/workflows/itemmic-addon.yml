@@ -20,6 +20,17 @@ jobs:
           mkdir -p dist/itemmic
           python3 scripts/build-mic-addon-release.py --output dist/itemmic
           unzip -t dist/itemmic/VC_Mumble_ItemMic_v2.9.0.mcaddon
+          python3 - <<'PY'
+          import io, zipfile
+          from pathlib import Path
+
+          addon = Path("dist/itemmic/VC_Mumble_ItemMic_v2.9.0.mcaddon")
+          with zipfile.ZipFile(addon) as outer:
+              bp = outer.read("VC_Mumble_ItemMic_BP_v2.9.0.mcpack")
+          with zipfile.ZipFile(io.BytesIO(bp)) as pack:
+              Path("/tmp/itemmic-main.js").write_bytes(pack.read("scripts/main.js"))
+          PY
+          node --check /tmp/itemmic-main.js
           sha256sum dist/itemmic/VC_Mumble_ItemMic_v2.9.0.mcaddon
 
       - uses: actions/upload-artifact@v4
