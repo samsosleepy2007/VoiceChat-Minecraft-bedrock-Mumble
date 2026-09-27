@@ -10,6 +10,7 @@ on:
       - feature/minecraft-mic-addon-v1
       - feature/vcb-ui-attenuation-level-v1
       - fix/mic-state-sync-v1
+      - feature/itemmic-attenuation-v2.8
     paths:
       - "endstone-plugin/**"
       - "tests/test_endstone_plugin_contract.py"
@@ -52,7 +53,7 @@ jobs:
       - name: Install against Endstone 0.11 runtime
         run: |
           python -m pip install "endstone==0.11.11"
-          python -m pip install --force-reinstall endstone-plugin/dist/endstone_vc_mumble-0.4.1-py3-none-any.whl
+          python -m pip install --force-reinstall endstone-plugin/dist/endstone_vc_mumble-0.4.2-py3-none-any.whl
           python tests/test_endstone_runtime_api.py
 
       - name: Verify wheel contents
@@ -61,7 +62,7 @@ jobs:
           from pathlib import Path
           import zipfile
 
-          wheels = list(Path("endstone-plugin/dist").glob("endstone_vc_mumble-0.4.1-*.whl"))
+          wheels = list(Path("endstone-plugin/dist").glob("endstone_vc_mumble-0.4.2-*.whl"))
           assert len(wheels) == 1, wheels
           wheel = wheels[0]
           with zipfile.ZipFile(wheel) as archive:
@@ -76,6 +77,6 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: vc-mumble-endstone-plugin-v0.4.1
+          name: vc-mumble-endstone-plugin-v0.4.2
           path: endstone-plugin/dist/*.whl
           retention-days: 14
