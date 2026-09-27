@@ -27,7 +27,7 @@ ATTENUATION_LEVELS: dict[int, tuple[str, str]] = {
 
 class VCMumblePlugin(Plugin):
     prefix = "VCMumble"
-    version = "0.4.1"
+    version = "0.4.2"
     api_version = "0.11"
     description = "Standalone Minecraft position bridge for VC Mumble Server"
     authors = ["SamSoSleepy"]
@@ -304,6 +304,7 @@ class VCMumblePlugin(Plugin):
 
     def _sync_player_from_ui(self, player: Player) -> None:
         self._publish_addon_range_tags(player)
+        self._publish_addon_attenuation_tags(player)
         self._broadcast_current_player(player)
         player.send_message("VC Mumble: synced your current voice settings.")
         self._show_main_menu(player)
@@ -627,6 +628,7 @@ class VCMumblePlugin(Plugin):
 
     def handle_player_join(self, player: Player) -> None:
         self._publish_addon_range_tags(player)
+        self._publish_addon_attenuation_tags(player)
         state = self._snapshot_if_valid(player)
         if state is None:
             return
@@ -770,6 +772,12 @@ class VCMumblePlugin(Plugin):
         key = self._player_key(player)
         binding = dict(self._bindings.get(key, {}))
         current_range = int(binding.get("range") or self._default_range)
+        current_attenuation = self._bounded_int(
+            binding.get("attenuation_level", self._default_attenuation_level),
+            0,
+            4,
+            self._default_attenuation_level,
+        )
         maximum = 1000 if self._is_operator(player) else self._max_range
         changed = False
 
@@ -779,35 +787,90 @@ class VCMumblePlugin(Plugin):
                 self._remove_player_tag(player, tag)
                 self._publish_addon_range_tags(player, current_range, maximum)
                 if request_id:
-                    self._add_player_tag(player, f"vcmumble.vr.ack.{request_id}.ok.{current_range}")
+                    self._add_player_tag(
+                        player,
+                        f"vcmumble.vr.ack.{request_id}.ok.{current_range}",
+                    )
                 continue
 
-            if not tag.startswith("vcmumble.vr.request."):
+            if tag.startswith("vcmumble.vr.request."):
+                payload = tag[len("vcmumble.vr.request."):]
+                request_id, separator, raw_value = payload.rpartition(".")
+                self._remove_player_tag(player, tag)
+                status = "error"
+                accepted = current_range
+                try:
+                    requested = int(raw_value) if separator else 0
+                except ValueError:
+                    requested = 0
+
+                if request_id and 1 <= requested <= maximum:
+                    accepted = requested
+                    status = "ok"
+                    if accepted != current_range:
+                        binding["range"] = accepted
+                        self._bindings[key] = binding
+                        self._save_bindings()
+                        current_range = accepted
+                        changed = True
+
+                self._publish_addon_range_tags(player, current_range, maximum)
+                if request_id:
+                    self._add_player_tag(
+                        player,
+                        f"vcmumble.vr.ack.{request_id}.{status}.{current_range}",
+                    )
                 continue
 
-            payload = tag[len("vcmumble.vr.request."):]
+            if tag.startswith("vcmumble.attn.sync."):
+                request_id = tag[len("vcmumble.attn.sync."):]
+                self._remove_player_tag(player, tag)
+                self._publish_addon_attenuation_tags(
+                    player,
+                    current_attenuation,
+                )
+                if request_id:
+                    self._add_player_tag(
+                        player,
+                        f"vcmumble.attn.ack.{request_id}.ok.{current_attenuation}",
+                    )
+                continue
+
+            if not tag.startswith("vcmumble.attn.request."):
+                continue
+
+            payload = tag[len("vcmumble.attn.request."):]
             request_id, separator, raw_value = payload.rpartition(".")
             self._remove_player_tag(player, tag)
             status = "error"
-            accepted = current_range
+            accepted_level = current_attenuation
             try:
-                requested = int(raw_value) if separator else 0
+                requested_level = int(raw_value) if separator else -1
             except ValueError:
-                requested = 0
+                requested_level = -1
 
-            if request_id and 1 <= requested <= maximum:
-                accepted = requested
+            if request_id and 0 <= requested_level <= 4:
+                accepted_level = requested_level
                 status = "ok"
-                if accepted != current_range:
-                    binding["range"] = accepted
+                if accepted_level != current_attenuation:
+                    if accepted_level == self._default_attenuation_level:
+                        binding.pop("attenuation_level", None)
+                    else:
+                        binding["attenuation_level"] = accepted_level
                     self._bindings[key] = binding
                     self._save_bindings()
-                    current_range = accepted
+                    current_attenuation = accepted_level
                     changed = True
 
-            self._publish_addon_range_tags(player, current_range, maximum)
+            self._publish_addon_attenuation_tags(
+                player,
+                current_attenuation,
+            )
             if request_id:
-                self._add_player_tag(player, f"vcmumble.vr.ack.{request_id}.{status}.{current_range}")
+                self._add_player_tag(
+                    player,
+                    f"vcmumble.attn.ack.{request_id}.{status}.{current_attenuation}",
+                )
 
         return changed
 
@@ -820,9 +883,41 @@ class VCMumblePlugin(Plugin):
         key = self._player_key(player)
         binding = self._bindings.get(key, {})
         value = int(current_range or binding.get("range") or self._default_range)
-        max_value = int(maximum or (1000 if self._is_operator(player) else self._max_range))
-        self._replace_player_tag_prefix(player, "vcmumble.vr.value.", f"vcmumble.vr.value.{value}")
-        self._replace_player_tag_prefix(player, "vcmumble.vr.max.", f"vcmumble.vr.max.{max_value}")
+        max_value = int(
+            maximum or (1000 if self._is_operator(player) else self._max_range)
+        )
+        self._replace_player_tag_prefix(
+            player,
+            "vcmumble.vr.value.",
+            f"vcmumble.vr.value.{value}",
+        )
+        self._replace_player_tag_prefix(
+            player,
+            "vcmumble.vr.max.",
+            f"vcmumble.vr.max.{max_value}",
+        )
+
+    def _publish_addon_attenuation_tags(
+        self,
+        player: Player,
+        current_level: int | None = None,
+    ) -> None:
+        key = self._player_key(player)
+        level = (
+            self._attenuation_level_for_key(key)
+            if current_level is None
+            else self._bounded_int(
+                current_level,
+                0,
+                4,
+                self._default_attenuation_level,
+            )
+        )
+        self._replace_player_tag_prefix(
+            player,
+            "vcmumble.attn.value.",
+            f"vcmumble.attn.value.{level}",
+        )
 
     @staticmethod
     def _replace_player_tag_prefix(player: Player, prefix: str, replacement: str) -> None:
