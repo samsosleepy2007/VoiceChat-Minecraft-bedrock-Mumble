@@ -12,10 +12,10 @@ env:
   QT_VERSION: '6.8.3'
   VCPKG_TAG: '2026.07.29'
   NDK_VERSION: '28.2.13676358'
-  RELEASE_TAG: 'v0.6.0-beta.11'
-  RELEASE_APK: 'VC-Mumble-Server-v0.6.0-beta.11-arm64-v8a.apk'
+  RELEASE_TAG: 'v0.6.0-beta.12'
+  RELEASE_APK: 'VC-Mumble-Server-v0.6.0-beta.12-arm64-v8a.apk'
   RELEASE_PLUGIN: 'endstone_vc_mumble-0.4.2-py3-none-any.whl'
-  RELEASE_ADDON: 'VC_Mumble_ItemMic_v2.8.0.mcaddon'
+  RELEASE_ADDON: 'VC_Mumble_ItemMic_v2.9.0.mcaddon'
   RELEASE_MUMLA: 'VC-Mumla-v0.5-aec-debug.apk'
   MUMLA_NDK_VERSION: '25.1.8937393'
   RELEASE_CHECKSUMS: 'SHA256SUMS.txt'
@@ -196,7 +196,7 @@ jobs:
           test -f "endstone-plugin/dist/${RELEASE_PLUGIN}"
           cp "endstone-plugin/dist/${RELEASE_PLUGIN}" "${RELEASE_PLUGIN}"
 
-          rm -f VC_Mumble_ItemMic_BP_v2.8.0.mcpack VC_Mumble_ItemMic_RP_v2.8.0.mcpack "${RELEASE_ADDON}"
+          rm -f VC_Mumble_ItemMic_BP_v2.9.0.mcpack VC_Mumble_ItemMic_RP_v2.9.0.mcpack "${RELEASE_ADDON}"
           python3 scripts/build-mic-addon-release.py --output .
           test -f "${RELEASE_ADDON}"
           unzip -t "${RELEASE_ADDON}" >/dev/null
