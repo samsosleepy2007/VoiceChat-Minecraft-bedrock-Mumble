@@ -1,0 +1,29 @@
+name: Item Mic Addon
+
+on:
+  push:
+    branches:
+      - feature/itemmic-range-preview-v2.9
+      - main
+
+jobs:
+  build:
+    if: github.ref_name == 'feature/itemmic-range-preview-v2.9' || contains(github.event.head_commit.message, '[itemmic-build]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and test Item Mic v2.9.0
+        run: |
+          python3 tests/test_itemmic_v29_builder.py
+          rm -rf dist/itemmic
+          mkdir -p dist/itemmic
+          python3 scripts/build-mic-addon-release.py --output dist/itemmic
+          unzip -t dist/itemmic/VC_Mumble_ItemMic_v2.9.0.mcaddon
+          sha256sum dist/itemmic/VC_Mumble_ItemMic_v2.9.0.mcaddon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VC_Mumble_ItemMic_v2.9.0
+          path: dist/itemmic/VC_Mumble_ItemMic_v2.9.0.mcaddon
+          retention-days: 14
