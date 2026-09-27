@@ -143,8 +143,7 @@ async function showSettings(player) {
     };
 
     try {
-      // Player.spawnParticle is intentionally used here instead of
-      // Dimension.spawnParticle: only this player can see their preview ring.
+      // This player-targeted particle call keeps the preview private.
       player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);
     } catch {
       // A very large range can reach unloaded chunks. Skip those points only.
@@ -293,7 +292,7 @@ async function showSettings(player) {
         "showVoiceRangePreview(player, sliderValue);",
         "submitRange(sliderValue);",
         "player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);",
-        "only this player can see their preview ring",
+        "This player-targeted particle call keeps the preview private.",
     ]
     for marker in required:
         if marker not in text:
