@@ -208,8 +208,8 @@ grep -Fq 'android.permission.WAKE_LOCK' app/src/main/AndroidManifest.xml
 grep -Fq 'android:stopWithTask="false"' app/src/main/AndroidManifest.xml
 grep -Fq 'android:icon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
 grep -Fq 'android:roundIcon="@mipmap/ic_launcher_sleepy"' app/src/main/AndroidManifest.xml
-grep -Fq 'versionCode = 15' app/build.gradle.kts
-grep -Fq 'versionName = "0.6.0-beta.10"' app/build.gradle.kts
+grep -Fq 'versionCode = 16' app/build.gradle.kts
+grep -Fq 'versionName = "0.6.0-beta.11"' app/build.gradle.kts
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher.png
 test ! -e app/src/main/res/drawable-nodpi/ic_launcher_sleepy.png
 grep -Fq 'PowerManager.PARTIAL_WAKE_LOCK' app/src/core/java/com/voicecraft/vcmumbleserver/MumbleServerService.java
@@ -276,7 +276,7 @@ test "$(grep -Fc 'CORE_DYNSYMS=' scripts/build-mumble-android-core.sh)" -eq 1
 rm -rf .build/mic-addon-contract
 mkdir -p .build/mic-addon-contract
 python3 scripts/build-mic-addon-release.py --output .build/mic-addon-contract >/dev/null
-test -f .build/mic-addon-contract/VC_Mumble_ItemMic_v2.7.6.mcaddon
-unzip -t .build/mic-addon-contract/VC_Mumble_ItemMic_v2.7.6.mcaddon >/dev/null
+test -f .build/mic-addon-contract/VC_Mumble_ItemMic_v2.8.0.mcaddon
+unzip -t .build/mic-addon-contract/VC_Mumble_ItemMic_v2.8.0.mcaddon >/dev/null
 
 echo "VC Mumble Server project structure: OK"
