@@ -12,12 +12,12 @@ on:
       - fix/mic-state-sync-v1
       - feature/itemmic-attenuation-v2.8
       - feature/itemmic-dome-range-v2.10
+      - experiment/vc-mumble-unified-mcsv-host
     paths:
       - "endstone-plugin/**"
       - "tests/test_endstone_plugin_contract.py"
-      - "tests/test_endstone_bridge_integration.py"
       - "tests/test_endstone_runtime_api.py"
-      - "tests/test_vc_mumble_bridge_contract.py"
+      - "tests/test_endstone_unified_host_contract.py"
       - "docs/VC_MUMBLE_ENDSTONE.md"
       - ".github/workflows/endstone-proximity-plugin.yml"
 
@@ -36,14 +36,16 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Prepare unified Mumble runtime
+        run: python endstone-plugin/prepare_unified_runtime.py
+
       - name: Compile plugin sources
         run: python -m compileall -q endstone-plugin/src
 
-      - name: Run Endstone protocol contracts
+      - name: Run Endstone unified-host contracts
         run: |
           python tests/test_endstone_plugin_contract.py
-          python tests/test_endstone_bridge_integration.py
-          python tests/test_vc_mumble_bridge_contract.py
+          python tests/test_endstone_unified_host_contract.py
 
       - name: Build wheel
         run: |
@@ -54,7 +56,7 @@ jobs:
       - name: Install against Endstone 0.11 runtime
         run: |
           python -m pip install "endstone==0.11.11"
-          python -m pip install --force-reinstall endstone-plugin/dist/endstone_vc_mumble-0.4.3-py3-none-any.whl
+          python -m pip install --force-reinstall endstone-plugin/dist/endstone_vc_mumble-0.5.0-py3-none-any.whl
           python tests/test_endstone_runtime_api.py
 
       - name: Verify wheel contents
@@ -63,13 +65,16 @@ jobs:
           from pathlib import Path
           import zipfile
 
-          wheels = list(Path("endstone-plugin/dist").glob("endstone_vc_mumble-0.4.3-*.whl"))
+          wheels = list(Path("endstone-plugin/dist").glob("endstone_vc_mumble-0.5.0-*.whl"))
           assert len(wheels) == 1, wheels
           wheel = wheels[0]
           with zipfile.ZipFile(wheel) as archive:
               names = set(archive.namelist())
               assert "endstone_vc_mumble/plugin.py" in names
-              assert "endstone_vc_mumble/bridge.py" in names
+              assert "endstone_vc_mumble/host.py" in names
+              assert "endstone_vc_mumble/local_state.py" in names
+              assert "endstone_vc_mumble/bin/mumble-server-vc" in names
+              assert "endstone_vc_mumble/bridge.py" not in names
               assert "endstone_vc_mumble/listener.py" in names
               assert "endstone_vc_mumble/model.py" in names
               assert "endstone_vc_mumble/config.toml" in names
@@ -78,6 +83,6 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: vc-mumble-endstone-plugin-v0.4.3
+          name: vc-mumble-unified-mcsv-v0.5.0
           path: endstone-plugin/dist/*.whl
           retention-days: 14
