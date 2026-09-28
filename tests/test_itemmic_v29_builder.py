@@ -40,8 +40,9 @@ def main() -> None:
             assert manifest["header"]["version"] == [2, 10, 0]
             assert manifest["header"]["name"] == "VC Mumble Item Mic BP v2.10.0"
             assert "showVoiceRangePreview(player, sliderValue);" in script
-            assert "MolangVariableMap" in script
-            assert 'variables.setFloat("variable.vcmumble_diameter", radius * 2);' in script
+            assert "MolangVariableMap" not in script
+            assert 'String(radius).padStart(3, "0")' in script
+            assert 'const particleId = voiceRangePreviewParticleId(radius);' in script
             assert "center.y + 0.04" in script
             assert "center.y + radius" in script
             assert '.button("20 บล็อก", () => submitQuickRange(20), {' in script
@@ -73,37 +74,45 @@ def main() -> None:
 
         with zipfile.ZipFile(rp_file) as rp:
             manifest = json.loads(rp.read("manifest.json"))
-            particle = json.loads(
-                rp.read("particles/voice_range_preview.particle.json")
+            particle_1 = json.loads(
+                rp.read("particles/voice_range_preview_001.particle.json")
+            )
+            particle_150 = json.loads(
+                rp.read("particles/voice_range_preview_150.particle.json")
             )
             texture = rp.read("textures/particle/vcmumble_voice_range_dot.png")
 
             assert manifest["header"]["version"] == [2, 10, 0]
             assert manifest["header"]["name"] == "VC Mumble Mic Icons RP v2.10.0"
-            assert (
-                particle["particle_effect"]["description"]["identifier"]
-                == "vcmumble:voice_range_preview"
-            )
-            components = particle["particle_effect"]["components"]
-            lifetime = components[
-                "minecraft:particle_lifetime_expression"
-            ]["max_lifetime"]
-            assert lifetime <= 0.35
-            assert components["minecraft:emitter_rate_instant"]["num_particles"] == 1
-            point = components["minecraft:emitter_shape_point"]
-            assert point["offset"] == [0, 0, 0]
-            assert point["direction"] == [0, 0, 0]
-            assert "minecraft:emitter_shape_sphere" not in components
-            billboard = components["minecraft:particle_appearance_billboard"]
-            assert billboard["facing_camera_mode"] == "emitter_transform_xz"
-            assert billboard["size"] == [
-                "variable.vcmumble_diameter",
-                "variable.vcmumble_diameter",
+            for radius, particle in ((1, particle_1), (150, particle_150)):
+                assert (
+                    particle["particle_effect"]["description"]["identifier"]
+                    == f"vcmumble:voice_range_preview_{radius:03d}"
+                )
+                components = particle["particle_effect"]["components"]
+                lifetime = components[
+                    "minecraft:particle_lifetime_expression"
+                ]["max_lifetime"]
+                assert lifetime <= 0.35
+                assert components["minecraft:emitter_rate_instant"]["num_particles"] == 1
+                point = components["minecraft:emitter_shape_point"]
+                assert point["offset"] == [0, 0, 0]
+                assert point["direction"] == [0, 0, 0]
+                assert "minecraft:emitter_shape_sphere" not in components
+                billboard = components["minecraft:particle_appearance_billboard"]
+                assert billboard["facing_camera_mode"] == "emitter_transform_xz"
+                assert billboard["size"] == [float(radius * 2), float(radius * 2)]
+                assert "minecraft:particle_motion_dynamic" not in components
+
+            particle_files = [
+                name for name in rp.namelist()
+                if name.startswith("particles/voice_range_preview_")
+                and name.endswith(".particle.json")
             ]
-            assert "minecraft:particle_motion_dynamic" not in components
+            assert len(particle_files) == 150
             assert texture.startswith(b"\x89PNG\r\n\x1a\n")
 
-    print("Item Mic v2.10.0 two-plate horizontal Voice Range preview + split DDUI: OK")
+    print("Item Mic v2.10.0 static 1-150 horizontal Voice Range plates + split DDUI: OK")
 
 
 if __name__ == "__main__":
