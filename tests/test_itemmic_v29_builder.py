@@ -54,7 +54,12 @@ def main() -> None:
             assert "Dimension.spawnParticle" not in script
             assert ".dimension.spawnParticle" not in script
             assert "ใช้ระยะจาก Slider" not in script
-            assert "วง Preview จะเห็นเฉพาะตัวคุณเอง" in script
+            assert "โดม Preview จะเห็นเฉพาะตัวคุณเอง" in script
+            assert "กำหนดระยะเอง" not in script
+            assert "ใช้ระยะที่กำหนด" not in script
+            assert '.header("Distance Volume")' not in script
+            assert '.button("4 • แรงมาก"' not in script
+            assert "Distance Volume = ปกติ (2)" not in script
 
         with zipfile.ZipFile(rp_file) as rp:
             manifest = json.loads(rp.read("manifest.json"))
