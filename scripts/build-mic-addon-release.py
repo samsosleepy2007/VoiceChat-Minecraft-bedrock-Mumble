@@ -515,7 +515,7 @@ async function showSettings(player) {
     )
 
     main_ui_pattern = re.compile(
-        r'    const form = new CustomForm\\(player, "VC Mumble • Mic Settings"\\).*?      \\.closeButton\\(\\);\\n',
+        r'    const form = new CustomForm\(player, "VC Mumble • Mic Settings"\).*?      \.closeButton\(\);\n',
         re.DOTALL,
     )
     main_ui_new = '''    const mainPageVisible = new ObservableBoolean(true);
