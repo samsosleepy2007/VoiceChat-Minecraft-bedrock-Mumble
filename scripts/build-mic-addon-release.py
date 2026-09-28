@@ -852,16 +852,23 @@ def main() -> int:
         outer.writestr(BP_NAME, bp)
         outer.writestr(RP_NAME, rp)
 
-    validate_pack(bp, BP_UUID, "VC Mumble Item Mic BP v2.10.0")
-    validate_pack(rp, RP_UUID, "VC Mumble Mic Icons RP v2.10.0")
+    validate_pack(bp, BP_UUID, "VC Mumble Item Mic BP v2.11.0")
+    validate_pack(rp, RP_UUID, "VC Mumble Mic Icons RP v2.11.0")
 
     (output / BP_NAME).write_bytes(bp)
     (output / RP_NAME).write_bytes(rp)
+
+    with zipfile.ZipFile(io.BytesIO(bp)) as archive:
+        assert "items/phone.item.json" in archive.namelist()
 
     with zipfile.ZipFile(io.BytesIO(rp)) as archive:
         assert "particles/voice_range_preview_001.particle.json" in archive.namelist()
         assert "particles/voice_range_preview_150.particle.json" in archive.namelist()
         assert "textures/particle/vcmumble_voice_range_dot.png" in archive.namelist()
+        assert "attachables/phone.entity.json" in archive.namelist()
+        assert "models/entity/voicecraft_phone.geo.json" in archive.namelist()
+        assert "textures/entity/voicecraft_phone.png" in archive.namelist()
+        assert "textures/items/icon_phone.png" in archive.namelist()
 
     print(addon)
     print(f"sha256={sha256(addon.read_bytes())}")
