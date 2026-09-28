@@ -45,7 +45,7 @@ def preview_particle(radius: int) -> dict:
                     "offset": [0, 0, 0],
                     "direction": [0, 0, 0],
                 },
-                "minecraft:particle_lifetime_expression": {"max_lifetime": 0.28},
+                "minecraft:particle_lifetime_expression": {"max_lifetime": 1.2},
                 "minecraft:particle_appearance_billboard": {
                     "size": [diameter, diameter],
                     "facing_camera_mode": "emitter_transform_xz",
@@ -110,7 +110,7 @@ def patch_main_js(raw: bytes) -> bytes:
         'const DEFAULT_MAX_RANGE = 150;\n',
         'const DEFAULT_MAX_RANGE = 150;\n'
         'const VOICE_RANGE_PREVIEW_PREFIX = "vcmumble:voice_range_preview_";\n'
-        'const VOICE_RANGE_COMMIT_DEBOUNCE_TICKS = 8;\n'
+        'const VOICE_RANGE_SLIDER_SETTLE_TICKS = 15;\n'
         'const VOICE_RANGE_CHANGE_COOLDOWN_TICKS = 20 * 30;\n',
         1,
     )
@@ -136,6 +136,15 @@ function startVoiceRangeCooldown(player) {
     player.id,
     system.currentTick + VOICE_RANGE_CHANGE_COOLDOWN_TICKS
   );
+}
+
+function setObservableIfChanged(observable, value) {
+  try {
+    if (observable.getData() === value) return;
+  } catch {}
+  try {
+    observable.setData(value);
+  } catch {}
 }
 """,
         1,
@@ -195,6 +204,8 @@ async function showSettings(player) {
       clientWritable: true,
     });
     let lastSliderRange = Math.floor(rangeSlider.getData());
+    let sliderCandidateRange = null;
+    let sliderSettleDueTick = 0;
     let queuedSliderRange = null;
     let sliderCommitDueTick = 0;
 
@@ -207,13 +218,15 @@ async function showSettings(player) {
     cooldown_submit_anchor = '''      const requestId = requestVoiceRange(player, value);
       if (!requestId) {
 '''
-    cooldown_submit = '''      const cooldownSeconds = voiceRangeCooldownSeconds(player);
-      if (cooldownSeconds > 0) {
+    cooldown_submit = '''      const cooldownTicks = voiceRangeCooldownTicks(player);
+      if (cooldownTicks > 0) {
+        const cooldownSeconds = Math.ceil(cooldownTicks / 20);
         queuedSliderRange = value;
-        sliderCommitDueTick = system.currentTick + 20;
-        customRange.setData(String(value));
-        rangeConfirmText.setData(
-          `สถานะ Endstone: §eคูลดาวน์ ${cooldownSeconds} วิ • Preview ${value} บล็อก§r\\n`
+        sliderCommitDueTick = system.currentTick + cooldownTicks;
+        setObservableIfChanged(customRange, String(value));
+        setObservableIfChanged(
+          rangeConfirmText,
+          `สถานะ Endstone: §eคูลดาวน์ ${cooldownSeconds} วิ • รอใช้ ${value} บล็อก§r\\n`
         );
         return;
       }
@@ -392,20 +405,32 @@ async function showSettings(player) {
           Math.min(Math.floor(rangeSlider.getData()), nextMax)
         );
         if (sliderValue !== lastSliderRange) {
-          // Preview stays realtime, but the authoritative Endstone update is
-          // debounced so dragging cannot create a request/ACK + disk-write storm.
+          // While the finger is moving, only remember the newest value.
+          // No particle preview, Endstone request, tag ACK, or DDUI status write
+          // happens here. The value is processed once after the slider settles.
           lastSliderRange = sliderValue;
-          showVoiceRangePreview(player, sliderValue);
+          sliderCandidateRange = sliderValue;
+          sliderSettleDueTick =
+            system.currentTick + VOICE_RANGE_SLIDER_SETTLE_TICKS;
+        }
 
-          if (!pendingRequestId && sliderValue === confirmedRange) {
+        if (
+          sliderCandidateRange !== null &&
+          system.currentTick >= sliderSettleDueTick
+        ) {
+          const settledValue = sliderCandidateRange;
+          sliderCandidateRange = null;
+          showVoiceRangePreview(player, settledValue);
+
+          if (!pendingRequestId && settledValue === confirmedRange) {
             queuedSliderRange = null;
-            rangeConfirmText.setData(
+            setObservableIfChanged(
+              rangeConfirmText,
               `สถานะ Endstone: §aใช้อยู่แล้ว — ${confirmedRange} บล็อก§r\\n`
             );
           } else {
-            queuedSliderRange = sliderValue;
-            sliderCommitDueTick =
-              system.currentTick + VOICE_RANGE_COMMIT_DEBOUNCE_TICKS;
+            queuedSliderRange = settledValue;
+            sliderCommitDueTick = system.currentTick;
           }
         }
 
@@ -508,7 +533,7 @@ async function showSettings(player) {
         step: 1,
         visible: mainPageVisible,
         description:
-          "ลากเพื่อ Preview แบบ realtime • การเปลี่ยนระยะจริงมีคูลดาวน์ 30 วิ",
+          "ลากแล้วปล่อย • เมื่อหยุดประมาณ 0.75 วิ จะแสดง Preview และใช้ค่าล่าสุดครั้งเดียว • คูลดาวน์ 30 วิ",
       })
       .spacer({ visible: mainPageVisible })
       .button("ตั้งค่า", showSettingsPage, {
@@ -588,18 +613,20 @@ async function showSettings(player) {
 
     text = text.replace(
         '"[VCMumbleItem/BP] Loaded v2.8.0 — VC Mumble native mic/range contract (feature/minecraft-mic-addon-v1)"',
-        '"[VCMumbleItem/BP] Loaded v2.10.0 — static horizontal green range plates + 30s range cooldown"',
+        '"[VCMumbleItem/BP] Loaded v2.10.0 — settle-only slider + static green plates + 30s cooldown"',
         1,
     )
 
     required = [
-        "showVoiceRangePreview(player, sliderValue);",
+        "showVoiceRangePreview(player, settledValue);",
         "submitQuickRange(20)",
         'const particleId = voiceRangePreviewParticleId(radius);',
         "center.y + 0.04",
         "center.y + radius",
         'String(radius).padStart(3, "0")',
+        "const VOICE_RANGE_SLIDER_SETTLE_TICKS = 15;",
         "const VOICE_RANGE_CHANGE_COOLDOWN_TICKS = 20 * 30;",
+        "sliderCandidateRange = sliderValue;",
         "startVoiceRangeCooldown(player);",
         'button("20 บล็อก", () => submitQuickRange(20), {',
         '.button("ตั้งค่า", showSettingsPage, {',
