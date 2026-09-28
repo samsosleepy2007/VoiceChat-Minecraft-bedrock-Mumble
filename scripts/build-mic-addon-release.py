@@ -11,13 +11,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "minecraft-addon" / "v2.8.0" / "VC_Mumble_ItemMic_v2.8.0.mcaddon.b64"
-ADDON_NAME = "VC_Mumble_ItemMic_v2.9.0.mcaddon"
-BP_NAME = "VC_Mumble_ItemMic_BP_v2.9.0.mcpack"
-RP_NAME = "VC_Mumble_ItemMic_RP_v2.9.0.mcpack"
+ADDON_NAME = "VC_Mumble_ItemMic_v2.10.0.mcaddon"
+BP_NAME = "VC_Mumble_ItemMic_BP_v2.10.0.mcpack"
+RP_NAME = "VC_Mumble_ItemMic_RP_v2.10.0.mcpack"
 BASE_BP_NAME = "VC_Mumble_ItemMic_BP_v2.8.0.mcpack"
 BASE_RP_NAME = "VC_Mumble_ItemMic_RP_v2.8.0.mcpack"
 BASE_SHA256 = "2e5da0b7692383af9b836544e3324bb46cde6185c3419e0ad86de7d850aab522"
-VERSION = [2, 9, 0]
+VERSION = [2, 10, 0]
 BP_UUID = "b6411120-cc4e-44a9-b28d-f43b10cafd86"
 RP_UUID = "cb345edb-6e6c-49ac-9950-e2ae07bda214"
 
@@ -80,19 +80,19 @@ def bump_manifest(raw: bytes, *, pack: str) -> bytes:
         module["version"] = VERSION
 
     if pack == "bp":
-        manifest["header"]["name"] = "VC Mumble Item Mic BP v2.9.0"
+        manifest["header"]["name"] = "VC Mumble Item Mic BP v2.10.0"
         manifest["header"]["description"] = (
-            "VC Mumble Item Mic: Mic ON/OFF, realtime DDUI voice-range preview, "
+            "VC Mumble Item Mic: Mic ON/OFF, realtime private 3D DDUI voice-range preview, "
             "Endstone voice-range control, and distance-volume attenuation control."
         )
         for dependency in manifest.get("dependencies", []):
             if dependency.get("uuid") == RP_UUID:
                 dependency["version"] = VERSION
     else:
-        manifest["header"]["name"] = "VC Mumble Mic Icons RP v2.9.0"
+        manifest["header"]["name"] = "VC Mumble Mic Icons RP v2.10.0"
         manifest["header"]["description"] = (
-            "Inventory icons, invisible held Mic model, and local Voice Range preview "
-            "particle for VC Mumble Item Mic v2.9.0."
+            "Inventory icons, invisible held Mic model, and private 3D Voice Range preview "
+            "particle for VC Mumble Item Mic v2.10.0."
         )
 
     return (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
@@ -106,7 +106,8 @@ def patch_main_js(raw: bytes) -> bytes:
         'const DEFAULT_MAX_RANGE = 150;\n'
         'const VOICE_RANGE_PREVIEW_PARTICLE = "vcmumble:voice_range_preview";\n'
         'const VOICE_RANGE_PREVIEW_MIN_POINTS = 24;\n'
-        'const VOICE_RANGE_PREVIEW_MAX_POINTS = 120;\n',
+        'const VOICE_RANGE_PREVIEW_MAX_POINTS = 120;\n'
+        'const VOICE_RANGE_COMMIT_DEBOUNCE_TICKS = 8;\n',
         1,
     )
 
@@ -115,16 +116,17 @@ const openSettingsForms = new Map();
 
 async function showSettings(player) {
 '''
-    preview = '''function showVoiceRangePreview(player, rawRadius) {
+    preview = '''function spawnVoiceRangePreviewPoint(player, location) {
+  try {
+    // Player-targeted particles keep the visualization private.
+    player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);
+  } catch {
+    // Large radii can touch unloaded chunks. Skip only those points.
+  }
+}
+
+function showVoiceRangePreview(player, rawRadius) {
   const radius = Math.max(1, Math.floor(Number(rawRadius) || 1));
-  const circumference = Math.PI * 2 * radius;
-  const points = Math.max(
-    VOICE_RANGE_PREVIEW_MIN_POINTS,
-    Math.min(
-      VOICE_RANGE_PREVIEW_MAX_POINTS,
-      Math.ceil(circumference / 3.5)
-    )
-  );
 
   let center;
   try {
@@ -133,20 +135,47 @@ async function showSettings(player) {
     return;
   }
 
-  const y = center.y + 0.12;
-  for (let i = 0; i < points; i++) {
-    const angle = (Math.PI * 2 * i) / points;
-    const location = {
-      x: center.x + Math.cos(angle) * radius,
-      y,
-      z: center.z + Math.sin(angle) * radius,
-    };
+  // Bounded wireframe volume: three latitude rings show width while four
+  // vertical meridians show the microphone reach above and below the player.
+  const equatorPoints = Math.max(
+    VOICE_RANGE_PREVIEW_MIN_POINTS,
+    Math.min(32, Math.ceil((Math.PI * 2 * radius) / 5))
+  );
+  const centerY = center.y + 0.12;
+  const latitudeDegrees = [-45, 0, 45];
 
-    try {
-      // This player-targeted particle call keeps the preview private.
-      player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);
-    } catch {
-      // A very large range can reach unloaded chunks. Skip those points only.
+  for (const latitudeDeg of latitudeDegrees) {
+    const latitude = (latitudeDeg * Math.PI) / 180;
+    const horizontalRadius = radius * Math.cos(latitude);
+    const y = centerY + radius * Math.sin(latitude);
+    const latitudePoints =
+      latitudeDeg === 0
+        ? equatorPoints
+        : Math.max(16, Math.floor(equatorPoints * 0.65));
+
+    for (let i = 0; i < latitudePoints; i++) {
+      const angle = (Math.PI * 2 * i) / latitudePoints;
+      spawnVoiceRangePreviewPoint(player, {
+        x: center.x + Math.cos(angle) * horizontalRadius,
+        y,
+        z: center.z + Math.sin(angle) * horizontalRadius,
+      });
+    }
+  }
+
+  const meridianCount = 4;
+  const meridianPoints = 11;
+  for (let meridian = 0; meridian < meridianCount; meridian++) {
+    const longitude = (Math.PI * meridian) / meridianCount;
+    for (let step = 0; step < meridianPoints; step++) {
+      const latitude =
+        -Math.PI / 2 + (Math.PI * step) / (meridianPoints - 1);
+      const horizontalRadius = radius * Math.cos(latitude);
+      spawnVoiceRangePreviewPoint(player, {
+        x: center.x + Math.cos(longitude) * horizontalRadius,
+        y: centerY + Math.sin(latitude) * radius,
+        z: center.z + Math.sin(longitude) * horizontalRadius,
+      });
     }
   }
 }
@@ -170,6 +199,8 @@ async function showSettings(player) {
       clientWritable: true,
     });
     let lastSliderRange = Math.floor(rangeSlider.getData());
+    let queuedSliderRange = null;
+    let sliderCommitDueTick = 0;
 
     let confirmedRange = initialRange;
 '''
@@ -205,13 +236,113 @@ async function showSettings(player) {
     new_slider_ui = '''      .slider("ระยะเสียงแบบ Slider", rangeSlider, 1, sliderMax, {
         step: 1,
         description:
-          "ลากเพื่อเปลี่ยนระยะทันที • วง Preview จะเห็นเฉพาะตัวคุณเอง",
+          "ลากเพื่อเปลี่ยนระยะทันที • โดม Preview จะเห็นเฉพาะตัวคุณเอง",
       })
       .spacer()
 '''
     if old_slider_ui not in text:
         raise RuntimeError("could not locate DDUI slider controls")
     text = text.replace(old_slider_ui, new_slider_ui, 1)
+
+    quick_helper_anchor = '''    const submitAttenuation = (rawLevel) => {
+'''
+    quick_helper = '''    const submitQuickRange = (rawValue) => {
+      const value = Math.floor(Number(rawValue));
+      if (!Number.isFinite(value) || value < 1) return;
+
+      lastSliderRange = value;
+      rangeSlider.setData(value);
+      showVoiceRangePreview(player, value);
+
+      // Repeated taps on the same quick button must not create duplicate
+      // requests. If a request is pending, retain only the newest value.
+      if (value === pendingRange) return;
+      if (!pendingRequestId && value === confirmedRange) {
+        rangeConfirmText.setData(
+          `สถานะ Endstone: §aใช้อยู่แล้ว — ${value} บล็อก§r\\n`
+        );
+        return;
+      }
+      if (pendingRequestId) {
+        queuedSliderRange = value;
+        sliderCommitDueTick = system.currentTick;
+        return;
+      }
+
+      queuedSliderRange = null;
+      sliderCommitDueTick = 0;
+      submitRange(value);
+    };
+
+    const submitAttenuation = (rawLevel) => {
+'''
+    if quick_helper_anchor not in text:
+        raise RuntimeError("could not locate quick-range helper anchor")
+    text = text.replace(quick_helper_anchor, quick_helper, 1)
+
+    old_quick_buttons = '''      .button("5 บล็อก", () => submitRange(5))
+      .button("10 บล็อก", () => submitRange(10))
+      .button("30 บล็อก", () => submitRange(30))
+'''
+    new_quick_buttons = '''      .button("10 บล็อก", () => submitQuickRange(10))
+      .button("20 บล็อก", () => submitQuickRange(20))
+      .button("30 บล็อก", () => submitQuickRange(30))
+'''
+    if old_quick_buttons not in text:
+        raise RuntimeError("could not locate quick-range buttons")
+    text = text.replace(old_quick_buttons, new_quick_buttons, 1)
+
+    advanced_ui = '''      .toggle("กำหนดระยะเอง", advancedVisible, {
+        description: "เปิดเพื่อกรอกค่าระยะเป็นบล็อก",
+      })
+      .textField("ระยะเสียง (บล็อก)", customRange, {
+        visible: advancedVisible,
+        description: isOperator(player)
+          ? "Operator ใช้ค่าได้สูงสุดตาม Endstone (ปัจจุบัน 1000)"
+          : "ค่าต้องไม่เกินระยะสูงสุดของเซิร์ฟเวอร์",
+      })
+      .button("ใช้ระยะที่กำหนด", () => submitRange(customRange.getData()), {
+        visible: advancedVisible,
+      })
+      .spacer()
+      .divider()
+'''
+    if advanced_ui not in text:
+        raise RuntimeError("could not locate advanced range UI")
+    text = text.replace(advanced_ui, '''      .divider()
+''', 1)
+
+    attenuation_ui = '''      .header("Distance Volume")
+      .label(attenuationText)
+      .label(attenuationConfirmText)
+      .label(
+        "VC Mumla จะค่อย ๆ ลดเสียงตามระยะของผู้พูด\\n" +
+        "0 = เสียงเต็มจนสุดระยะ • 4 = เบามากเมื่อใกล้ขอบวง\\n"
+      )
+      .button("0 • ปิดการลดเสียง", () => submitAttenuation(0))
+      .button("1 • เบา", () => submitAttenuation(1))
+      .button("2 • ปกติ", () => submitAttenuation(2))
+      .button("3 • แรง", () => submitAttenuation(3))
+      .button("4 • แรงมาก", () => submitAttenuation(4))
+      .spacer()
+      .divider()
+'''
+    if attenuation_ui not in text:
+        raise RuntimeError("could not locate Distance Volume UI")
+    text = text.replace(attenuation_ui, "", 1)
+
+    reset_label = '''      .label("คืน Mic Mode เป็น Hold-to-Talk\\nVoice Range = 30 บล็อก\\nDistance Volume = ปกติ (2)\\n")
+'''
+    if reset_label not in text:
+        raise RuntimeError("could not locate reset label")
+    text = text.replace(
+        reset_label,
+        '''      .label("คืน Mic Mode เป็น Hold-to-Talk\\nVoice Range = 30 บล็อก\\n")
+''',
+        1,
+    )
+    text = text.replace("        advancedVisible.setData(false);\\n", "", 1)
+    text = text.replace("        submitAttenuation(2);\\n", "", 1)
 
     old_reset = '''        customRange.setData(String(resetRange));
         rangeSlider.setData(Math.min(resetRange, sliderMax.getData()));
@@ -244,11 +375,23 @@ async function showSettings(player) {
           Math.min(Math.floor(rangeSlider.getData()), nextMax)
         );
         if (sliderValue !== lastSliderRange) {
-          // DDUI ObservableNumber is client-writable, so this observes the live
-          // slider position without requiring an Apply button.
+          // Preview stays realtime, but the authoritative Endstone update is
+          // debounced so dragging cannot create a request/ACK + disk-write storm.
           lastSliderRange = sliderValue;
           showVoiceRangePreview(player, sliderValue);
-          submitRange(sliderValue);
+          queuedSliderRange = sliderValue;
+          sliderCommitDueTick =
+            system.currentTick + VOICE_RANGE_COMMIT_DEBOUNCE_TICKS;
+        }
+
+        if (
+          queuedSliderRange !== null &&
+          !pendingRequestId &&
+          system.currentTick >= sliderCommitDueTick
+        ) {
+          const valueToCommit = queuedSliderRange;
+          queuedSliderRange = null;
+          submitRange(valueToCommit);
         }
 
         if (pendingRequestId) {
@@ -262,7 +405,10 @@ async function showSettings(player) {
               if (confirmedRange <= nextMax) rangeSlider.setData(confirmedRange);
 ''',
         '''              customRange.setData(String(confirmedRange));
-              if (confirmedRange <= nextMax) {
+              if (
+                queuedSliderRange === null &&
+                confirmedRange <= nextMax
+              ) {
                 lastSliderRange = confirmedRange;
                 rangeSlider.setData(confirmedRange);
               }
@@ -274,7 +420,10 @@ async function showSettings(player) {
                 if (confirmedRange <= nextMax) rangeSlider.setData(confirmedRange);
 ''',
         '''                customRange.setData(String(confirmedRange));
-                if (confirmedRange <= nextMax) {
+                if (
+                  queuedSliderRange === null &&
+                  confirmedRange <= nextMax
+                ) {
                   lastSliderRange = confirmedRange;
                   rangeSlider.setData(confirmedRange);
                 }
@@ -284,21 +433,38 @@ async function showSettings(player) {
 
     text = text.replace(
         '"[VCMumbleItem/BP] Loaded v2.8.0 — VC Mumble native mic/range contract (feature/minecraft-mic-addon-v1)"',
-        '"[VCMumbleItem/BP] Loaded v2.9.0 — realtime local Voice Range preview + VC Mumble mic/range contract"',
+        '"[VCMumbleItem/BP] Loaded v2.10.0 — private 3D Voice Range preview + debounced VC Mumble range contract"',
         1,
     )
 
     required = [
         "showVoiceRangePreview(player, sliderValue);",
-        "submitRange(sliderValue);",
+        "submitQuickRange(20)",
+        "const latitudeDegrees = [-45, 0, 45];",
+        "const meridianCount = 4;",
+        'button("20 บล็อก", () => submitQuickRange(20))',
+        "const valueToCommit = queuedSliderRange;",
         "player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);",
-        "This player-targeted particle call keeps the preview private.",
+        "Player-targeted particles keep the visualization private.",
     ]
     for marker in required:
         if marker not in text:
             raise RuntimeError(f"missing patched marker: {marker}")
     if "ใช้ระยะจาก Slider" in text:
         raise RuntimeError("legacy slider Apply button still exists")
+    forbidden_ui = [
+        "กำหนดระยะเอง",
+        "ใช้ระยะที่กำหนด",
+        '.header("Distance Volume")',
+        '.button("0 • ปิดการลดเสียง"',
+        '.button("1 • เบา"',
+        '.button("2 • ปกติ"',
+        '.button("3 • แรง"',
+        '.button("4 • แรงมาก"',
+    ]
+    for marker in forbidden_ui:
+        if marker in text:
+            raise RuntimeError(f"removed DDUI control returned: {marker}")
 
     return text.encode("utf-8")
 
@@ -350,8 +516,8 @@ def main() -> int:
         outer.writestr(BP_NAME, bp)
         outer.writestr(RP_NAME, rp)
 
-    validate_pack(bp, BP_UUID, "VC Mumble Item Mic BP v2.9.0")
-    validate_pack(rp, RP_UUID, "VC Mumble Mic Icons RP v2.9.0")
+    validate_pack(bp, BP_UUID, "VC Mumble Item Mic BP v2.10.0")
+    validate_pack(rp, RP_UUID, "VC Mumble Mic Icons RP v2.10.0")
 
     (output / BP_NAME).write_bytes(bp)
     (output / RP_NAME).write_bytes(rp)

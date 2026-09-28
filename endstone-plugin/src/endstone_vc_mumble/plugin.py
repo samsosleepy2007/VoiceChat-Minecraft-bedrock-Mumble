@@ -27,7 +27,7 @@ ATTENUATION_LEVELS: dict[int, tuple[str, str]] = {
 
 class VCMumblePlugin(Plugin):
     prefix = "VCMumble"
-    version = "0.4.2"
+    version = "0.4.3"
     api_version = "0.11"
     description = "Standalone Minecraft position bridge for VC Mumble Server"
     authors = ["SamSoSleepy"]
@@ -63,7 +63,7 @@ class VCMumblePlugin(Plugin):
         self._heartbeat_accumulator = 0
         self._default_range = 30
         self._max_range = 150
-        self._default_attenuation_level = 2
+        self._default_attenuation_level = 3
         self._last_client_state: bool | None = None
 
     def on_enable(self) -> None:
@@ -103,7 +103,7 @@ class VCMumblePlugin(Plugin):
         self._heartbeat_ticks = heartbeat_seconds * 20
         self._default_range = self._bounded_int(voice.get("default_range", 30), 1, 1000, 30)
         self._max_range = self._bounded_int(voice.get("max_range", 150), self._default_range, 1000, 150)
-        self._default_attenuation_level = self._bounded_int(voice.get("default_attenuation_level", 2), 0, 4, 2)
+        self._default_attenuation_level = self._bounded_int(voice.get("default_attenuation_level", 3), 0, 4, 3)
 
         if not bool(bridge.get("enabled", True)):
             self.logger.warning("BRIDGE disabled in config.toml")
@@ -137,6 +137,27 @@ class VCMumblePlugin(Plugin):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             self._bindings = data if isinstance(data, dict) else {}
+
+            # Distance Volume is now a server-wide default instead of a DDUI
+            # preference. Remove legacy per-player overrides so existing users
+            # also inherit the configured default (level 3 by default).
+            migrated_attenuation = False
+            for key, raw_binding in list(self._bindings.items()):
+                if not isinstance(raw_binding, dict) or "attenuation_level" not in raw_binding:
+                    continue
+                binding = dict(raw_binding)
+                binding.pop("attenuation_level", None)
+                if binding:
+                    self._bindings[key] = binding
+                else:
+                    self._bindings.pop(key, None)
+                migrated_attenuation = True
+
+            if migrated_attenuation:
+                self._save_bindings()
+                self.logger.info(
+                    "Migrated legacy per-player Distance Volume settings to the server default."
+                )
         except Exception as exc:
             self._bindings = {}
             self.logger.warning(f"Could not load bindings.json: {type(exc).__name__}: {exc}")
