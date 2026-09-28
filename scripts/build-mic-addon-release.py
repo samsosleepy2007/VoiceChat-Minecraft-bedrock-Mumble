@@ -236,7 +236,7 @@ async function showSettings(player) {
     new_slider_ui = '''      .slider("ระยะเสียงแบบ Slider", rangeSlider, 1, sliderMax, {
         step: 1,
         description:
-          "ลากเพื่อเปลี่ยนระยะทันที • วง Preview จะเห็นเฉพาะตัวคุณเอง",
+          "ลากเพื่อเปลี่ยนระยะทันที • โดม Preview จะเห็นเฉพาะตัวคุณเอง",
       })
       .spacer()
 '''
@@ -291,6 +291,58 @@ async function showSettings(player) {
     if old_quick_buttons not in text:
         raise RuntimeError("could not locate quick-range buttons")
     text = text.replace(old_quick_buttons, new_quick_buttons, 1)
+
+    advanced_ui = '''      .toggle("กำหนดระยะเอง", advancedVisible, {
+        description: "เปิดเพื่อกรอกค่าระยะเป็นบล็อก",
+      })
+      .textField("ระยะเสียง (บล็อก)", customRange, {
+        visible: advancedVisible,
+        description: isOperator(player)
+          ? "Operator ใช้ค่าได้สูงสุดตาม Endstone (ปัจจุบัน 1000)"
+          : "ค่าต้องไม่เกินระยะสูงสุดของเซิร์ฟเวอร์",
+      })
+      .button("ใช้ระยะที่กำหนด", () => submitRange(customRange.getData()), {
+        visible: advancedVisible,
+      })
+      .spacer()
+      .divider()
+'''
+    if advanced_ui not in text:
+        raise RuntimeError("could not locate advanced range UI")
+    text = text.replace(advanced_ui, '''      .divider()
+''', 1)
+
+    attenuation_ui = '''      .header("Distance Volume")
+      .label(attenuationText)
+      .label(attenuationConfirmText)
+      .label(
+        "VC Mumla จะค่อย ๆ ลดเสียงตามระยะของผู้พูด\\n" +
+        "0 = เสียงเต็มจนสุดระยะ • 4 = เบามากเมื่อใกล้ขอบวง\\n"
+      )
+      .button("0 • ปิดการลดเสียง", () => submitAttenuation(0))
+      .button("1 • เบา", () => submitAttenuation(1))
+      .button("2 • ปกติ", () => submitAttenuation(2))
+      .button("3 • แรง", () => submitAttenuation(3))
+      .button("4 • แรงมาก", () => submitAttenuation(4))
+      .spacer()
+      .divider()
+'''
+    if attenuation_ui not in text:
+        raise RuntimeError("could not locate Distance Volume UI")
+    text = text.replace(attenuation_ui, "", 1)
+
+    reset_label = '''      .label("คืน Mic Mode เป็น Hold-to-Talk\\nVoice Range = 30 บล็อก\\nDistance Volume = ปกติ (2)\\n")
+'''
+    if reset_label not in text:
+        raise RuntimeError("could not locate reset label")
+    text = text.replace(
+        reset_label,
+        '''      .label("คืน Mic Mode เป็น Hold-to-Talk\\nVoice Range = 30 บล็อก\\n")
+''',
+        1,
+    )
+    text = text.replace("        advancedVisible.setData(false);\\n", "", 1)
+    text = text.replace("        submitAttenuation(2);\\n", "", 1)
 
     old_reset = '''        customRange.setData(String(resetRange));
         rangeSlider.setData(Math.min(resetRange, sliderMax.getData()));
@@ -390,6 +442,7 @@ async function showSettings(player) {
         "submitQuickRange(20)",
         "const latitudeDegrees = [-45, 0, 45];",
         "const meridianCount = 4;",
+        'button("20 บล็อก", () => submitQuickRange(20))',
         "submitRange(sliderValue);",
         "player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);",
         "This player-targeted particle call keeps the preview private.",
@@ -399,6 +452,19 @@ async function showSettings(player) {
             raise RuntimeError(f"missing patched marker: {marker}")
     if "ใช้ระยะจาก Slider" in text:
         raise RuntimeError("legacy slider Apply button still exists")
+    forbidden_ui = [
+        "กำหนดระยะเอง",
+        "ใช้ระยะที่กำหนด",
+        '.header("Distance Volume")',
+        '.button("0 • ปิดการลดเสียง"',
+        '.button("1 • เบา"',
+        '.button("2 • ปกติ"',
+        '.button("3 • แรง"',
+        '.button("4 • แรงมาก"',
+    ]
+    for marker in forbidden_ui:
+        if marker in text:
+            raise RuntimeError(f"removed DDUI control returned: {marker}")
 
     return text.encode("utf-8")
 
