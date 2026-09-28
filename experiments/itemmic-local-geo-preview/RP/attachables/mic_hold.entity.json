@@ -1,0 +1,24 @@
+{
+  "format_version": "1.26.0",
+  "minecraft:attachable": {
+    "description": {
+      "identifier": "voicecraft:mic_hold",
+      "materials": {
+        "default": "entity_emissive_alpha"
+      },
+      "textures": {
+        "default": "textures/entity/vcmumble_range_green"
+      },
+      "geometry": {
+        "default": "geometry.vcmumble.range_preview"
+      },
+      "scripts": {
+        "scale": "query.is_local_player * math.max(0.0, (query.remaining_durability - 1.0) / 30.0)",
+        "should_update_bones_and_effects_offscreen": true
+      },
+      "render_controllers": [
+        "controller.render.vcmumble_range_preview"
+      ]
+    }
+  }
+}
