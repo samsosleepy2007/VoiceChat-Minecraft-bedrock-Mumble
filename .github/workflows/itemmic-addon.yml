@@ -6,37 +6,38 @@ on:
       - feature/itemmic-range-preview-v2.9
       - feature/itemmic-dome-range-v2.10
       - experiment/itemmic-dense-green-particle-cooldown
+      - feature/itemmic-phone-item-v2.11
       - main
 
 jobs:
   build:
-    if: (github.ref_name == 'feature/itemmic-range-preview-v2.9' || github.ref_name == 'feature/itemmic-dome-range-v2.10' || github.ref_name == 'experiment/itemmic-dense-green-particle-cooldown') || contains(github.event.head_commit.message, '[itemmic-build]')
+    if: (github.ref_name == 'feature/itemmic-range-preview-v2.9' || github.ref_name == 'feature/itemmic-dome-range-v2.10' || github.ref_name == 'experiment/itemmic-dense-green-particle-cooldown' || github.ref_name == 'feature/itemmic-phone-item-v2.11') || contains(github.event.head_commit.message, '[itemmic-build]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build and test Item Mic v2.10.0
+      - name: Build and test Item Mic v2.11.0
         run: |
           python3 tests/test_itemmic_v29_builder.py
           rm -rf dist/itemmic
           mkdir -p dist/itemmic
           python3 scripts/build-mic-addon-release.py --output dist/itemmic
-          unzip -t dist/itemmic/VC_Mumble_ItemMic_v2.10.0.mcaddon
+          unzip -t dist/itemmic/VC_Mumble_ItemMic_v2.11.0.mcaddon
           python3 - <<'PY'
           import io, zipfile
           from pathlib import Path
 
-          addon = Path("dist/itemmic/VC_Mumble_ItemMic_v2.10.0.mcaddon")
+          addon = Path("dist/itemmic/VC_Mumble_ItemMic_v2.11.0.mcaddon")
           with zipfile.ZipFile(addon) as outer:
-              bp = outer.read("VC_Mumble_ItemMic_BP_v2.10.0.mcpack")
+              bp = outer.read("VC_Mumble_ItemMic_BP_v2.11.0.mcpack")
           with zipfile.ZipFile(io.BytesIO(bp)) as pack:
               Path("/tmp/itemmic-main.js").write_bytes(pack.read("scripts/main.js"))
           PY
           node --check /tmp/itemmic-main.js
-          sha256sum dist/itemmic/VC_Mumble_ItemMic_v2.10.0.mcaddon
+          sha256sum dist/itemmic/VC_Mumble_ItemMic_v2.11.0.mcaddon
 
       - uses: actions/upload-artifact@v4
         with:
-          name: VC_Mumble_ItemMic_v2.10.0
-          path: dist/itemmic/VC_Mumble_ItemMic_v2.10.0.mcaddon
+          name: VC_Mumble_ItemMic_v2.11.0
+          path: dist/itemmic/VC_Mumble_ItemMic_v2.11.0.mcaddon
           retention-days: 14
