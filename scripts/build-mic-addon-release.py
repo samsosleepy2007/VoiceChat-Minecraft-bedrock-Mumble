@@ -206,8 +206,8 @@ async function showSettings(player) {
     const initialCooldownSeconds = voiceRangeCooldownSeconds(player);
     const cooldownStatusText = new ObservableString(
       initialCooldownSeconds > 0
-        ? `คูลดาวน์เปลี่ยนระยะ: §e${initialCooldownSeconds} วิ§r\n`
-        : "คูลดาวน์เปลี่ยนระยะ: §aพร้อมเปลี่ยนได้§r\n"
+        ? `คูลดาวน์เปลี่ยนระยะ: §e${initialCooldownSeconds} วิ§r\\n`
+        : "คูลดาวน์เปลี่ยนระยะ: §aพร้อมเปลี่ยนได้§r\\n"
     );
     let lastSliderRange = Math.floor(rangeSlider.getData());
     let sliderCandidateRange = null;
