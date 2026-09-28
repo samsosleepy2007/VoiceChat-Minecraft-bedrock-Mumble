@@ -81,7 +81,7 @@ for expected in [
     "MUMBLE_PLATFORM_MANIFEST",
     "subprocess.Popen",
     "LD_LIBRARY_PATH",
-    "stage=running",
+    '_set_status("running", "", self._proc.pid)',
 ]:
     assert expected in host, expected
 
