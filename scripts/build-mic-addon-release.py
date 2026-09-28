@@ -106,7 +106,8 @@ def patch_main_js(raw: bytes) -> bytes:
         'const DEFAULT_MAX_RANGE = 150;\n'
         'const VOICE_RANGE_PREVIEW_PARTICLE = "vcmumble:voice_range_preview";\n'
         'const VOICE_RANGE_PREVIEW_MIN_POINTS = 24;\n'
-        'const VOICE_RANGE_PREVIEW_MAX_POINTS = 120;\n',
+        'const VOICE_RANGE_PREVIEW_MAX_POINTS = 120;\n'
+        'const VOICE_RANGE_COMMIT_DEBOUNCE_TICKS = 8;\n',
         1,
     )
 
@@ -170,6 +171,8 @@ async function showSettings(player) {
       clientWritable: true,
     });
     let lastSliderRange = Math.floor(rangeSlider.getData());
+    let queuedSliderRange = null;
+    let sliderCommitDueTick = 0;
 
     let confirmedRange = initialRange;
 '''
@@ -244,11 +247,23 @@ async function showSettings(player) {
           Math.min(Math.floor(rangeSlider.getData()), nextMax)
         );
         if (sliderValue !== lastSliderRange) {
-          // DDUI ObservableNumber is client-writable, so this observes the live
-          // slider position without requiring an Apply button.
+          // Preview stays realtime, but the authoritative Endstone update is
+          // debounced so dragging cannot create a request/ACK + disk-write storm.
           lastSliderRange = sliderValue;
           showVoiceRangePreview(player, sliderValue);
-          submitRange(sliderValue);
+          queuedSliderRange = sliderValue;
+          sliderCommitDueTick =
+            system.currentTick + VOICE_RANGE_COMMIT_DEBOUNCE_TICKS;
+        }
+
+        if (
+          queuedSliderRange !== null &&
+          !pendingRequestId &&
+          system.currentTick >= sliderCommitDueTick
+        ) {
+          const valueToCommit = queuedSliderRange;
+          queuedSliderRange = null;
+          submitRange(valueToCommit);
         }
 
         if (pendingRequestId) {
@@ -262,7 +277,10 @@ async function showSettings(player) {
               if (confirmedRange <= nextMax) rangeSlider.setData(confirmedRange);
 ''',
         '''              customRange.setData(String(confirmedRange));
-              if (confirmedRange <= nextMax) {
+              if (
+                queuedSliderRange === null &&
+                confirmedRange <= nextMax
+              ) {
                 lastSliderRange = confirmedRange;
                 rangeSlider.setData(confirmedRange);
               }
@@ -274,7 +292,10 @@ async function showSettings(player) {
                 if (confirmedRange <= nextMax) rangeSlider.setData(confirmedRange);
 ''',
         '''                customRange.setData(String(confirmedRange));
-                if (confirmedRange <= nextMax) {
+                if (
+                  queuedSliderRange === null &&
+                  confirmedRange <= nextMax
+                ) {
                   lastSliderRange = confirmedRange;
                   rangeSlider.setData(confirmedRange);
                 }
