@@ -69,7 +69,9 @@ for forbidden in [
     "client_connected",
     "auth_challenge",
     "bridge secret",
-    "mumble_name",
+    "_show_pair_form",
+    "_command_pair",
+    "_command_unpair",
 ]:
     assert forbidden not in plugin, forbidden
 
