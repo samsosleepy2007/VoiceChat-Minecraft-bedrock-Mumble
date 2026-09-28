@@ -20,12 +20,12 @@ def main() -> None:
             check=True,
         )
 
-        addon = out / "VC_Mumble_ItemMic_v2.10.0.mcaddon"
+        addon = out / "VC_Mumble_ItemMic_v2.11.0.mcaddon"
         assert addon.is_file()
 
         with zipfile.ZipFile(addon) as outer:
-            bp_name = "VC_Mumble_ItemMic_BP_v2.10.0.mcpack"
-            rp_name = "VC_Mumble_ItemMic_RP_v2.10.0.mcpack"
+            bp_name = "VC_Mumble_ItemMic_BP_v2.11.0.mcpack"
+            rp_name = "VC_Mumble_ItemMic_RP_v2.11.0.mcpack"
             assert set(outer.namelist()) == {bp_name, rp_name}
 
             bp_file = out / bp_name
@@ -37,8 +37,8 @@ def main() -> None:
             manifest = json.loads(bp.read("manifest.json"))
             script = bp.read("scripts/main.js").decode("utf-8")
 
-            assert manifest["header"]["version"] == [2, 10, 0]
-            assert manifest["header"]["name"] == "VC Mumble Item Mic BP v2.10.0"
+            assert manifest["header"]["version"] == [2, 11, 0]
+            assert manifest["header"]["name"] == "VC Mumble Item Mic BP v2.11.0"
             assert "showVoiceRangePreview(player, settledValue);" in script
             assert "new MolangVariableMap()" not in script
             assert "variable.vcmumble_diameter" not in script
@@ -79,6 +79,20 @@ def main() -> None:
             assert '.button("4 • แรงมาก"' not in script
             assert "Distance Volume = ปกติ (2)" not in script
 
+            phone_item = json.loads(bp.read("items/phone.item.json"))
+            phone_desc = phone_item["minecraft:item"]["description"]
+            phone_components = phone_item["minecraft:item"]["components"]
+            assert phone_desc["identifier"] == "voicecraft:phone"
+            assert phone_desc["menu_category"]["category"] == "equipment"
+            assert phone_components["minecraft:display_name"]["value"] == "โทรศัพท์"
+            assert (
+                phone_components["minecraft:icon"]["textures"]["default"]
+                == "voicecraft_phone"
+            )
+            assert phone_components["minecraft:max_stack_size"] == 1
+            assert "minecraft:interact_button" not in phone_components
+            assert "vcmumble:open_settings" not in phone_components
+
         with zipfile.ZipFile(rp_file) as rp:
             manifest = json.loads(rp.read("manifest.json"))
             particle_1 = json.loads(
@@ -88,9 +102,16 @@ def main() -> None:
                 rp.read("particles/voice_range_preview_150.particle.json")
             )
             texture = rp.read("textures/particle/vcmumble_voice_range_dot.png")
+            phone_attachable = json.loads(rp.read("attachables/phone.entity.json"))
+            phone_geometry = json.loads(
+                rp.read("models/entity/voicecraft_phone.geo.json")
+            )
+            phone_atlas = json.loads(rp.read("textures/item_texture.json"))
+            phone_texture = rp.read("textures/entity/voicecraft_phone.png")
+            phone_icon = rp.read("textures/items/icon_phone.png")
 
-            assert manifest["header"]["version"] == [2, 10, 0]
-            assert manifest["header"]["name"] == "VC Mumble Mic Icons RP v2.10.0"
+            assert manifest["header"]["version"] == [2, 11, 0]
+            assert manifest["header"]["name"] == "VC Mumble Mic Icons RP v2.11.0"
             for radius, particle in ((1, particle_1), (150, particle_150)):
                 assert (
                     particle["particle_effect"]["description"]["identifier"]
@@ -119,7 +140,31 @@ def main() -> None:
             assert len(particle_files) == 150
             assert texture.startswith(b"\x89PNG\r\n\x1a\n")
 
-    print("Item Mic v2.10.0 settle-only Slider + static range plates + split DDUI: OK")
+            attach_desc = phone_attachable["minecraft:attachable"]["description"]
+            assert attach_desc["identifier"] == "voicecraft:phone"
+            assert attach_desc["geometry"]["default"] == "geometry.voicecraft.phone"
+            assert (
+                attach_desc["textures"]["default"]
+                == "textures/entity/voicecraft_phone"
+            )
+            geometry = phone_geometry["minecraft:geometry"][0]
+            assert geometry["description"]["identifier"] == "geometry.voicecraft.phone"
+            assert geometry["description"]["texture_width"] == 64
+            assert geometry["description"]["texture_height"] == 64
+            assert [bone["name"] for bone in geometry["bones"]] == [
+                "Waist",
+                "Right Arm",
+                "White Phone",
+            ]
+            assert len(geometry["bones"][2]["cubes"]) >= 1
+            assert (
+                phone_atlas["texture_data"]["voicecraft_phone"]["textures"]
+                == "textures/items/icon_phone"
+            )
+            assert phone_texture.startswith(b"\x89PNG\r\n\x1a\n")
+            assert phone_icon.startswith(b"\x89PNG\r\n\x1a\n")
+
+    print("Item Mic v2.11.0 + Phone equipment item: OK")
 
 
 if __name__ == "__main__":
