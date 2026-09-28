@@ -5,11 +5,12 @@ on:
     branches:
       - feature/itemmic-range-preview-v2.9
       - feature/itemmic-dome-range-v2.10
+      - experiment/itemmic-dense-green-particle-cooldown
       - main
 
 jobs:
   build:
-    if: (github.ref_name == 'feature/itemmic-range-preview-v2.9' || github.ref_name == 'feature/itemmic-dome-range-v2.10') || contains(github.event.head_commit.message, '[itemmic-build]')
+    if: (github.ref_name == 'feature/itemmic-range-preview-v2.9' || github.ref_name == 'feature/itemmic-dome-range-v2.10' || github.ref_name == 'experiment/itemmic-dense-green-particle-cooldown') || contains(github.event.head_commit.message, '[itemmic-build]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
