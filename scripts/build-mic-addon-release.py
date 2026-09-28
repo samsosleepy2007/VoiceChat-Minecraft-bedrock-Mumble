@@ -6,6 +6,7 @@ import base64
 import hashlib
 import io
 import json
+import re
 import zipfile
 from pathlib import Path
 
@@ -513,84 +514,10 @@ async function showSettings(player) {
         1,
     )
 
-    main_ui_old = '''    const form = new CustomForm(player, "VC Mumble • Mic Settings")
-      .label(statusText)
-      .spacer()
-      .label(modeText)
-      .spacer()
-      .label(rangeText)
-      .spacer()
-      .label(offhandText)
-      .spacer()
-      .label(serverLimitText)
-      .spacer()
-      .divider()
-      .header("Mic Mode")
-      .label("Hold-to-Talk\\nถือ Mic = เปิดเสียง\\nเลิกถือ = ปิดเสียง\\n")
-      .button(
-        "Hold-to-Talk",
-        () =>
-          applyMicModeFromUi(
-            player,
-            MODE_HOLD,
-            statusText,
-            modeText,
-            holdDisabled,
-            toggleDisabled
-          ),
-        { disabled: holdDisabled }
-      )
-      .spacer()
-      .label("Toggle\\nหยิบ Mic ขึ้นมาหนึ่งครั้งเพื่อสลับ ON/OFF\\n")
-      .button(
-        "Toggle",
-        () =>
-          applyMicModeFromUi(
-            player,
-            MODE_TOGGLE,
-            statusText,
-            modeText,
-            holdDisabled,
-            toggleDisabled
-          ),
-        { disabled: toggleDisabled }
-      )
-      .spacer()
-      .divider()
-      .header("Voice Range")
-      .label(rangeConfirmText)
-      .spacer()
-      .button("10 บล็อก", () => submitQuickRange(10))
-      .button("20 บล็อก", () => submitQuickRange(20))
-      .button("30 บล็อก", () => submitQuickRange(30))
-      .spacer()
-      .slider("ระยะเสียงแบบ Slider", rangeSlider, 1, sliderMax, {
-        step: 1,
-        description:
-          "ลากเพื่อเปลี่ยนระยะทันที • โดม Preview จะเห็นเฉพาะตัวคุณเอง",
-      })
-      .spacer()
-      .divider()
-      .header("Reset")
-      .label("คืน Mic Mode เป็น Hold-to-Talk\\nVoice Range = 30 บล็อก\\n")
-      .button("คืนค่าเริ่มต้น", () => {
-        const resetRange = isOperator(player) ? 30 : Math.min(30, sliderMax.getData());
-        customRange.setData(String(resetRange));
-        lastSliderRange = Math.min(resetRange, sliderMax.getData());
-        rangeSlider.setData(lastSliderRange);
-        applyMicModeFromUi(
-          player,
-          MODE_HOLD,
-          statusText,
-          modeText,
-          holdDisabled,
-          toggleDisabled
-        );
-        submitRange(resetRange);
-      })
-      .spacer()
-      .closeButton();
-'''
+    main_ui_pattern = re.compile(
+        r'    const form = new CustomForm\\(player, "VC Mumble • Mic Settings"\\).*?      \\.closeButton\\(\\);\\n',
+        re.DOTALL,
+    )
     main_ui_new = '''    const mainPageVisible = new ObservableBoolean(true);
     const settingsPageVisible = new ObservableBoolean(false);
     const showMainPage = () => {
@@ -693,9 +620,14 @@ async function showSettings(player) {
       })
       .closeButton();
 '''
-    if main_ui_old not in text:
-        raise RuntimeError("could not locate simplified DDUI layout")
-    text = text.replace(main_ui_old, main_ui_new, 1)
+    text, main_ui_count = main_ui_pattern.subn(
+        lambda _: main_ui_new,
+        text,
+        count=1,
+    )
+    if main_ui_count != 1:
+        raise RuntimeError("could not locate DDUI form layout")
+
 
     text = text.replace(
         '"[VCMumbleItem/BP] Loaded v2.8.0 — VC Mumble native mic/range contract (feature/minecraft-mic-addon-v1)"',
