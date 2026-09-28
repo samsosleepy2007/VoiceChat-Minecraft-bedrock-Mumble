@@ -96,6 +96,7 @@ class VCMumblePlugin(Plugin):
         self.logger.info(
             "Unified MCSV mode active: no Android/mobile bridge is used."
         )
+        self.logger.info(f"Enabled vc_mumble v{self.version}")
 
     def on_disable(self) -> None:
         try:
