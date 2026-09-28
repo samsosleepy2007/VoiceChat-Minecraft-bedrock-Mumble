@@ -40,7 +40,10 @@ def main() -> None:
             assert manifest["header"]["version"] == [2, 9, 0]
             assert manifest["header"]["name"] == "VC Mumble Item Mic BP v2.9.0"
             assert "showVoiceRangePreview(player, sliderValue);" in script
-            assert "submitRange(sliderValue);" in script
+            assert "VOICE_RANGE_COMMIT_DEBOUNCE_TICKS = 8" in script
+            assert "queuedSliderRange = sliderValue;" in script
+            assert "const valueToCommit = queuedSliderRange;" in script
+            assert "showVoiceRangePreview(player, sliderValue);\n          submitRange(sliderValue);" not in script
             assert "rangeSlider.getData()" in script
             assert "player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);" in script
             assert "Dimension.spawnParticle" not in script
