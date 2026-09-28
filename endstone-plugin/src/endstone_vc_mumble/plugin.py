@@ -27,7 +27,7 @@ ATTENUATION_LEVELS: dict[int, tuple[str, str]] = {
 
 class VCMumblePlugin(Plugin):
     prefix = "VCMumble"
-    version = "0.4.2"
+    version = "0.4.3"
     api_version = "0.11"
     description = "Standalone Minecraft position bridge for VC Mumble Server"
     authors = ["SamSoSleepy"]
