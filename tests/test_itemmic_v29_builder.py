@@ -40,12 +40,14 @@ def main() -> None:
             assert manifest["header"]["version"] == [2, 10, 0]
             assert manifest["header"]["name"] == "VC Mumble Item Mic BP v2.10.0"
             assert "showVoiceRangePreview(player, sliderValue);" in script
-            assert "const latitudeDegrees = [-45, 0, 45];" in script
-            assert "const meridianCount = 4;" in script
-            assert '.button("20 บล็อก", () => submitQuickRange(20))' in script
+            assert "const latitudeDegrees = [-60, -30, 0, 30, 60];" in script
+            assert "const meridianCount = 6;" in script
+            assert '.button("20 บล็อก", () => submitQuickRange(20), {' in script
             assert '.button("5 บล็อก"' not in script
             assert "spawnVoiceRangePreviewPoint(player" in script
             assert "VOICE_RANGE_COMMIT_DEBOUNCE_TICKS = 8" in script
+            assert "VOICE_RANGE_CHANGE_COOLDOWN_TICKS = 20 * 30" in script
+            assert "startVoiceRangeCooldown(player);" in script
             assert "queuedSliderRange = sliderValue;" in script
             assert "const valueToCommit = queuedSliderRange;" in script
             assert "showVoiceRangePreview(player, sliderValue);\n          submitRange(sliderValue);" not in script
@@ -54,7 +56,13 @@ def main() -> None:
             assert "Dimension.spawnParticle" not in script
             assert ".dimension.spawnParticle" not in script
             assert "ใช้ระยะจาก Slider" not in script
-            assert "โดม Preview จะเห็นเฉพาะตัวคุณเอง" in script
+            assert "ลากเพื่อ Preview แบบ realtime" in script
+            assert 'const mainPageVisible = new ObservableBoolean(true);' in script
+            assert '.button("ตั้งค่า", showSettingsPage, {' in script
+            assert '.button("กลับหน้าหลัก", showMainPage, {' in script
+            assert '.label(statusText)' not in script
+            assert '.label(offhandText)' not in script
+            assert '.label(rangeConfirmText)' not in script
             assert "กำหนดระยะเอง" not in script
             assert "ใช้ระยะที่กำหนด" not in script
             assert '.header("Distance Volume")' not in script
@@ -74,13 +82,18 @@ def main() -> None:
                 particle["particle_effect"]["description"]["identifier"]
                 == "vcmumble:voice_range_preview"
             )
-            lifetime = particle["particle_effect"]["components"][
+            components = particle["particle_effect"]["components"]
+            lifetime = components[
                 "minecraft:particle_lifetime_expression"
             ]["max_lifetime"]
             assert lifetime <= 0.35
+            assert components["minecraft:emitter_rate_instant"]["num_particles"] == 4
+            sphere = components["minecraft:emitter_shape_sphere"]
+            assert sphere["radius"] == 0.11
+            assert sphere["surface_only"] is False
             assert texture.startswith(b"\x89PNG\r\n\x1a\n")
 
-    print("Item Mic v2.10.0 realtime private Voice Range preview: OK")
+    print("Item Mic v2.10.0 optimized green Voice Range preview + split DDUI: OK")
 
 
 if __name__ == "__main__":
