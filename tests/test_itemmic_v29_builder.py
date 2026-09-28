@@ -55,6 +55,7 @@ def main() -> None:
             assert "sliderCandidateRange = sliderValue;" in script
             assert "sliderSettleDueTick" in script
             assert "showVoiceRangePreview(player, settledValue);" in script
+            assert "setObservableIfChanged(sliderMax, nextMax);" in script
             assert "const valueToCommit = queuedSliderRange;" in script
             assert "showVoiceRangePreview(player, sliderValue);\n          submitRange(sliderValue);" not in script
             assert "rangeSlider.getData()" in script
@@ -64,6 +65,9 @@ def main() -> None:
             assert "ใช้ระยะจาก Slider" not in script
             assert "เมื่อหยุดประมาณ 0.75 วิ" in script
             assert 'const mainPageVisible = new ObservableBoolean(true);' in script
+            assert "const cooldownStatusText = new ObservableString(" in script
+            assert '.label(cooldownStatusText, { visible: mainPageVisible })' in script
+            assert "คูลดาวน์เปลี่ยนระยะ" in script
             assert '.button("ตั้งค่า", showSettingsPage, {' in script
             assert '.button("กลับหน้าหลัก", showMainPage, {' in script
             assert '.label(statusText)' not in script
