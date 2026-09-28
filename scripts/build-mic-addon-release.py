@@ -203,6 +203,12 @@ async function showSettings(player) {
     new_slider_state = '''    const customRange = new ObservableString(String(initialRange), {
       clientWritable: true,
     });
+    const initialCooldownSeconds = voiceRangeCooldownSeconds(player);
+    const cooldownStatusText = new ObservableString(
+      initialCooldownSeconds > 0
+        ? `คูลดาวน์เปลี่ยนระยะ: §e${initialCooldownSeconds} วิ§r\n`
+        : "คูลดาวน์เปลี่ยนระยะ: §aพร้อมเปลี่ยนได้§r\n"
+    );
     let lastSliderRange = Math.floor(rangeSlider.getData());
     let sliderCandidateRange = null;
     let sliderSettleDueTick = 0;
@@ -387,6 +393,57 @@ async function showSettings(player) {
         raise RuntimeError("could not locate reset slider update")
     text = text.replace(old_reset, new_reset, 1)
 
+    old_status_refresh = '''        statusText.setData(
+          `สถานะไมค์: ${refreshed.effective ? "§aON" : "§cOFF"}§r\\n`
+        );
+        modeText.setData(`โหมด: §e${modeUiLabel(refreshed.mode)}§r\\n`);
+        rangeText.setData(`ระยะเสียงปัจจุบัน: §b${confirmedRange} บล็อก§r\\n`);
+        attenuationText.setData(
+          `เสียงตามระยะ: §d${attenuationLabel(confirmedAttenuation)} (ระดับ ${confirmedAttenuation})§r\\n`
+        );
+        offhandText.setData(
+          isMicId(getOffId(player))
+            ? "มือซ้าย: §aMic อยู่มือซ้าย — บังคับ ON§r\\n"
+            : "มือซ้าย: §7ไม่มี Mic§r\\n"
+        );
+        serverLimitText.setData(
+          isOperator(player)
+            ? `สิทธิ์: §dOperator — ระยะสูงสุด ${nextMax} บล็อก§r\\n`
+            : `ระยะสูงสุด: §b${nextMax} บล็อก§r\\n`
+        );
+        holdDisabled.setData(refreshed.mode === MODE_HOLD);
+        toggleDisabled.setData(refreshed.mode === MODE_TOGGLE);
+
+'''
+    new_status_refresh = '''        setObservableIfChanged(
+          modeText,
+          `โหมด: §e${modeUiLabel(refreshed.mode)}§r\\n`
+        );
+        setObservableIfChanged(
+          rangeText,
+          `ระยะเสียงปัจจุบัน: §b${confirmedRange} บล็อก§r\\n`
+        );
+        const cooldownSeconds = voiceRangeCooldownSeconds(player);
+        setObservableIfChanged(
+          cooldownStatusText,
+          cooldownSeconds > 0
+            ? `คูลดาวน์เปลี่ยนระยะ: §e${cooldownSeconds} วิ§r\\n`
+            : "คูลดาวน์เปลี่ยนระยะ: §aพร้อมเปลี่ยนได้§r\\n"
+        );
+        setObservableIfChanged(
+          serverLimitText,
+          isOperator(player)
+            ? `สิทธิ์: §dOperator — ระยะสูงสุด ${nextMax} บล็อก§r\\n`
+            : `ระยะสูงสุด: §b${nextMax} บล็อก§r\\n`
+        );
+        setObservableIfChanged(holdDisabled, refreshed.mode === MODE_HOLD);
+        setObservableIfChanged(toggleDisabled, refreshed.mode === MODE_TOGGLE);
+
+'''
+    if old_status_refresh not in text:
+        raise RuntimeError("could not locate DDUI status refresh block")
+    text = text.replace(old_status_refresh, new_status_refresh, 1)
+
     old_refresh = '''        sliderMax.setData(nextMax);
         if (rangeSlider.getData() > nextMax && !isOperator(player)) {
           rangeSlider.setData(nextMax);
@@ -394,7 +451,7 @@ async function showSettings(player) {
 
         if (pendingRequestId) {
 '''
-    new_refresh = '''        sliderMax.setData(nextMax);
+    new_refresh = '''        setObservableIfChanged(sliderMax, nextMax);
         if (rangeSlider.getData() > nextMax && !isOperator(player)) {
           lastSliderRange = nextMax;
           rangeSlider.setData(nextMax);
@@ -515,6 +572,7 @@ async function showSettings(player) {
       .header("สถานะ", { visible: mainPageVisible })
       .label(modeText, { visible: mainPageVisible })
       .label(rangeText, { visible: mainPageVisible })
+      .label(cooldownStatusText, { visible: mainPageVisible })
       .label(serverLimitText, { visible: mainPageVisible })
       .spacer({ visible: mainPageVisible })
       .divider({ visible: mainPageVisible })
@@ -632,6 +690,9 @@ async function showSettings(player) {
         '.button("ตั้งค่า", showSettingsPage, {',
         '.button("กลับหน้าหลัก", showMainPage, {',
         'const mainPageVisible = new ObservableBoolean(true);',
+        "const cooldownStatusText = new ObservableString(",
+        ".label(cooldownStatusText, { visible: mainPageVisible })",
+        "คูลดาวน์เปลี่ยนระยะ",
         "const valueToCommit = queuedSliderRange;",
         "{ x: center.x, y: center.y + 0.04, z: center.z }",
         "{ x: center.x, y: center.y + radius, z: center.z }",
