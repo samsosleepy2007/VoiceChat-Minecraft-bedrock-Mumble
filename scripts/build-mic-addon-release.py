@@ -445,7 +445,7 @@ async function showSettings(player) {
         'button("20 บล็อก", () => submitQuickRange(20))',
         "submitRange(sliderValue);",
         "player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);",
-        "This player-targeted particle call keeps the preview private.",
+        "Player-targeted particles keep the visualization private.",
     ]
     for marker in required:
         if marker not in text:
