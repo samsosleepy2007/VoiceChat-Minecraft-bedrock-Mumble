@@ -26,40 +26,39 @@ PREVIEW_DOT_PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAD5klEQVR42u2by07bUBCGP5v74RISrnmDbBAIEKIskKq+T/d9gu77PlUlFoBQQCA2eQOgQLjmcCddeFIZ106Ok5DaJ/zS7OLL/83McWyP4UPdLaeTB/ta/X5p8rsfzrdxKwCYGv6fQJxOmi5xtAU8AS8SVd959Ej0Fch/6hQM5z2NlzjaBDRwDzwAjwLgGXiVAHAleoE+oB8YAAYBVSC/9l4gnHYbL3G0A9wAFQkN3AEPCnVosk+NnhMAQ4AChiVGC+RX2gnCaZd5MX4FXEvcKtRuwFjRZL8KtRzYbgkYAcYkMn4QrUBw2mT+F3ABXAJXCnUQx7ApEI2eBzLAOJAtkP/cKgSnRePbwDlQBi4Uaq+dxuuAWASyQA6YKJBfbRaE04L5DeBMoqxQpfcyHgZCowsCYBKYLJBfbwaC00LJ/wZOFar4nlk3qIZlYAqYbqYlnCbM/xTzJwq132njEdWwAMwIhC9xILhxDubL/HESzNcqT6H2gWPgt5yjsVzT7EvP1zJ/kATzAQgHwIlA2DD9K+4amt+Wxe40KZmvUwmnwJmcc0MIruE/vHPgTKGKSTQfgFCUZJ2b3J+4hn1flkiLykDZZD1wG5T+jvzDu+jkdb4NVVCqnbd4iKyC3gb7uwIuFWovDeYDENDoEWA0VgUEsn8tENKqK+C6XhXUq4Ab4Dppl7wmqmBcvMReBCvALenXrXhpDMBX/ptARaF205j9QBXsAhXx9E8buJHbemGLIv1EAbiXx1i26E48GQN4kLBFkX7ckP7fAh4V6jDN/R9YBw6BR/H2Zh0Iq4AnCdsU6isMwAvec3vb9CzejAC8Wgjg1RRA1WIA1di3w7YrDIBjKRiXkIfAYUZ7LAbQYwqg10IAvaYA+iRsU6ivvwBqLxFkOKFfo+eCb2nTKHlxMgf01wYv/C9Monp9QMIWRfqJAjCIN5xgi4bEkzEAJWGLIv28AeBbB9aAYY1eSvM6IP2/BAzX5oyCL0zrXe+H8cZS0q4R8UKcFgDvefqYRs+nsQok+/N4M0WjxgB8bbAiG2dSnP0MMFYbqAqbF3ANdjCu0YtpqgLJ/iLeMFUm7s1QsAqyQFajC2mA4JsfyuJNkkVm3+h2WOZuchJpUQ7I+WeGYi+CAWITwKRGLye5CiT7y3iTYxMRXswrwNcKq7LTKY1eSCIE37DUFN7Y3Goj80Yt4IOwDkwDM0m7NPouebVJsXUT80YAQtaDaWA2KZXgy/wsgVlBE30MSsY5aFePykZA6K5h6QYt0R3j8nUgdNcHE2EQfCC645OZeiAEhv0fTZmA8AGx97O5uDDiKFUfTrYDSCc/nf1Qt+sPYs0vFQty9GMAAAAASUVORK5CYII="
 )
 
-PREVIEW_PARTICLE = {
-    "format_version": "1.10.0",
-    "particle_effect": {
-        "description": {
-            "identifier": "vcmumble:voice_range_preview",
-            "basic_render_parameters": {
-                "material": "particles_alpha",
-                "texture": "textures/particle/vcmumble_voice_range_dot",
+def preview_particle(radius: int) -> dict:
+    diameter = float(radius * 2)
+    return {
+        "format_version": "1.10.0",
+        "particle_effect": {
+            "description": {
+                "identifier": f"vcmumble:voice_range_preview_{radius:03d}",
+                "basic_render_parameters": {
+                    "material": "particles_alpha",
+                    "texture": "textures/particle/vcmumble_voice_range_dot",
+                },
             },
-        },
-        "components": {
-            "minecraft:emitter_rate_instant": {"num_particles": 1},
-            "minecraft:emitter_lifetime_once": {"active_time": 0.01},
-            "minecraft:emitter_shape_point": {
-                "offset": [0, 0, 0],
-                "direction": [0, 0, 0],
-            },
-            "minecraft:particle_lifetime_expression": {"max_lifetime": 0.28},
-            "minecraft:particle_appearance_billboard": {
-                "size": [
-                    "variable.vcmumble_diameter",
-                    "variable.vcmumble_diameter",
-                ],
-                "facing_camera_mode": "emitter_transform_xz",
-                "uv": {
-                    "texture_width": 64,
-                    "texture_height": 64,
-                    "uv": [0, 0],
-                    "uv_size": [64, 64],
+            "components": {
+                "minecraft:emitter_rate_instant": {"num_particles": 1},
+                "minecraft:emitter_lifetime_once": {"active_time": 0.01},
+                "minecraft:emitter_shape_point": {
+                    "offset": [0, 0, 0],
+                    "direction": [0, 0, 0],
+                },
+                "minecraft:particle_lifetime_expression": {"max_lifetime": 0.28},
+                "minecraft:particle_appearance_billboard": {
+                    "size": [diameter, diameter],
+                    "facing_camera_mode": "emitter_transform_xz",
+                    "uv": {
+                        "texture_width": 64,
+                        "texture_height": 64,
+                        "uv": [0, 0],
+                        "uv_size": [64, 64],
+                    },
                 },
             },
         },
-    },
-}
+    }
 
 
 def sha256(data: bytes) -> str:
@@ -108,15 +107,9 @@ def patch_main_js(raw: bytes) -> bytes:
     text = raw.decode("utf-8")
 
     text = text.replace(
-        "  system,\\n",
-        "  system,\\n  MolangVariableMap,\\n",
-        1,
-    )
-
-    text = text.replace(
         'const DEFAULT_MAX_RANGE = 150;\n',
         'const DEFAULT_MAX_RANGE = 150;\n'
-        'const VOICE_RANGE_PREVIEW_PARTICLE = "vcmumble:voice_range_preview";\n'
+        'const VOICE_RANGE_PREVIEW_PREFIX = "vcmumble:voice_range_preview_";\n'
         'const VOICE_RANGE_COMMIT_DEBOUNCE_TICKS = 8;\n'
         'const VOICE_RANGE_CHANGE_COOLDOWN_TICKS = 20 * 30;\n',
         1,
@@ -153,8 +146,13 @@ const openSettingsForms = new Map();
 
 async function showSettings(player) {
 '''
-    preview = '''function showVoiceRangePreview(player, rawRadius) {
+    preview = '''function voiceRangePreviewParticleId(radius) {
+  return VOICE_RANGE_PREVIEW_PREFIX + String(radius).padStart(3, "0");
+}
+
+function showVoiceRangePreview(player, rawRadius) {
   const radius = Math.max(1, Math.min(150, Math.floor(Number(rawRadius) || 1)));
+  const particleId = voiceRangePreviewParticleId(radius);
 
   let center;
   try {
@@ -164,26 +162,17 @@ async function showSettings(player) {
   }
 
   try {
-    // Construct at runtime only (not during early execution).
-    const variables = new MolangVariableMap();
-    variables.setFloat("variable.vcmumble_diameter", radius * 2);
-
-    // Bottom plate stays fixed at the player's feet. It never moves downward
-    // when the range increases, so the local player can always see it.
+    // Static RP definitions avoid MolangVariableMap/runtime scaling entirely.
     player.spawnParticle(
-      VOICE_RANGE_PREVIEW_PARTICLE,
-      { x: center.x, y: center.y + 0.04, z: center.z },
-      variables
+      particleId,
+      { x: center.x, y: center.y + 0.04, z: center.z }
     );
-
-    // Top plate rises exactly with Voice Range while keeping the same radius.
     player.spawnParticle(
-      VOICE_RANGE_PREVIEW_PARTICLE,
-      { x: center.x, y: center.y + radius, z: center.z },
-      variables
+      particleId,
+      { x: center.x, y: center.y + radius, z: center.z }
     );
   } catch {
-    // Preview failure must never affect the authoritative range flow.
+    // Preview failure must never block range updates or DDUI.
   }
 }
 
@@ -599,17 +588,17 @@ async function showSettings(player) {
 
     text = text.replace(
         '"[VCMumbleItem/BP] Loaded v2.8.0 — VC Mumble native mic/range contract (feature/minecraft-mic-addon-v1)"',
-        '"[VCMumbleItem/BP] Loaded v2.10.0 — two horizontal green range plates + 30s range cooldown"',
+        '"[VCMumbleItem/BP] Loaded v2.10.0 — static horizontal green range plates + 30s range cooldown"',
         1,
     )
 
     required = [
         "showVoiceRangePreview(player, sliderValue);",
         "submitQuickRange(20)",
-        'variables.setFloat("variable.vcmumble_diameter", radius * 2);',
+        'const particleId = voiceRangePreviewParticleId(radius);',
         "center.y + 0.04",
         "center.y + radius",
-        "MolangVariableMap",
+        'String(radius).padStart(3, "0")',
         "const VOICE_RANGE_CHANGE_COOLDOWN_TICKS = 20 * 30;",
         "startVoiceRangeCooldown(player);",
         'button("20 บล็อก", () => submitQuickRange(20), {',
@@ -657,9 +646,11 @@ def build_packs(base_addon: bytes) -> tuple[bytes, bytes]:
     bp["scripts/main.js"] = patch_main_js(bp["scripts/main.js"])
 
     rp["manifest.json"] = bump_manifest(rp["manifest.json"], pack="rp")
-    rp["particles/voice_range_preview.particle.json"] = (
-        json.dumps(PREVIEW_PARTICLE, ensure_ascii=False, indent=2) + "\n"
-    ).encode("utf-8")
+    rp.pop("particles/voice_range_preview.particle.json", None)
+    for radius in range(1, 151):
+        rp[f"particles/voice_range_preview_{radius:03d}.particle.json"] = (
+            json.dumps(preview_particle(radius), ensure_ascii=False, indent=2) + "\n"
+        ).encode("utf-8")
     rp["textures/particle/vcmumble_voice_range_dot.png"] = PREVIEW_DOT_PNG
 
     return zip_bytes(bp), zip_bytes(rp)
@@ -699,7 +690,8 @@ def main() -> int:
     (output / RP_NAME).write_bytes(rp)
 
     with zipfile.ZipFile(io.BytesIO(rp)) as archive:
-        assert "particles/voice_range_preview.particle.json" in archive.namelist()
+        assert "particles/voice_range_preview_001.particle.json" in archive.namelist()
+        assert "particles/voice_range_preview_150.particle.json" in archive.namelist()
         assert "textures/particle/vcmumble_voice_range_dot.png" in archive.namelist()
 
     print(addon)
