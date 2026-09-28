@@ -606,7 +606,7 @@ async function showSettings(player) {
         '.button("กลับหน้าหลัก", showMainPage, {',
         'const mainPageVisible = new ObservableBoolean(true);',
         "const valueToCommit = queuedSliderRange;",
-        "{ x: center.x, y: center.y + 0.04, z: center.z },",
+        "{ x: center.x, y: center.y + 0.04, z: center.z }",
         "{ x: center.x, y: center.y + radius, z: center.z }",
     ]
     for marker in required:
