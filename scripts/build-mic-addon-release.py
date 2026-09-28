@@ -12,15 +12,19 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "minecraft-addon" / "v2.8.0" / "VC_Mumble_ItemMic_v2.8.0.mcaddon.b64"
-ADDON_NAME = "VC_Mumble_ItemMic_v2.10.0.mcaddon"
-BP_NAME = "VC_Mumble_ItemMic_BP_v2.10.0.mcpack"
-RP_NAME = "VC_Mumble_ItemMic_RP_v2.10.0.mcpack"
+ADDON_NAME = "VC_Mumble_ItemMic_v2.11.0.mcaddon"
+BP_NAME = "VC_Mumble_ItemMic_BP_v2.11.0.mcpack"
+RP_NAME = "VC_Mumble_ItemMic_RP_v2.11.0.mcpack"
 BASE_BP_NAME = "VC_Mumble_ItemMic_BP_v2.8.0.mcpack"
 BASE_RP_NAME = "VC_Mumble_ItemMic_RP_v2.8.0.mcpack"
 BASE_SHA256 = "2e5da0b7692383af9b836544e3324bb46cde6185c3419e0ad86de7d850aab522"
-VERSION = [2, 10, 0]
+VERSION = [2, 11, 0]
 BP_UUID = "b6411120-cc4e-44a9-b28d-f43b10cafd86"
 RP_UUID = "cb345edb-6e6c-49ac-9950-e2ae07bda214"
+PHONE_ASSET_DIR = ROOT / "minecraft-addon" / "assets" / "phone"
+PHONE_TEXTURE = PHONE_ASSET_DIR / "phone_texture.png"
+PHONE_ICON = PHONE_ASSET_DIR / "phone_icon.png"
+PHONE_GEOMETRY = PHONE_ASSET_DIR / "phone.geo.json"
 
 PREVIEW_DOT_PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAD5klEQVR42u2by07bUBCGP5v74RISrnmDbBAIEKIskKq+T/d9gu77PlUlFoBQQCA2eQOgQLjmcCddeFIZ106Ok5DaJ/zS7OLL/83McWyP4UPdLaeTB/ta/X5p8rsfzrdxKwCYGv6fQJxOmi5xtAU8AS8SVd959Ej0Fch/6hQM5z2NlzjaBDRwDzwAjwLgGXiVAHAleoE+oB8YAAYBVSC/9l4gnHYbL3G0A9wAFQkN3AEPCnVosk+NnhMAQ4AChiVGC+RX2gnCaZd5MX4FXEvcKtRuwFjRZL8KtRzYbgkYAcYkMn4QrUBw2mT+F3ABXAJXCnUQx7ApEI2eBzLAOJAtkP/cKgSnRePbwDlQBi4Uaq+dxuuAWASyQA6YKJBfbRaE04L5DeBMoqxQpfcyHgZCowsCYBKYLJBfbwaC00LJ/wZOFar4nlk3qIZlYAqYbqYlnCbM/xTzJwq132njEdWwAMwIhC9xILhxDubL/HESzNcqT6H2gWPgt5yjsVzT7EvP1zJ/kATzAQgHwIlA2DD9K+4amt+Wxe40KZmvUwmnwJmcc0MIruE/vHPgTKGKSTQfgFCUZJ2b3J+4hn1flkiLykDZZD1wG5T+jvzDu+jkdb4NVVCqnbd4iKyC3gb7uwIuFWovDeYDENDoEWA0VgUEsn8tENKqK+C6XhXUq4Ab4Dppl7wmqmBcvMReBCvALenXrXhpDMBX/ptARaF205j9QBXsAhXx9E8buJHbemGLIv1EAbiXx1i26E48GQN4kLBFkX7ckP7fAh4V6jDN/R9YBw6BR/H2Zh0Iq4AnCdsU6isMwAvec3vb9CzejAC8Wgjg1RRA1WIA1di3w7YrDIBjKRiXkIfAYUZ7LAbQYwqg10IAvaYA+iRsU6ivvwBqLxFkOKFfo+eCb2nTKHlxMgf01wYv/C9Monp9QMIWRfqJAjCIN5xgi4bEkzEAJWGLIv28AeBbB9aAYY1eSvM6IP2/BAzX5oyCL0zrXe+H8cZS0q4R8UKcFgDvefqYRs+nsQok+/N4M0WjxgB8bbAiG2dSnP0MMFYbqAqbF3ANdjCu0YtpqgLJ/iLeMFUm7s1QsAqyQFajC2mA4JsfyuJNkkVm3+h2WOZuchJpUQ7I+WeGYi+CAWITwKRGLye5CiT7y3iTYxMRXswrwNcKq7LTKY1eSCIE37DUFN7Y3Goj80Yt4IOwDkwDM0m7NPouebVJsXUT80YAQtaDaWA2KZXgy/wsgVlBE30MSsY5aFePykZA6K5h6QYt0R3j8nUgdNcHE2EQfCC645OZeiAEhv0fTZmA8AGx97O5uDDiKFUfTrYDSCc/nf1Qt+sPYs0vFQty9GMAAAAASUVORK5CYII="
@@ -85,22 +89,84 @@ def bump_manifest(raw: bytes, *, pack: str) -> bytes:
         module["version"] = VERSION
 
     if pack == "bp":
-        manifest["header"]["name"] = "VC Mumble Item Mic BP v2.10.0"
+        manifest["header"]["name"] = "VC Mumble Item Mic BP v2.11.0"
         manifest["header"]["description"] = (
-            "VC Mumble Item Mic: Mic ON/OFF, realtime private 3D DDUI voice-range preview, "
-            "Endstone voice-range control, and distance-volume attenuation control."
+            "VC Mumble Item Mic: Mic ON/OFF, settle-only DDUI voice-range preview, "
+            "Endstone voice-range control, and Phone equipment item."
         )
         for dependency in manifest.get("dependencies", []):
             if dependency.get("uuid") == RP_UUID:
                 dependency["version"] = VERSION
     else:
-        manifest["header"]["name"] = "VC Mumble Mic Icons RP v2.10.0"
+        manifest["header"]["name"] = "VC Mumble Mic Icons RP v2.11.0"
         manifest["header"]["description"] = (
-            "Inventory icons, invisible held Mic model, and private 3D Voice Range preview "
-            "particle for VC Mumble Item Mic v2.10.0."
+            "Mic icons/models, Phone equipment model/icon, and private Voice Range preview "
+            "resources for VC Mumble Item Mic v2.11.0."
         )
 
     return (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+
+
+def phone_item() -> dict:
+    return {
+        "format_version": "1.26.0",
+        "minecraft:item": {
+            "description": {
+                "identifier": "voicecraft:phone",
+                "menu_category": {"category": "equipment"},
+            },
+            "components": {
+                "minecraft:display_name": {"value": "โทรศัพท์"},
+                "minecraft:icon": {
+                    "textures": {"default": "voicecraft_phone"}
+                },
+                "minecraft:max_stack_size": 1,
+                "minecraft:allow_off_hand": True,
+            },
+        },
+    }
+
+
+def phone_attachable() -> dict:
+    return {
+        "format_version": "1.10.0",
+        "minecraft:attachable": {
+            "description": {
+                "identifier": "voicecraft:phone",
+                "materials": {"default": "entity_alphatest"},
+                "textures": {
+                    "default": "textures/entity/voicecraft_phone"
+                },
+                "geometry": {"default": "geometry.voicecraft.phone"},
+                "render_controllers": [
+                    "controller.render.voicecraft_phone"
+                ],
+            }
+        },
+    }
+
+
+def phone_render_controller() -> dict:
+    return {
+        "format_version": "1.8.0",
+        "render_controllers": {
+            "controller.render.voicecraft_phone": {
+                "geometry": "Geometry.default",
+                "materials": [{"*": "Material.default"}],
+                "textures": ["Texture.default"],
+            }
+        },
+    }
+
+
+def patch_item_texture(raw: bytes) -> bytes:
+    atlas = json.loads(raw.decode("utf-8"))
+    atlas.setdefault("texture_data", {})["voicecraft_phone"] = {
+        "textures": "textures/items/icon_phone"
+    }
+    return (
+        json.dumps(atlas, ensure_ascii=False, indent=2) + "\n"
+    ).encode("utf-8")
 
 
 def patch_main_js(raw: bytes) -> bytes:
@@ -732,8 +798,23 @@ def build_packs(base_addon: bytes) -> tuple[bytes, bytes]:
 
     bp["manifest.json"] = bump_manifest(bp["manifest.json"], pack="bp")
     bp["scripts/main.js"] = patch_main_js(bp["scripts/main.js"])
+    bp["items/phone.item.json"] = (
+        json.dumps(phone_item(), ensure_ascii=False, indent=2) + "\n"
+    ).encode("utf-8")
 
     rp["manifest.json"] = bump_manifest(rp["manifest.json"], pack="rp")
+    rp["attachables/phone.entity.json"] = (
+        json.dumps(phone_attachable(), ensure_ascii=False, indent=2) + "\n"
+    ).encode("utf-8")
+    rp["models/entity/voicecraft_phone.geo.json"] = PHONE_GEOMETRY.read_bytes()
+    rp["render_controllers/voicecraft_phone.render_controllers.json"] = (
+        json.dumps(phone_render_controller(), ensure_ascii=False, indent=2) + "\n"
+    ).encode("utf-8")
+    rp["textures/entity/voicecraft_phone.png"] = PHONE_TEXTURE.read_bytes()
+    rp["textures/items/icon_phone.png"] = PHONE_ICON.read_bytes()
+    rp["textures/item_texture.json"] = patch_item_texture(
+        rp["textures/item_texture.json"]
+    )
     rp.pop("particles/voice_range_preview.particle.json", None)
     for radius in range(1, 151):
         rp[f"particles/voice_range_preview_{radius:03d}.particle.json"] = (
