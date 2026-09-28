@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "endstone-vc-mumble"
-version = "0.4.3"
-description = "Authenticated Minecraft Bedrock proximity bridge for VC Mumble Server"
+version = "0.5.0"
+description = "Unified MCSV Mumble host and Minecraft Bedrock proximity voice"
 requires-python = ">=3.11"
 authors = [{ name = "SamSoSleepy" }]
 
@@ -20,4 +20,4 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-endstone_vc_mumble = ["config.toml"]
+endstone_vc_mumble = ["config.toml", "bin/mumble-server-vc"]
