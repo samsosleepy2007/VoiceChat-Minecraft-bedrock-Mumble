@@ -116,16 +116,17 @@ const openSettingsForms = new Map();
 
 async function showSettings(player) {
 '''
-    preview = '''function showVoiceRangePreview(player, rawRadius) {
+    preview = '''function spawnVoiceRangePreviewPoint(player, location) {
+  try {
+    // Player-targeted particles keep the visualization private.
+    player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);
+  } catch {
+    // Large radii can touch unloaded chunks. Skip only those points.
+  }
+}
+
+function showVoiceRangePreview(player, rawRadius) {
   const radius = Math.max(1, Math.floor(Number(rawRadius) || 1));
-  const circumference = Math.PI * 2 * radius;
-  const points = Math.max(
-    VOICE_RANGE_PREVIEW_MIN_POINTS,
-    Math.min(
-      VOICE_RANGE_PREVIEW_MAX_POINTS,
-      Math.ceil(circumference / 3.5)
-    )
-  );
 
   let center;
   try {
@@ -134,20 +135,47 @@ async function showSettings(player) {
     return;
   }
 
-  const y = center.y + 0.12;
-  for (let i = 0; i < points; i++) {
-    const angle = (Math.PI * 2 * i) / points;
-    const location = {
-      x: center.x + Math.cos(angle) * radius,
-      y,
-      z: center.z + Math.sin(angle) * radius,
-    };
+  // Bounded wireframe volume: three latitude rings show width while four
+  // vertical meridians show the microphone reach above and below the player.
+  const equatorPoints = Math.max(
+    VOICE_RANGE_PREVIEW_MIN_POINTS,
+    Math.min(32, Math.ceil((Math.PI * 2 * radius) / 5))
+  );
+  const centerY = center.y + 0.12;
+  const latitudeDegrees = [-45, 0, 45];
 
-    try {
-      // This player-targeted particle call keeps the preview private.
-      player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);
-    } catch {
-      // A very large range can reach unloaded chunks. Skip those points only.
+  for (const latitudeDeg of latitudeDegrees) {
+    const latitude = (latitudeDeg * Math.PI) / 180;
+    const horizontalRadius = radius * Math.cos(latitude);
+    const y = centerY + radius * Math.sin(latitude);
+    const latitudePoints =
+      latitudeDeg === 0
+        ? equatorPoints
+        : Math.max(16, Math.floor(equatorPoints * 0.65));
+
+    for (let i = 0; i < latitudePoints; i++) {
+      const angle = (Math.PI * 2 * i) / latitudePoints;
+      spawnVoiceRangePreviewPoint(player, {
+        x: center.x + Math.cos(angle) * horizontalRadius,
+        y,
+        z: center.z + Math.sin(angle) * horizontalRadius,
+      });
+    }
+  }
+
+  const meridianCount = 4;
+  const meridianPoints = 11;
+  for (let meridian = 0; meridian < meridianCount; meridian++) {
+    const longitude = (Math.PI * meridian) / meridianCount;
+    for (let step = 0; step < meridianPoints; step++) {
+      const latitude =
+        -Math.PI / 2 + (Math.PI * step) / (meridianPoints - 1);
+      const horizontalRadius = radius * Math.cos(latitude);
+      spawnVoiceRangePreviewPoint(player, {
+        x: center.x + Math.cos(longitude) * horizontalRadius,
+        y: centerY + Math.sin(latitude) * radius,
+        z: center.z + Math.sin(longitude) * horizontalRadius,
+      });
     }
   }
 }
@@ -215,6 +243,54 @@ async function showSettings(player) {
     if old_slider_ui not in text:
         raise RuntimeError("could not locate DDUI slider controls")
     text = text.replace(old_slider_ui, new_slider_ui, 1)
+
+    quick_helper_anchor = '''    const submitAttenuation = (rawLevel) => {
+'''
+    quick_helper = '''    const submitQuickRange = (rawValue) => {
+      const value = Math.floor(Number(rawValue));
+      if (!Number.isFinite(value) || value < 1) return;
+
+      lastSliderRange = value;
+      rangeSlider.setData(value);
+      showVoiceRangePreview(player, value);
+
+      // Repeated taps on the same quick button must not create duplicate
+      // requests. If a request is pending, retain only the newest value.
+      if (value === pendingRange) return;
+      if (!pendingRequestId && value === confirmedRange) {
+        rangeConfirmText.setData(
+          `สถานะ Endstone: §aใช้อยู่แล้ว — ${value} บล็อก§r\\n`
+        );
+        return;
+      }
+      if (pendingRequestId) {
+        queuedSliderRange = value;
+        sliderCommitDueTick = system.currentTick;
+        return;
+      }
+
+      queuedSliderRange = null;
+      sliderCommitDueTick = 0;
+      submitRange(value);
+    };
+
+    const submitAttenuation = (rawLevel) => {
+'''
+    if quick_helper_anchor not in text:
+        raise RuntimeError("could not locate quick-range helper anchor")
+    text = text.replace(quick_helper_anchor, quick_helper, 1)
+
+    old_quick_buttons = '''      .button("5 บล็อก", () => submitRange(5))
+      .button("10 บล็อก", () => submitRange(10))
+      .button("30 บล็อก", () => submitRange(30))
+'''
+    new_quick_buttons = '''      .button("10 บล็อก", () => submitQuickRange(10))
+      .button("20 บล็อก", () => submitQuickRange(20))
+      .button("30 บล็อก", () => submitQuickRange(30))
+'''
+    if old_quick_buttons not in text:
+        raise RuntimeError("could not locate quick-range buttons")
+    text = text.replace(old_quick_buttons, new_quick_buttons, 1)
 
     old_reset = '''        customRange.setData(String(resetRange));
         rangeSlider.setData(Math.min(resetRange, sliderMax.getData()));
@@ -311,6 +387,9 @@ async function showSettings(player) {
 
     required = [
         "showVoiceRangePreview(player, sliderValue);",
+        "submitQuickRange(20)",
+        "const latitudeDegrees = [-45, 0, 45];",
+        "const meridianCount = 4;",
         "submitRange(sliderValue);",
         "player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);",
         "This player-targeted particle call keeps the preview private.",
