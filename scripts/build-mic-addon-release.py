@@ -23,7 +23,7 @@ BP_UUID = "b6411120-cc4e-44a9-b28d-f43b10cafd86"
 RP_UUID = "cb345edb-6e6c-49ac-9950-e2ae07bda214"
 
 PREVIEW_DOT_PNG = base64.b64decode(
-    "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"
+    "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"
 )
 
 PREVIEW_PARTICLE = {
@@ -37,22 +37,24 @@ PREVIEW_PARTICLE = {
             },
         },
         "components": {
-            "minecraft:emitter_rate_instant": {"num_particles": 4},
+            "minecraft:emitter_rate_instant": {"num_particles": 1},
             "minecraft:emitter_lifetime_once": {"active_time": 0.01},
-            "minecraft:emitter_shape_sphere": {
-                "radius": 0.11,
-                "surface_only": False,
+            "minecraft:emitter_shape_point": {
+                "offset": [0, 0, 0],
+                "direction": [0, 0, 0],
             },
-            "minecraft:particle_lifetime_expression": {"max_lifetime": 0.30},
-            "minecraft:particle_motion_dynamic": {},
+            "minecraft:particle_lifetime_expression": {"max_lifetime": 0.28},
             "minecraft:particle_appearance_billboard": {
-                "size": [0.20, 0.20],
-                "facing_camera_mode": "lookat_xyz",
+                "size": [
+                    "variable.vcmumble_diameter",
+                    "variable.vcmumble_diameter",
+                ],
+                "facing_camera_mode": "emitter_transform_xz",
                 "uv": {
-                    "texture_width": 16,
-                    "texture_height": 16,
+                    "texture_width": 128,
+                    "texture_height": 128,
                     "uv": [0, 0],
-                    "uv_size": [16, 16],
+                    "uv_size": [128, 128],
                 },
             },
         },
@@ -106,11 +108,15 @@ def patch_main_js(raw: bytes) -> bytes:
     text = raw.decode("utf-8")
 
     text = text.replace(
+        "  system,\\n",
+        "  system,\\n  MolangVariableMap,\\n",
+        1,
+    )
+
+    text = text.replace(
         'const DEFAULT_MAX_RANGE = 150;\n',
         'const DEFAULT_MAX_RANGE = 150;\n'
         'const VOICE_RANGE_PREVIEW_PARTICLE = "vcmumble:voice_range_preview";\n'
-        'const VOICE_RANGE_PREVIEW_MIN_POINTS = 24;\n'
-        'const VOICE_RANGE_PREVIEW_MAX_POINTS = 32;\n'
         'const VOICE_RANGE_COMMIT_DEBOUNCE_TICKS = 8;\n'
         'const VOICE_RANGE_CHANGE_COOLDOWN_TICKS = 20 * 30;\n',
         1,
@@ -147,17 +153,8 @@ const openSettingsForms = new Map();
 
 async function showSettings(player) {
 '''
-    preview = '''function spawnVoiceRangePreviewPoint(player, location) {
-  try {
-    // Player-targeted particles keep the visualization private.
-    player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);
-  } catch {
-    // Large radii can touch unloaded chunks. Skip only those points.
-  }
-}
-
-function showVoiceRangePreview(player, rawRadius) {
-  const radius = Math.max(1, Math.floor(Number(rawRadius) || 1));
+    preview = '''function showVoiceRangePreview(player, rawRadius) {
+  const radius = Math.max(1, Math.min(150, Math.floor(Number(rawRadius) || 1)));
 
   let center;
   try {
@@ -166,56 +163,27 @@ function showVoiceRangePreview(player, rawRadius) {
     return;
   }
 
-  // Dense appearance with bounded Script API calls. Each spawn call emits
-  // a 4-particle green cluster on the client instead of four server calls.
-  const equatorPoints = Math.max(
-    VOICE_RANGE_PREVIEW_MIN_POINTS,
-    Math.min(
-      VOICE_RANGE_PREVIEW_MAX_POINTS,
-      Math.ceil((Math.PI * 2 * radius) / 3)
-    )
-  );
-  const centerY = center.y + 0.12;
-  const latitudeDegrees = [-60, -30, 0, 30, 60];
+  try {
+    // Construct at runtime only (not during early execution).
+    const variables = new MolangVariableMap();
+    variables.setFloat("variable.vcmumble_diameter", radius * 2);
 
-  for (const latitudeDeg of latitudeDegrees) {
-    const latitude = (latitudeDeg * Math.PI) / 180;
-    const horizontalRadius = radius * Math.cos(latitude);
-    const y = centerY + radius * Math.sin(latitude);
-    const latitudePoints =
-      latitudeDeg === 0
-        ? equatorPoints
-        : Math.max(
-            14,
-            Math.floor(
-              equatorPoints * Math.max(0.45, Math.cos(latitude) * 0.75)
-            )
-          );
+    // Bottom plate stays fixed at the player's feet. It never moves downward
+    // when the range increases, so the local player can always see it.
+    player.spawnParticle(
+      VOICE_RANGE_PREVIEW_PARTICLE,
+      { x: center.x, y: center.y + 0.04, z: center.z },
+      variables
+    );
 
-    for (let i = 0; i < latitudePoints; i++) {
-      const angle = (Math.PI * 2 * i) / latitudePoints;
-      spawnVoiceRangePreviewPoint(player, {
-        x: center.x + Math.cos(angle) * horizontalRadius,
-        y,
-        z: center.z + Math.sin(angle) * horizontalRadius,
-      });
-    }
-  }
-
-  const meridianCount = 6;
-  const meridianPoints = 10;
-  for (let meridian = 0; meridian < meridianCount; meridian++) {
-    const longitude = (Math.PI * meridian) / meridianCount;
-    for (let step = 0; step < meridianPoints; step++) {
-      const latitude =
-        -Math.PI / 2 + (Math.PI * step) / (meridianPoints - 1);
-      const horizontalRadius = radius * Math.cos(latitude);
-      spawnVoiceRangePreviewPoint(player, {
-        x: center.x + Math.cos(longitude) * horizontalRadius,
-        y: centerY + Math.sin(latitude) * radius,
-        z: center.z + Math.sin(longitude) * horizontalRadius,
-      });
-    }
+    // Top plate rises exactly with Voice Range while keeping the same radius.
+    player.spawnParticle(
+      VOICE_RANGE_PREVIEW_PARTICLE,
+      { x: center.x, y: center.y + radius, z: center.z },
+      variables
+    );
+  } catch {
+    // Preview failure must never affect the authoritative range flow.
   }
 }
 
@@ -631,15 +599,17 @@ async function showSettings(player) {
 
     text = text.replace(
         '"[VCMumbleItem/BP] Loaded v2.8.0 — VC Mumble native mic/range contract (feature/minecraft-mic-addon-v1)"',
-        '"[VCMumbleItem/BP] Loaded v2.10.0 — optimized dense green Voice Range preview + 30s range cooldown"',
+        '"[VCMumbleItem/BP] Loaded v2.10.0 — two horizontal green range plates + 30s range cooldown"',
         1,
     )
 
     required = [
         "showVoiceRangePreview(player, sliderValue);",
         "submitQuickRange(20)",
-        "const latitudeDegrees = [-60, -30, 0, 30, 60];",
-        "const meridianCount = 6;",
+        'variables.setFloat("variable.vcmumble_diameter", radius * 2);',
+        "center.y + 0.04",
+        "center.y + radius",
+        "MolangVariableMap",
         "const VOICE_RANGE_CHANGE_COOLDOWN_TICKS = 20 * 30;",
         "startVoiceRangeCooldown(player);",
         'button("20 บล็อก", () => submitQuickRange(20), {',
