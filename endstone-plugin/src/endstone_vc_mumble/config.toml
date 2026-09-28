@@ -4,14 +4,14 @@ position_epsilon = 0.05
 rotation_epsilon = 1.0
 heartbeat_seconds = 15
 
-[bridge]
-enabled = true
-host = "0.0.0.0"
-port = 27220
-secret = ""
+[mumble]
+port = 18655
+users = 20
+
+[local_state]
+host = "127.0.0.1"
+port = 47855
 max_queue = 4096
-max_frame_bytes = 262144
-auth_timeout_seconds = 10
 
 [voice]
 default_range = 30
