@@ -443,7 +443,7 @@ async function showSettings(player) {
         "const latitudeDegrees = [-45, 0, 45];",
         "const meridianCount = 4;",
         'button("20 บล็อก", () => submitQuickRange(20))',
-        "submitRange(sliderValue);",
+        "const valueToCommit = queuedSliderRange;",
         "player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);",
         "Player-targeted particles keep the visualization private.",
     ]
