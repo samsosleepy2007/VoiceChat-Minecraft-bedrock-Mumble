@@ -40,6 +40,11 @@ def main() -> None:
             assert manifest["header"]["version"] == [2, 9, 0]
             assert manifest["header"]["name"] == "VC Mumble Item Mic BP v2.9.0"
             assert "showVoiceRangePreview(player, sliderValue);" in script
+            assert "const latitudeDegrees = [-45, 0, 45];" in script
+            assert "const meridianCount = 4;" in script
+            assert '.button("20 บล็อก", () => submitQuickRange(20))' in script
+            assert '.button("5 บล็อก"' not in script
+            assert "spawnVoiceRangePreviewPoint(player" in script
             assert "VOICE_RANGE_COMMIT_DEBOUNCE_TICKS = 8" in script
             assert "queuedSliderRange = sliderValue;" in script
             assert "const valueToCommit = queuedSliderRange;" in script
