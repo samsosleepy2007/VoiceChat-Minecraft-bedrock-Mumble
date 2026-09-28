@@ -31,7 +31,9 @@ assert config["bridge"]["max_frame_bytes"] >= 4096
 assert 2 <= config["bridge"]["auth_timeout_seconds"] <= 60
 assert config["voice"]["default_range"] == 30
 assert config["voice"]["max_range"] >= config["voice"]["default_range"]
-assert config["voice"]["default_attenuation_level"] == 2
+assert config["voice"]["default_attenuation_level"] == 3
+assert "migrated_attenuation" in plugin
+assert "legacy per-player Distance Volume" in plugin
 
 for expected in [
     'remove_scoreboard_tag',
