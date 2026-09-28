@@ -40,11 +40,13 @@ def main() -> None:
             assert manifest["header"]["version"] == [2, 10, 0]
             assert manifest["header"]["name"] == "VC Mumble Item Mic BP v2.10.0"
             assert "showVoiceRangePreview(player, sliderValue);" in script
-            assert "const latitudeDegrees = [-60, -30, 0, 30, 60];" in script
-            assert "const meridianCount = 6;" in script
+            assert "MolangVariableMap" in script
+            assert 'variables.setFloat("variable.vcmumble_diameter", radius * 2);' in script
+            assert "center.y + 0.04" in script
+            assert "center.y + radius" in script
             assert '.button("20 บล็อก", () => submitQuickRange(20), {' in script
             assert '.button("5 บล็อก"' not in script
-            assert "spawnVoiceRangePreviewPoint(player" in script
+            assert "spawnVoiceRangePreviewPoint(player" not in script
             assert "VOICE_RANGE_COMMIT_DEBOUNCE_TICKS = 8" in script
             assert "VOICE_RANGE_CHANGE_COOLDOWN_TICKS = 20 * 30" in script
             assert "startVoiceRangeCooldown(player);" in script
@@ -52,7 +54,7 @@ def main() -> None:
             assert "const valueToCommit = queuedSliderRange;" in script
             assert "showVoiceRangePreview(player, sliderValue);\n          submitRange(sliderValue);" not in script
             assert "rangeSlider.getData()" in script
-            assert "player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);" in script
+            assert script.count("player.spawnParticle(") == 2
             assert "Dimension.spawnParticle" not in script
             assert ".dimension.spawnParticle" not in script
             assert "ใช้ระยะจาก Slider" not in script
@@ -87,13 +89,21 @@ def main() -> None:
                 "minecraft:particle_lifetime_expression"
             ]["max_lifetime"]
             assert lifetime <= 0.35
-            assert components["minecraft:emitter_rate_instant"]["num_particles"] == 4
-            sphere = components["minecraft:emitter_shape_sphere"]
-            assert sphere["radius"] == 0.11
-            assert sphere["surface_only"] is False
+            assert components["minecraft:emitter_rate_instant"]["num_particles"] == 1
+            point = components["minecraft:emitter_shape_point"]
+            assert point["offset"] == [0, 0, 0]
+            assert point["direction"] == [0, 0, 0]
+            assert "minecraft:emitter_shape_sphere" not in components
+            billboard = components["minecraft:particle_appearance_billboard"]
+            assert billboard["facing_camera_mode"] == "emitter_transform_xz"
+            assert billboard["size"] == [
+                "variable.vcmumble_diameter",
+                "variable.vcmumble_diameter",
+            ]
+            assert "minecraft:particle_motion_dynamic" not in components
             assert texture.startswith(b"\x89PNG\r\n\x1a\n")
 
-    print("Item Mic v2.10.0 optimized green Voice Range preview + split DDUI: OK")
+    print("Item Mic v2.10.0 two-plate horizontal Voice Range preview + split DDUI: OK")
 
 
 if __name__ == "__main__":
