@@ -40,7 +40,8 @@ def main() -> None:
             assert manifest["header"]["version"] == [2, 10, 0]
             assert manifest["header"]["name"] == "VC Mumble Item Mic BP v2.10.0"
             assert "showVoiceRangePreview(player, sliderValue);" in script
-            assert "MolangVariableMap" not in script
+            assert "new MolangVariableMap()" not in script
+            assert "variable.vcmumble_diameter" not in script
             assert 'String(radius).padStart(3, "0")' in script
             assert 'const particleId = voiceRangePreviewParticleId(radius);' in script
             assert "center.y + 0.04" in script
