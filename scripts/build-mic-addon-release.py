@@ -513,6 +513,190 @@ async function showSettings(player) {
         1,
     )
 
+    main_ui_old = '''    const form = new CustomForm(player, "VC Mumble • Mic Settings")
+      .label(statusText)
+      .spacer()
+      .label(modeText)
+      .spacer()
+      .label(rangeText)
+      .spacer()
+      .label(offhandText)
+      .spacer()
+      .label(serverLimitText)
+      .spacer()
+      .divider()
+      .header("Mic Mode")
+      .label("Hold-to-Talk\\nถือ Mic = เปิดเสียง\\nเลิกถือ = ปิดเสียง\\n")
+      .button(
+        "Hold-to-Talk",
+        () =>
+          applyMicModeFromUi(
+            player,
+            MODE_HOLD,
+            statusText,
+            modeText,
+            holdDisabled,
+            toggleDisabled
+          ),
+        { disabled: holdDisabled }
+      )
+      .spacer()
+      .label("Toggle\\nหยิบ Mic ขึ้นมาหนึ่งครั้งเพื่อสลับ ON/OFF\\n")
+      .button(
+        "Toggle",
+        () =>
+          applyMicModeFromUi(
+            player,
+            MODE_TOGGLE,
+            statusText,
+            modeText,
+            holdDisabled,
+            toggleDisabled
+          ),
+        { disabled: toggleDisabled }
+      )
+      .spacer()
+      .divider()
+      .header("Voice Range")
+      .label(rangeConfirmText)
+      .spacer()
+      .button("10 บล็อก", () => submitQuickRange(10))
+      .button("20 บล็อก", () => submitQuickRange(20))
+      .button("30 บล็อก", () => submitQuickRange(30))
+      .spacer()
+      .slider("ระยะเสียงแบบ Slider", rangeSlider, 1, sliderMax, {
+        step: 1,
+        description:
+          "ลากเพื่อเปลี่ยนระยะทันที • โดม Preview จะเห็นเฉพาะตัวคุณเอง",
+      })
+      .spacer()
+      .divider()
+      .header("Reset")
+      .label("คืน Mic Mode เป็น Hold-to-Talk\\nVoice Range = 30 บล็อก\\n")
+      .button("คืนค่าเริ่มต้น", () => {
+        const resetRange = isOperator(player) ? 30 : Math.min(30, sliderMax.getData());
+        customRange.setData(String(resetRange));
+        lastSliderRange = Math.min(resetRange, sliderMax.getData());
+        rangeSlider.setData(lastSliderRange);
+        applyMicModeFromUi(
+          player,
+          MODE_HOLD,
+          statusText,
+          modeText,
+          holdDisabled,
+          toggleDisabled
+        );
+        submitRange(resetRange);
+      })
+      .spacer()
+      .closeButton();
+'''
+    main_ui_new = '''    const mainPageVisible = new ObservableBoolean(true);
+    const settingsPageVisible = new ObservableBoolean(false);
+    const showMainPage = () => {
+      mainPageVisible.setData(true);
+      settingsPageVisible.setData(false);
+    };
+    const showSettingsPage = () => {
+      mainPageVisible.setData(false);
+      settingsPageVisible.setData(true);
+    };
+
+    const form = new CustomForm(player, "VC Mumble • Mic Settings")
+      .header("สถานะ", { visible: mainPageVisible })
+      .label(modeText, { visible: mainPageVisible })
+      .label(rangeText, { visible: mainPageVisible })
+      .label(serverLimitText, { visible: mainPageVisible })
+      .spacer({ visible: mainPageVisible })
+      .divider({ visible: mainPageVisible })
+      .header("Voice Range", { visible: mainPageVisible })
+      .button("10 บล็อก", () => submitQuickRange(10), {
+        visible: mainPageVisible,
+      })
+      .button("20 บล็อก", () => submitQuickRange(20), {
+        visible: mainPageVisible,
+      })
+      .button("30 บล็อก", () => submitQuickRange(30), {
+        visible: mainPageVisible,
+      })
+      .spacer({ visible: mainPageVisible })
+      .slider("ระยะเสียงแบบ Slider", rangeSlider, 1, sliderMax, {
+        step: 1,
+        visible: mainPageVisible,
+        description:
+          "ลากเพื่อ Preview แบบ realtime • การเปลี่ยนระยะจริงมีคูลดาวน์ 30 วิ",
+      })
+      .spacer({ visible: mainPageVisible })
+      .button("ตั้งค่า", showSettingsPage, {
+        visible: mainPageVisible,
+      })
+      .divider({ visible: settingsPageVisible })
+      .header("ตั้งค่า", { visible: settingsPageVisible })
+      .header("Mic Mode", { visible: settingsPageVisible })
+      .label("Hold-to-Talk\\nถือ Mic = เปิดเสียง\\nเลิกถือ = ปิดเสียง\\n", {
+        visible: settingsPageVisible,
+      })
+      .button(
+        "Hold-to-Talk",
+        () =>
+          applyMicModeFromUi(
+            player,
+            MODE_HOLD,
+            statusText,
+            modeText,
+            holdDisabled,
+            toggleDisabled
+          ),
+        { disabled: holdDisabled, visible: settingsPageVisible }
+      )
+      .spacer({ visible: settingsPageVisible })
+      .label("Toggle\\nหยิบ Mic ขึ้นมาหนึ่งครั้งเพื่อสลับ ON/OFF\\n", {
+        visible: settingsPageVisible,
+      })
+      .button(
+        "Toggle",
+        () =>
+          applyMicModeFromUi(
+            player,
+            MODE_TOGGLE,
+            statusText,
+            modeText,
+            holdDisabled,
+            toggleDisabled
+          ),
+        { disabled: toggleDisabled, visible: settingsPageVisible }
+      )
+      .spacer({ visible: settingsPageVisible })
+      .divider({ visible: settingsPageVisible })
+      .header("Reset", { visible: settingsPageVisible })
+      .label("คืน Mic Mode เป็น Hold-to-Talk\\nVoice Range = 30 บล็อก\\n", {
+        visible: settingsPageVisible,
+      })
+      .button("คืนค่าเริ่มต้น", () => {
+        const resetRange = isOperator(player) ? 30 : Math.min(30, sliderMax.getData());
+        customRange.setData(String(resetRange));
+        lastSliderRange = Math.min(resetRange, sliderMax.getData());
+        rangeSlider.setData(lastSliderRange);
+        applyMicModeFromUi(
+          player,
+          MODE_HOLD,
+          statusText,
+          modeText,
+          holdDisabled,
+          toggleDisabled
+        );
+        submitRange(resetRange);
+      }, { visible: settingsPageVisible })
+      .spacer({ visible: settingsPageVisible })
+      .button("กลับหน้าหลัก", showMainPage, {
+        visible: settingsPageVisible,
+      })
+      .closeButton();
+'''
+    if main_ui_old not in text:
+        raise RuntimeError("could not locate simplified DDUI layout")
+    text = text.replace(main_ui_old, main_ui_new, 1)
+
     text = text.replace(
         '"[VCMumbleItem/BP] Loaded v2.8.0 — VC Mumble native mic/range contract (feature/minecraft-mic-addon-v1)"',
         '"[VCMumbleItem/BP] Loaded v2.10.0 — optimized dense green Voice Range preview + 30s range cooldown"',
@@ -526,7 +710,10 @@ async function showSettings(player) {
         "const meridianCount = 6;",
         "const VOICE_RANGE_CHANGE_COOLDOWN_TICKS = 20 * 30;",
         "startVoiceRangeCooldown(player);",
-        'button("20 บล็อก", () => submitQuickRange(20))',
+        'button("20 บล็อก", () => submitQuickRange(20), {',
+        '.button("ตั้งค่า", showSettingsPage, {',
+        '.button("กลับหน้าหลัก", showMainPage, {',
+        'const mainPageVisible = new ObservableBoolean(true);',
         "const valueToCommit = queuedSliderRange;",
         "player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);",
         "Player-targeted particles keep the visualization private.",
@@ -545,6 +732,9 @@ async function showSettings(player) {
         '.button("2 • ปกติ"',
         '.button("3 • แรง"',
         '.button("4 • แรงมาก"',
+        '.label(statusText)',
+        '.label(offhandText)',
+        '.label(rangeConfirmText)',
     ]
     for marker in forbidden_ui:
         if marker in text:
