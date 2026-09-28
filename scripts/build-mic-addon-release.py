@@ -11,13 +11,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "minecraft-addon" / "v2.8.0" / "VC_Mumble_ItemMic_v2.8.0.mcaddon.b64"
-ADDON_NAME = "VC_Mumble_ItemMic_v2.9.0.mcaddon"
-BP_NAME = "VC_Mumble_ItemMic_BP_v2.9.0.mcpack"
-RP_NAME = "VC_Mumble_ItemMic_RP_v2.9.0.mcpack"
+ADDON_NAME = "VC_Mumble_ItemMic_v2.10.0.mcaddon"
+BP_NAME = "VC_Mumble_ItemMic_BP_v2.10.0.mcpack"
+RP_NAME = "VC_Mumble_ItemMic_RP_v2.10.0.mcpack"
 BASE_BP_NAME = "VC_Mumble_ItemMic_BP_v2.8.0.mcpack"
 BASE_RP_NAME = "VC_Mumble_ItemMic_RP_v2.8.0.mcpack"
 BASE_SHA256 = "2e5da0b7692383af9b836544e3324bb46cde6185c3419e0ad86de7d850aab522"
-VERSION = [2, 9, 0]
+VERSION = [2, 10, 0]
 BP_UUID = "b6411120-cc4e-44a9-b28d-f43b10cafd86"
 RP_UUID = "cb345edb-6e6c-49ac-9950-e2ae07bda214"
 
@@ -80,19 +80,19 @@ def bump_manifest(raw: bytes, *, pack: str) -> bytes:
         module["version"] = VERSION
 
     if pack == "bp":
-        manifest["header"]["name"] = "VC Mumble Item Mic BP v2.9.0"
+        manifest["header"]["name"] = "VC Mumble Item Mic BP v2.10.0"
         manifest["header"]["description"] = (
-            "VC Mumble Item Mic: Mic ON/OFF, realtime DDUI voice-range preview, "
+            "VC Mumble Item Mic: Mic ON/OFF, realtime private 3D DDUI voice-range preview, "
             "Endstone voice-range control, and distance-volume attenuation control."
         )
         for dependency in manifest.get("dependencies", []):
             if dependency.get("uuid") == RP_UUID:
                 dependency["version"] = VERSION
     else:
-        manifest["header"]["name"] = "VC Mumble Mic Icons RP v2.9.0"
+        manifest["header"]["name"] = "VC Mumble Mic Icons RP v2.10.0"
         manifest["header"]["description"] = (
-            "Inventory icons, invisible held Mic model, and local Voice Range preview "
-            "particle for VC Mumble Item Mic v2.9.0."
+            "Inventory icons, invisible held Mic model, and private 3D Voice Range preview "
+            "particle for VC Mumble Item Mic v2.10.0."
         )
 
     return (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
@@ -433,7 +433,7 @@ async function showSettings(player) {
 
     text = text.replace(
         '"[VCMumbleItem/BP] Loaded v2.8.0 — VC Mumble native mic/range contract (feature/minecraft-mic-addon-v1)"',
-        '"[VCMumbleItem/BP] Loaded v2.9.0 — realtime local Voice Range preview + VC Mumble mic/range contract"',
+        '"[VCMumbleItem/BP] Loaded v2.10.0 — private 3D Voice Range preview + debounced VC Mumble range contract"',
         1,
     )
 
@@ -516,8 +516,8 @@ def main() -> int:
         outer.writestr(BP_NAME, bp)
         outer.writestr(RP_NAME, rp)
 
-    validate_pack(bp, BP_UUID, "VC Mumble Item Mic BP v2.9.0")
-    validate_pack(rp, RP_UUID, "VC Mumble Mic Icons RP v2.9.0")
+    validate_pack(bp, BP_UUID, "VC Mumble Item Mic BP v2.10.0")
+    validate_pack(rp, RP_UUID, "VC Mumble Mic Icons RP v2.10.0")
 
     (output / BP_NAME).write_bytes(bp)
     (output / RP_NAME).write_bytes(rp)
