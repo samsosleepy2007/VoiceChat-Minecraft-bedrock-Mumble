@@ -22,7 +22,7 @@ BP_UUID = "b6411120-cc4e-44a9-b28d-f43b10cafd86"
 RP_UUID = "cb345edb-6e6c-49ac-9950-e2ae07bda214"
 
 PREVIEW_DOT_PNG = base64.b64decode(
-    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAtElEQVR42q2Tuw2DMABEWcNr0KRgBJfusgALuGIAKjpXVCzgjg0oKSN6ZsgEyVl6UCCkKLKL15zvzv/q8fpUOdyJRjTCCgcWzfwqqAm0wosOPJrDc1uQBp6YexHECAHN46mvBYb2ZBjEJKKYIaINeNyxnaOgYYk9xhRaxAoL2oSnJXMWWJoDs6XAJnbY0CIeT+YscBzWyEwrwTfsaDOejky5guwtZB9i9jVmP6QiT7nIZ/qbL6Z1YG+cTpX/AAAAAElFTkSuQmCC"
+    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAqklEQVR4nMWSwQmEMBBFX8QeFrzYhz0IVpASxONuF2IJqUDYHuzDi7BVuAdHGbMm67IH/yXw8+YzIR+uljkyq7kugQLIxRqBoTfdMxpQzfUNaAALZB47AQ5oe9O9VjP1oAa4B7bN1N1jNRNvbRsY1rLC7gNY3uyvHdqkOArIP9mgNjaJUWekA8Yf5jZWBwwsX/VNk7D7ACmJOxHgdKH8HrRyRoukzb+rfL3eRxsoLQxEjFMAAAAASUVORK5CYII="
 )
 
 PREVIEW_PARTICLE = {
@@ -36,9 +36,12 @@ PREVIEW_PARTICLE = {
             },
         },
         "components": {
-            "minecraft:emitter_rate_instant": {"num_particles": 1},
+            "minecraft:emitter_rate_instant": {"num_particles": 4},
             "minecraft:emitter_lifetime_once": {"active_time": 0.01},
-            "minecraft:emitter_shape_point": {},
+            "minecraft:emitter_shape_sphere": {
+                "radius": 0.11,
+                "surface_only": False,
+            },
             "minecraft:particle_lifetime_expression": {"max_lifetime": 0.30},
             "minecraft:particle_motion_dynamic": {},
             "minecraft:particle_appearance_billboard": {
@@ -106,8 +109,35 @@ def patch_main_js(raw: bytes) -> bytes:
         'const DEFAULT_MAX_RANGE = 150;\n'
         'const VOICE_RANGE_PREVIEW_PARTICLE = "vcmumble:voice_range_preview";\n'
         'const VOICE_RANGE_PREVIEW_MIN_POINTS = 24;\n'
-        'const VOICE_RANGE_PREVIEW_MAX_POINTS = 120;\n'
-        'const VOICE_RANGE_COMMIT_DEBOUNCE_TICKS = 8;\n',
+        'const VOICE_RANGE_PREVIEW_MAX_POINTS = 32;\n'
+        'const VOICE_RANGE_COMMIT_DEBOUNCE_TICKS = 8;\n'
+        'const VOICE_RANGE_CHANGE_COOLDOWN_TICKS = 20 * 30;\n',
+        1,
+    )
+
+    text = text.replace(
+        "const states = new Map();\n",
+        """const states = new Map();
+const rangeChangeCooldownUntil = new Map();
+
+function voiceRangeCooldownTicks(player) {
+  return Math.max(
+    0,
+    (rangeChangeCooldownUntil.get(player.id) ?? 0) - system.currentTick
+  );
+}
+
+function voiceRangeCooldownSeconds(player) {
+  return Math.ceil(voiceRangeCooldownTicks(player) / 20);
+}
+
+function startVoiceRangeCooldown(player) {
+  rangeChangeCooldownUntil.set(
+    player.id,
+    system.currentTick + VOICE_RANGE_CHANGE_COOLDOWN_TICKS
+  );
+}
+""",
         1,
     )
 
@@ -135,14 +165,17 @@ function showVoiceRangePreview(player, rawRadius) {
     return;
   }
 
-  // Bounded wireframe volume: three latitude rings show width while four
-  // vertical meridians show the microphone reach above and below the player.
+  // Dense appearance with bounded Script API calls. Each spawn call emits
+  // a 4-particle green cluster on the client instead of four server calls.
   const equatorPoints = Math.max(
     VOICE_RANGE_PREVIEW_MIN_POINTS,
-    Math.min(32, Math.ceil((Math.PI * 2 * radius) / 5))
+    Math.min(
+      VOICE_RANGE_PREVIEW_MAX_POINTS,
+      Math.ceil((Math.PI * 2 * radius) / 3)
+    )
   );
   const centerY = center.y + 0.12;
-  const latitudeDegrees = [-45, 0, 45];
+  const latitudeDegrees = [-60, -30, 0, 30, 60];
 
   for (const latitudeDeg of latitudeDegrees) {
     const latitude = (latitudeDeg * Math.PI) / 180;
@@ -151,7 +184,12 @@ function showVoiceRangePreview(player, rawRadius) {
     const latitudePoints =
       latitudeDeg === 0
         ? equatorPoints
-        : Math.max(16, Math.floor(equatorPoints * 0.65));
+        : Math.max(
+            14,
+            Math.floor(
+              equatorPoints * Math.max(0.45, Math.cos(latitude) * 0.75)
+            )
+          );
 
     for (let i = 0; i < latitudePoints; i++) {
       const angle = (Math.PI * 2 * i) / latitudePoints;
@@ -163,8 +201,8 @@ function showVoiceRangePreview(player, rawRadius) {
     }
   }
 
-  const meridianCount = 4;
-  const meridianPoints = 11;
+  const meridianCount = 6;
+  const meridianPoints = 10;
   for (let meridian = 0; meridian < meridianCount; meridian++) {
     const longitude = (Math.PI * meridian) / meridianCount;
     for (let step = 0; step < meridianPoints; step++) {
@@ -207,6 +245,27 @@ async function showSettings(player) {
     if old_slider_state not in text:
         raise RuntimeError("could not locate range slider state")
     text = text.replace(old_slider_state, new_slider_state, 1)
+
+    cooldown_submit_anchor = '''      const requestId = requestVoiceRange(player, value);
+      if (!requestId) {
+'''
+    cooldown_submit = '''      const cooldownSeconds = voiceRangeCooldownSeconds(player);
+      if (cooldownSeconds > 0) {
+        queuedSliderRange = value;
+        sliderCommitDueTick = system.currentTick + 20;
+        customRange.setData(String(value));
+        rangeConfirmText.setData(
+          `สถานะ Endstone: §eคูลดาวน์ ${cooldownSeconds} วิ • Preview ${value} บล็อก§r\\n`
+        );
+        return;
+      }
+
+      const requestId = requestVoiceRange(player, value);
+      if (!requestId) {
+'''
+    if cooldown_submit_anchor not in text:
+        raise RuntimeError("could not locate range cooldown submit anchor")
+    text = text.replace(cooldown_submit_anchor, cooldown_submit, 1)
 
     old_submit = '''      const maxNow = sliderMax.getData();
       if (value >= 1 && value <= maxNow) rangeSlider.setData(value);
@@ -379,9 +438,17 @@ async function showSettings(player) {
           // debounced so dragging cannot create a request/ACK + disk-write storm.
           lastSliderRange = sliderValue;
           showVoiceRangePreview(player, sliderValue);
-          queuedSliderRange = sliderValue;
-          sliderCommitDueTick =
-            system.currentTick + VOICE_RANGE_COMMIT_DEBOUNCE_TICKS;
+
+          if (!pendingRequestId && sliderValue === confirmedRange) {
+            queuedSliderRange = null;
+            rangeConfirmText.setData(
+              `สถานะ Endstone: §aใช้อยู่แล้ว — ${confirmedRange} บล็อก§r\\n`
+            );
+          } else {
+            queuedSliderRange = sliderValue;
+            sliderCommitDueTick =
+              system.currentTick + VOICE_RANGE_COMMIT_DEBOUNCE_TICKS;
+          }
         }
 
         if (
@@ -399,6 +466,21 @@ async function showSettings(player) {
     if old_refresh not in text:
         raise RuntimeError("could not locate DDUI refresh slider block")
     text = text.replace(old_refresh, new_refresh, 1)
+
+    cooldown_ack_old = '''            if (implicitAck || (ack?.status === "ok" && acceptedValue === pendingRange)) {
+              rangeConfirmText.setData(
+                `สถานะ Endstone: §aยืนยันแล้ว — ${acceptedValue} บล็อก${implicitAck ? " (server sync)" : ""}§r\\n`
+              );
+'''
+    cooldown_ack_new = '''            if (implicitAck || (ack?.status === "ok" && acceptedValue === pendingRange)) {
+              startVoiceRangeCooldown(player);
+              rangeConfirmText.setData(
+                `สถานะ Endstone: §aยืนยันแล้ว — ${acceptedValue} บล็อก • คูลดาวน์ 30 วิ${implicitAck ? " (server sync)" : ""}§r\\n`
+              );
+'''
+    if cooldown_ack_old not in text:
+        raise RuntimeError("could not locate successful range ACK block")
+    text = text.replace(cooldown_ack_old, cooldown_ack_new, 1)
 
     text = text.replace(
         '''              customRange.setData(String(confirmedRange));
@@ -433,15 +515,17 @@ async function showSettings(player) {
 
     text = text.replace(
         '"[VCMumbleItem/BP] Loaded v2.8.0 — VC Mumble native mic/range contract (feature/minecraft-mic-addon-v1)"',
-        '"[VCMumbleItem/BP] Loaded v2.10.0 — private 3D Voice Range preview + debounced VC Mumble range contract"',
+        '"[VCMumbleItem/BP] Loaded v2.10.0 — optimized dense green Voice Range preview + 30s range cooldown"',
         1,
     )
 
     required = [
         "showVoiceRangePreview(player, sliderValue);",
         "submitQuickRange(20)",
-        "const latitudeDegrees = [-45, 0, 45];",
-        "const meridianCount = 4;",
+        "const latitudeDegrees = [-60, -30, 0, 30, 60];",
+        "const meridianCount = 6;",
+        "const VOICE_RANGE_CHANGE_COOLDOWN_TICKS = 20 * 30;",
+        "startVoiceRangeCooldown(player);",
         'button("20 บล็อก", () => submitQuickRange(20))',
         "const valueToCommit = queuedSliderRange;",
         "player.spawnParticle(VOICE_RANGE_PREVIEW_PARTICLE, location);",
