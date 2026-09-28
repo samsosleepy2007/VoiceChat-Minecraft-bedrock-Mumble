@@ -1,0 +1,29 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "VC Mumble Mic Icons RP v2.10.1 EXP",
+    "description": "Experimental dense green owner-only Voice Range preview for VC Mumble Item Mic.",
+    "uuid": "cb345edb-6e6c-49ac-9950-e2ae07bda214",
+    "version": [
+      2,
+      10,
+      1
+    ],
+    "min_engine_version": [
+      1,
+      26,
+      40
+    ]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "8fe8f823-ec65-4cb3-9c65-310932410e59",
+      "version": [
+        2,
+        10,
+        1
+      ]
+    }
+  ]
+}
