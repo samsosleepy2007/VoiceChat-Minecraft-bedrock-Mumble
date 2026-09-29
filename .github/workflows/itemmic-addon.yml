@@ -16,28 +16,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build and test Item Mic v2.11.0
+      - name: Build and test Item Mic v2.11.1
         run: |
           python3 tests/test_itemmic_v29_builder.py
           rm -rf dist/itemmic
           mkdir -p dist/itemmic
           python3 scripts/build-mic-addon-release.py --output dist/itemmic
-          unzip -t dist/itemmic/VC_Mumble_ItemMic_v2.11.0.mcaddon
+          unzip -t dist/itemmic/VC_Mumble_ItemMic_v2.11.1.mcaddon
           python3 - <<'PY'
           import io, zipfile
           from pathlib import Path
 
-          addon = Path("dist/itemmic/VC_Mumble_ItemMic_v2.11.0.mcaddon")
+          addon = Path("dist/itemmic/VC_Mumble_ItemMic_v2.11.1.mcaddon")
           with zipfile.ZipFile(addon) as outer:
-              bp = outer.read("VC_Mumble_ItemMic_BP_v2.11.0.mcpack")
+              bp = outer.read("VC_Mumble_ItemMic_BP_v2.11.1.mcpack")
           with zipfile.ZipFile(io.BytesIO(bp)) as pack:
               Path("/tmp/itemmic-main.js").write_bytes(pack.read("scripts/main.js"))
           PY
           node --check /tmp/itemmic-main.js
-          sha256sum dist/itemmic/VC_Mumble_ItemMic_v2.11.0.mcaddon
+          sha256sum dist/itemmic/VC_Mumble_ItemMic_v2.11.1.mcaddon
 
       - uses: actions/upload-artifact@v4
         with:
-          name: VC_Mumble_ItemMic_v2.11.0
-          path: dist/itemmic/VC_Mumble_ItemMic_v2.11.0.mcaddon
+          name: VC_Mumble_ItemMic_v2.11.1
+          path: dist/itemmic/VC_Mumble_ItemMic_v2.11.1.mcaddon
           retention-days: 14
