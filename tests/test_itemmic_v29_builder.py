@@ -85,13 +85,13 @@ def main() -> None:
             assert phone_desc["identifier"] == "voicecraft:phone"
             assert phone_desc["menu_category"]["category"] == "equipment"
             assert phone_components["minecraft:display_name"]["value"] == "โทรศัพท์"
+            assert phone_components["minecraft:icon"] == "voicecraft_phone"
             assert (
-                phone_components["minecraft:icon"]["textures"]["default"]
-                == "voicecraft_phone"
+                phone_components["minecraft:wearable"]["slot"]
+                == "slot.weapon.offhand"
             )
             assert phone_components["minecraft:max_stack_size"] == 1
-            assert phone_components["minecraft:hand_equipped"] is True
-            assert phone_components["minecraft:allow_off_hand"] is False
+            assert phone_components["minecraft:allow_off_hand"] is True
             assert "minecraft:interact_button" not in phone_components
             assert "vcmumble:open_settings" not in phone_components
 
@@ -108,9 +108,14 @@ def main() -> None:
             phone_geometry = json.loads(
                 rp.read("models/entity/voicecraft_phone.geo.json")
             )
+            phone_animation = json.loads(
+                rp.read("animations/voicecraft_phone.animation.json")
+            )
             assert "entity/player.entity.json" not in rp.namelist()
             phone_atlas = json.loads(rp.read("textures/item_texture.json"))
-            phone_texture = rp.read("textures/entity/voicecraft_phone.png")
+            phone_texture = rp.read(
+                "textures/models/armor/voicecraft_phone.png"
+            )
             phone_icon = rp.read("textures/items/icon_phone.png")
 
             assert manifest["header"]["version"] == [2, 11, 1]
@@ -145,42 +150,58 @@ def main() -> None:
 
             attach_desc = phone_attachable["minecraft:attachable"]["description"]
             assert attach_desc["identifier"] == "voicecraft:phone"
+            assert attach_desc["materials"]["default"] == "armor"
             assert (
-                attach_desc["item"]["voicecraft:phone"]
-                == "query.is_owner_identifier_any('minecraft:player')"
+                attach_desc["textures"]["default"]
+                == "textures/models/armor/voicecraft_phone"
             )
             assert attach_desc["geometry"]["default"] == "geometry.voicecraft.phone"
             assert attach_desc["render_controllers"] == [
-                "controller.render.item_default"
+                "controller.render.armor"
             ]
+            assert attach_desc["scripts"]["animate"] == ["smooth_anim"]
+            assert len(attach_desc["scripts"]["initialize"]) == 3
+            assert len(attach_desc["scripts"]["pre_animation"]) == 3
             assert (
-                attach_desc["textures"]["default"]
-                == "textures/entity/voicecraft_phone"
+                attach_desc["animations"]["smooth_anim"]
+                == "animation.mvzsnnZDtuHeljH"
             )
 
             geometry = phone_geometry["minecraft:geometry"][0]
-            assert phone_geometry["format_version"] == "1.16.0"
+            assert phone_geometry["format_version"] == "1.12.0"
             assert geometry["description"]["identifier"] == "geometry.voicecraft.phone"
             assert geometry["description"]["texture_width"] == 64
             assert geometry["description"]["texture_height"] == 64
 
-            bones = {bone["name"]: bone for bone in geometry["bones"]}
-            assert bones["waist"]["pivot"] == [0, 12, 0]
-            assert bones["body"]["parent"] == "waist"
-            assert bones["rightArm"]["parent"] == "body"
-            assert bones["rightArm"]["pivot"] == [-5, 22, 0]
-            assert bones["rightItem"]["parent"] == "rightArm"
-            assert bones["rightItem"]["pivot"] == [-6, 15, 1]
-            assert bones["rightItem"]["neverRender"] is True
-            phone_bone = bones["White Phone"]
-            assert phone_bone["parent"] == "rightItem"
-            assert "binding" not in phone_bone
+            right_arms = [
+                bone for bone in geometry["bones"]
+                if bone["name"] == "rightArm"
+            ]
+            assert len(right_arms) == 1
+            assert right_arms[0]["parent"] == "body"
+            assert right_arms[0]["pivot"] == [-5, 22, 0]
+            phone_bones = [
+                bone for bone in geometry["bones"]
+                if bone["name"] == "White Phone"
+            ]
+            assert len(phone_bones) == 1
+            phone_bone = phone_bones[0]
+            assert phone_bone["parent"] == "rightArm"
             assert phone_bone["pivot"] == [-5.3125, 13.46875, -4]
             assert phone_bone["rotation"] == [72.5, 0, 0]
             assert len(phone_bone["cubes"]) == 20
-            for name, bone in bones.items():
-                if name != "White Phone":
-                    assert not bone.get("cubes"), name
+
+            animations = phone_animation["animations"]
+            assert "animation.mvzsnnZDtuHeljH" in animations
+            smooth = animations["animation.mvzsnnZDtuHeljH"]
+            assert smooth["loop"] is True
+            assert "bIOejZQOQubdmuIS" in smooth["bones"]
+            rotation = smooth["bones"]["bIOejZQOQubdmuIS"]["rotation"]["0.0"]
+            assert rotation["post"] == [
+                "variable.sx_BbpVItMC",
+                "variable.sy_WUFQUhXp",
+                0,
+            ]
             assert (
                 phone_atlas["texture_data"]["voicecraft_phone"]["textures"]
                 == "textures/items/icon_phone"
