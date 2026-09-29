@@ -90,6 +90,7 @@ def main() -> None:
                 == "voicecraft_phone"
             )
             assert phone_components["minecraft:max_stack_size"] == 1
+            assert phone_components["minecraft:allow_off_hand"] is False
             assert "minecraft:interact_button" not in phone_components
             assert "vcmumble:open_settings" not in phone_components
 
@@ -148,15 +149,18 @@ def main() -> None:
                 == "textures/entity/voicecraft_phone"
             )
             geometry = phone_geometry["minecraft:geometry"][0]
+            assert phone_geometry["format_version"] == "1.16.0"
             assert geometry["description"]["identifier"] == "geometry.voicecraft.phone"
             assert geometry["description"]["texture_width"] == 64
             assert geometry["description"]["texture_height"] == 64
-            assert [bone["name"] for bone in geometry["bones"]] == [
-                "Waist",
-                "Right Arm",
-                "White Phone",
-            ]
-            assert len(geometry["bones"][2]["cubes"]) >= 1
+            assert [bone["name"] for bone in geometry["bones"]] == ["White Phone"]
+            phone_bone = geometry["bones"][0]
+            assert "parent" not in phone_bone
+            assert (
+                phone_bone["binding"]
+                == "q.item_slot_to_bone_name(context.item_slot)"
+            )
+            assert len(phone_bone["cubes"]) >= 1
             assert (
                 phone_atlas["texture_data"]["voicecraft_phone"]["textures"]
                 == "textures/items/icon_phone"
