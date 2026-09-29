@@ -153,14 +153,18 @@ def main() -> None:
             assert geometry["description"]["identifier"] == "geometry.voicecraft.phone"
             assert geometry["description"]["texture_width"] == 64
             assert geometry["description"]["texture_height"] == 64
-            assert [bone["name"] for bone in geometry["bones"]] == ["White Phone"]
-            phone_bone = geometry["bones"][0]
-            assert "parent" not in phone_bone
-            assert (
-                phone_bone["binding"]
-                == "q.item_slot_to_bone_name(context.item_slot)"
-            )
-            assert len(phone_bone["cubes"]) >= 1
+            assert [bone["name"] for bone in geometry["bones"]] == [
+                "Right Arm",
+                "White Phone",
+            ]
+            right_arm = geometry["bones"][0]
+            phone_bone = geometry["bones"][1]
+            assert right_arm["pivot"] == [-5, 22, 0]
+            assert phone_bone["parent"] == "Right Arm"
+            assert phone_bone["binding"] == "'rightarm'"
+            assert phone_bone["pivot"] == [-5.3125, 13.46875, -4]
+            assert phone_bone["rotation"] == [72.5, 0, 0]
+            assert len(phone_bone["cubes"]) == 20
             assert (
                 phone_atlas["texture_data"]["voicecraft_phone"]["textures"]
                 == "textures/items/icon_phone"
