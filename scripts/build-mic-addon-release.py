@@ -12,13 +12,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "minecraft-addon" / "v2.8.0" / "VC_Mumble_ItemMic_v2.8.0.mcaddon.b64"
-ADDON_NAME = "VC_Mumble_ItemMic_v2.11.0.mcaddon"
-BP_NAME = "VC_Mumble_ItemMic_BP_v2.11.0.mcpack"
-RP_NAME = "VC_Mumble_ItemMic_RP_v2.11.0.mcpack"
+ADDON_NAME = "VC_Mumble_ItemMic_v2.11.1.mcaddon"
+BP_NAME = "VC_Mumble_ItemMic_BP_v2.11.1.mcpack"
+RP_NAME = "VC_Mumble_ItemMic_RP_v2.11.1.mcpack"
 BASE_BP_NAME = "VC_Mumble_ItemMic_BP_v2.8.0.mcpack"
 BASE_RP_NAME = "VC_Mumble_ItemMic_RP_v2.8.0.mcpack"
 BASE_SHA256 = "2e5da0b7692383af9b836544e3324bb46cde6185c3419e0ad86de7d850aab522"
-VERSION = [2, 11, 0]
+VERSION = [2, 11, 1]
 BP_UUID = "b6411120-cc4e-44a9-b28d-f43b10cafd86"
 RP_UUID = "cb345edb-6e6c-49ac-9950-e2ae07bda214"
 PHONE_ASSET_DIR = ROOT / "minecraft-addon" / "assets" / "phone"
@@ -89,7 +89,7 @@ def bump_manifest(raw: bytes, *, pack: str) -> bytes:
         module["version"] = VERSION
 
     if pack == "bp":
-        manifest["header"]["name"] = "VC Mumble Item Mic BP v2.11.0"
+        manifest["header"]["name"] = "VC Mumble Item Mic BP v2.11.1"
         manifest["header"]["description"] = (
             "VC Mumble Item Mic: Mic ON/OFF, settle-only DDUI voice-range preview, "
             "Endstone voice-range control, and Phone equipment item."
@@ -98,10 +98,10 @@ def bump_manifest(raw: bytes, *, pack: str) -> bytes:
             if dependency.get("uuid") == RP_UUID:
                 dependency["version"] = VERSION
     else:
-        manifest["header"]["name"] = "VC Mumble Mic Icons RP v2.11.0"
+        manifest["header"]["name"] = "VC Mumble Mic Icons RP v2.11.1"
         manifest["header"]["description"] = (
             "Mic icons/models, Phone equipment model/icon, and private Voice Range preview "
-            "resources for VC Mumble Item Mic v2.11.0."
+            "resources for VC Mumble Item Mic v2.11.1."
         )
 
     return (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
@@ -846,8 +846,8 @@ def main() -> int:
         outer.writestr(BP_NAME, bp)
         outer.writestr(RP_NAME, rp)
 
-    validate_pack(bp, BP_UUID, "VC Mumble Item Mic BP v2.11.0")
-    validate_pack(rp, RP_UUID, "VC Mumble Mic Icons RP v2.11.0")
+    validate_pack(bp, BP_UUID, "VC Mumble Item Mic BP v2.11.1")
+    validate_pack(rp, RP_UUID, "VC Mumble Mic Icons RP v2.11.1")
 
     (output / BP_NAME).write_bytes(bp)
     (output / RP_NAME).write_bytes(rp)
