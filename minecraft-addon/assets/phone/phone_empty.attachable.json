@@ -1,0 +1,20 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:attachable": {
+    "description": {
+      "identifier": "voicecraft:phone",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/voicecraft_phone"
+      },
+      "geometry": {
+        "default": "geometry.voicecraft.phone_empty"
+      },
+      "render_controllers": [
+        "controller.render.voicecraft_phone"
+      ]
+    }
+  }
+}
