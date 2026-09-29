@@ -16,7 +16,34 @@
       },
       "bones": [
         {
-          "name": "Right Arm",
+          "name": "waist",
+          "pivot": [
+            0,
+            12,
+            0
+          ]
+        },
+        {
+          "name": "body",
+          "parent": "waist",
+          "pivot": [
+            0,
+            24,
+            0
+          ]
+        },
+        {
+          "name": "head",
+          "parent": "body",
+          "pivot": [
+            0,
+            24,
+            0
+          ]
+        },
+        {
+          "name": "rightArm",
+          "parent": "body",
           "pivot": [
             -5,
             22,
@@ -24,8 +51,55 @@
           ]
         },
         {
+          "name": "rightItem",
+          "parent": "rightArm",
+          "pivot": [
+            -6,
+            15,
+            1
+          ],
+          "neverRender": true
+        },
+        {
+          "name": "leftArm",
+          "parent": "body",
+          "pivot": [
+            5,
+            22,
+            0
+          ]
+        },
+        {
+          "name": "leftItem",
+          "parent": "leftArm",
+          "pivot": [
+            6,
+            15,
+            1
+          ],
+          "neverRender": true
+        },
+        {
+          "name": "rightLeg",
+          "parent": "waist",
+          "pivot": [
+            -1.9,
+            12,
+            0
+          ]
+        },
+        {
+          "name": "leftLeg",
+          "parent": "waist",
+          "pivot": [
+            1.9,
+            12,
+            0
+          ]
+        },
+        {
           "name": "White Phone",
-          "parent": "Right Arm",
+          "parent": "rightItem",
           "pivot": [
             -5.3125,
             13.46875,
@@ -1467,8 +1541,7 @@
                 }
               }
             }
-          ],
-          "binding": "'rightarm'"
+          ]
         }
       ]
     }
