@@ -121,7 +121,7 @@ def phone_item() -> dict:
                     "textures": {"default": "voicecraft_phone"}
                 },
                 "minecraft:max_stack_size": 1,
-                "minecraft:allow_off_hand": True,
+                "minecraft:allow_off_hand": False,
             },
         },
     }
