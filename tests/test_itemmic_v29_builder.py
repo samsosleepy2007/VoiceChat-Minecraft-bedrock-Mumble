@@ -20,12 +20,12 @@ def main() -> None:
             check=True,
         )
 
-        addon = out / "VC_Mumble_ItemMic_v2.11.0.mcaddon"
+        addon = out / "VC_Mumble_ItemMic_v2.11.1.mcaddon"
         assert addon.is_file()
 
         with zipfile.ZipFile(addon) as outer:
-            bp_name = "VC_Mumble_ItemMic_BP_v2.11.0.mcpack"
-            rp_name = "VC_Mumble_ItemMic_RP_v2.11.0.mcpack"
+            bp_name = "VC_Mumble_ItemMic_BP_v2.11.1.mcpack"
+            rp_name = "VC_Mumble_ItemMic_RP_v2.11.1.mcpack"
             assert set(outer.namelist()) == {bp_name, rp_name}
 
             bp_file = out / bp_name
@@ -37,8 +37,8 @@ def main() -> None:
             manifest = json.loads(bp.read("manifest.json"))
             script = bp.read("scripts/main.js").decode("utf-8")
 
-            assert manifest["header"]["version"] == [2, 11, 0]
-            assert manifest["header"]["name"] == "VC Mumble Item Mic BP v2.11.0"
+            assert manifest["header"]["version"] == [2, 11, 1]
+            assert manifest["header"]["name"] == "VC Mumble Item Mic BP v2.11.1"
             assert "showVoiceRangePreview(player, settledValue);" in script
             assert "new MolangVariableMap()" not in script
             assert "variable.vcmumble_diameter" not in script
@@ -113,8 +113,8 @@ def main() -> None:
             phone_texture = rp.read("textures/entity/voicecraft_phone.png")
             phone_icon = rp.read("textures/items/icon_phone.png")
 
-            assert manifest["header"]["version"] == [2, 11, 0]
-            assert manifest["header"]["name"] == "VC Mumble Mic Icons RP v2.11.0"
+            assert manifest["header"]["version"] == [2, 11, 1]
+            assert manifest["header"]["name"] == "VC Mumble Mic Icons RP v2.11.1"
             for radius, particle in ((1, particle_1), (150, particle_150)):
                 assert (
                     particle["particle_effect"]["description"]["identifier"]
@@ -188,7 +188,7 @@ def main() -> None:
             assert phone_texture.startswith(b"\x89PNG\r\n\x1a\n")
             assert phone_icon.startswith(b"\x89PNG\r\n\x1a\n")
 
-    print("Item Mic v2.11.0 + Phone equipment item: OK")
+    print("Item Mic v2.11.1 + Phone equipment item: OK")
 
 
 if __name__ == "__main__":
