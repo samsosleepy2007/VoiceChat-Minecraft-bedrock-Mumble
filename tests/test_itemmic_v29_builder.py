@@ -90,6 +90,7 @@ def main() -> None:
                 == "voicecraft_phone"
             )
             assert phone_components["minecraft:max_stack_size"] == 1
+            assert phone_components["minecraft:hand_equipped"] is True
             assert phone_components["minecraft:allow_off_hand"] is False
             assert "minecraft:interact_button" not in phone_components
             assert "vcmumble:open_settings" not in phone_components
@@ -105,18 +106,9 @@ def main() -> None:
             texture = rp.read("textures/particle/vcmumble_voice_range_dot.png")
             phone_attachable = json.loads(rp.read("attachables/phone.entity.json"))
             phone_geometry = json.loads(
-                rp.read("models/entity/voicecraft_phone_player.geo.json")
+                rp.read("models/entity/voicecraft_phone.geo.json")
             )
-            phone_empty_geometry = json.loads(
-                rp.read("models/entity/voicecraft_phone_empty.geo.json")
-            )
-            player_entity = json.loads(rp.read("entity/player.entity.json"))
-            phone_player_rc = json.loads(
-                rp.read(
-                    "render_controllers/"
-                    "voicecraft_phone_player.render_controllers.json"
-                )
-            )
+            assert "entity/player.entity.json" not in rp.namelist()
             phone_atlas = json.loads(rp.read("textures/item_texture.json"))
             phone_texture = rp.read("textures/entity/voicecraft_phone.png")
             phone_icon = rp.read("textures/items/icon_phone.png")
@@ -154,35 +146,34 @@ def main() -> None:
             attach_desc = phone_attachable["minecraft:attachable"]["description"]
             assert attach_desc["identifier"] == "voicecraft:phone"
             assert (
-                attach_desc["geometry"]["default"]
-                == "geometry.voicecraft.phone_empty"
+                attach_desc["item"]["voicecraft:phone"]
+                == "query.is_owner_identifier_any('minecraft:player')"
             )
-
-            empty_geometry = phone_empty_geometry["minecraft:geometry"][0]
+            assert attach_desc["geometry"]["default"] == "geometry.voicecraft.phone"
+            assert attach_desc["render_controllers"] == [
+                "controller.render.item_default"
+            ]
             assert (
-                empty_geometry["description"]["identifier"]
-                == "geometry.voicecraft.phone_empty"
-            )
-            assert all(
-                not bone.get("cubes")
-                for bone in empty_geometry["bones"]
+                attach_desc["textures"]["default"]
+                == "textures/entity/voicecraft_phone"
             )
 
             geometry = phone_geometry["minecraft:geometry"][0]
             assert phone_geometry["format_version"] == "1.16.0"
-            assert (
-                geometry["description"]["identifier"]
-                == "geometry.voicecraft.phone_player"
-            )
+            assert geometry["description"]["identifier"] == "geometry.voicecraft.phone"
             assert geometry["description"]["texture_width"] == 64
             assert geometry["description"]["texture_height"] == 64
 
             bones = {bone["name"]: bone for bone in geometry["bones"]}
+            assert bones["waist"]["pivot"] == [0, 12, 0]
+            assert bones["body"]["parent"] == "waist"
             assert bones["rightArm"]["parent"] == "body"
             assert bones["rightArm"]["pivot"] == [-5, 22, 0]
             assert bones["rightItem"]["parent"] == "rightArm"
+            assert bones["rightItem"]["pivot"] == [-6, 15, 1]
+            assert bones["rightItem"]["neverRender"] is True
             phone_bone = bones["White Phone"]
-            assert phone_bone["parent"] == "rightArm"
+            assert phone_bone["parent"] == "rightItem"
             assert "binding" not in phone_bone
             assert phone_bone["pivot"] == [-5.3125, 13.46875, -4]
             assert phone_bone["rotation"] == [72.5, 0, 0]
@@ -190,32 +181,6 @@ def main() -> None:
             for name, bone in bones.items():
                 if name != "White Phone":
                     assert not bone.get("cubes"), name
-
-            player_desc = player_entity["minecraft:client_entity"]["description"]
-            assert (
-                player_desc["geometry"]["phone"]
-                == "geometry.voicecraft.phone_player"
-            )
-            assert (
-                player_desc["textures"]["phone"]
-                == "textures/entity/voicecraft_phone"
-            )
-            assert any(
-                "voicecraft_phone" in line
-                and "slot.weapon.mainhand" in line
-                and "voicecraft:phone" in line
-                for line in player_desc["scripts"]["pre_animation"]
-            )
-            assert {
-                "controller.render.voicecraft_phone_player":
-                    "variable.voicecraft_phone"
-            } in player_desc["render_controllers"]
-
-            phone_rc = phone_player_rc["render_controllers"][
-                "controller.render.voicecraft_phone_player"
-            ]
-            assert phone_rc["geometry"] == "Geometry.phone"
-            assert phone_rc["textures"] == ["Texture.phone"]
             assert (
                 phone_atlas["texture_data"]["voicecraft_phone"]["textures"]
                 == "textures/items/icon_phone"
